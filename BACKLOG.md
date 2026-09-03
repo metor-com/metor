@@ -37,8 +37,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 - **Telegram channel** as a thin additional entrance to the gateway (the one OpenClaw gap that
   matters); related idea: an e-mail address per bot as an entrance (delegate by forwarding)
 - **Server installation** - built 2026-09-01: ghcr workflow, compose (with or without Caddy),
-  install.sh, INSTALL.md. Remaining: make the image package public after the ADR-0006 check, npm CLI
-  as a launcher (`npm i -g metor` -> `metor setup`; check npm names), arm64 variant
+  install.sh, INSTALL.md. Remaining: npm CLI as a launcher (`npm i -g metor` -> `metor setup`; check npm names), arm64 variant
 - **metor on the Mac** - `brew install metor-com/tap/metor && metor setup` with Apple's
   `container` runtime (macOS 26, Apple silicon) or Colima/Docker Desktop as fallback. Spike done
   2026-09-03: the whole box runs under Apple `container`, bots start in 2 s; two blockers noted in

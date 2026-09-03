@@ -1,8 +1,7 @@
 # Builds the box image on every push to main and on version tags (v*), and pushes it to the
 # GitHub Container Registry. Servers then `docker pull` instead of clone+build (see INSTALL.md).
 # The image is pushed as ghcr.io/<repository owner>/metor-box, so this works before and after moving the repo
-# (goodcarl → metor-com). Package visibility (private/public) is switched in the GitHub package
-# settings; before going public, run the check from knowledge/decisions/0006-legal-guardrails.md.
+# (goodcarl → metor-com). Package visibility is switched in the GitHub package settings.
 name: box-image
 on:
   push:
