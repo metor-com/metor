@@ -1,0 +1,9 @@
+# Keep the build context small and clean (context = repo root, see backend/box/Dockerfile)
+.git
+**/node_modules
+frontend/dist
+knowledge
+docs
+*.md
+CLAUDE.local.md
+.claude

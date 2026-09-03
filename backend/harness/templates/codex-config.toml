@@ -1,0 +1,8 @@
+# metor – global Codex base configuration ($CODEX_HOME/config.toml).
+# Created once by the supervisor if it is missing (login data lives next to it in auth.json).
+# The hosts additionally set sandbox/approvals per thread – the values here apply to manual
+# codex invocations in the Terminal tab: the container is the isolation boundary
+# (ADR-0004, knowledge/decisions/0004-bot-policy.md).
+cli_auth_credentials_store = "file"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"

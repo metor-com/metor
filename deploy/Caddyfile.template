@@ -1,0 +1,16 @@
+# metor – Caddy template for the dedicated server (install.sh replaces @DOMAIN@ and writes the
+# result as Caddyfile next to compose.yml). Caddy obtains TLS automatically once the domain's DNS
+# record points to this server. The sign-in (devices, pairing) is done by the gateway itself
+# (ADR-0012) – Caddy only terminates TLS and forwards.
+@DOMAIN@ {
+	redir / /bots/ permanent
+	handle /bots* {
+		reverse_proxy box:6010 {
+			# SSE (chat live updates) must not be buffered
+			flush_interval -1
+		}
+	}
+	handle {
+		respond "metor" 200
+	}
+}

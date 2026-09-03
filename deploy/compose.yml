@@ -1,0 +1,56 @@
+# metor – server operation via docker compose (see INSTALL.md).
+# Two modes:
+#   Dedicated server (with bundled Caddy + auto TLS):        docker compose --profile caddy up -d
+#   Shared server (your own reverse proxy already exists):   docker compose up -d
+# The volume names are fixed (name:) so that compose and the metor Bash wrapper use the same
+# volumes – an existing server can switch to compose seamlessly.
+services:
+  box:
+    image: ${METOR_IMAGE:-ghcr.io/metor-com/metor-box:latest}
+    container_name: metor-box
+    hostname: metor
+    restart: unless-stopped
+    shm_size: "1g"
+    # Cap nofile: older Docker engines inherit >1 billion – x11vnc scans all fds on
+    # client connect, and the screen would hang at "Connecting…"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    environment:
+      METOR_WATCH_BASE: ${METOR_WATCH_BASE:-}
+      METOR_NTFY_URL: ${METOR_NTFY_URL:-}          # optional: push notification on "waiting for approval"
+      METOR_ROUTINE_GUARD: ${METOR_ROUTINE_GUARD:-} # optional: auto-pause threshold (empty = 20, 0 = off)
+      METOR_AUTH: ${METOR_AUTH:-}                   # "off" = no gateway sign-in (only behind your own login)
+    volumes:
+      - metor-workspace:/workspace
+      - metor-claude:/home/box/.claude
+      - metor-codex:/home/box/.codex
+    ports:
+      - "127.0.0.1:6010:6010"   # loopback only; public access goes exclusively through the proxy
+
+  caddy:
+    image: caddy:2
+    profiles: ["caddy"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      METOR_DOMAIN: ${METOR_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  metor-workspace:
+    name: metor-workspace
+  metor-claude:
+    name: metor-claude
+  metor-codex:
+    name: metor-codex
+  caddy-data:
+    name: metor-caddy-data
+  caddy-config:
+    name: metor-caddy-config

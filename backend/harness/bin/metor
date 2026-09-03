@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# metor – host wrapper (needs only Docker). Inside the computer, metor.mjs (Node) runs.
+set -euo pipefail
+IMAGE="${METOR_BOX_IMAGE:-metor-box:dev}"; C="${METOR_BOX_CONTAINER:-metor-box}"
+CORE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [ "${METOR_INSIDE_BOX:-}" = "1" ]; then exec node /usr/local/lib/metor/metor.mjs "$@"; fi
+running() { [ "$(docker inspect -f '{{.State.Running}}' "$C" 2>/dev/null)" = "true" ]; }
+case "${1:-}" in
+  box) case "${2:-}" in
+    build)  exec docker build -t "$IMAGE" -f "$CORE/box/Dockerfile" "$CORE/.." ;;  # context = repo root (backend/ + frontend/)
+    up)     if running; then echo "$C is already running"; else docker rm -f "$C" >/dev/null 2>&1 || true
+              # Gateway (6010) and noVNC ports only on the host's loopback; a TLS proxy in front on servers (metor box serve)
+              # Limit nofile: older Docker engines pass down >1 billion – x11vnc scans all fds on
+              # client connect and then "hangs" for almost an hour per connection
+              docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
+                --ulimit nofile=65536:65536 \
+                -p 127.0.0.1:6010:6010 -p 127.0.0.1:6011-6049:6011-6049 \
+                -e "METOR_WATCH_BASE=${METOR_WATCH_BASE:-}" -e "METOR_AUTH=${METOR_AUTH:-}" \
+                -v metor-workspace:/workspace -v metor-claude:/home/box/.claude -v metor-codex:/home/box/.codex "$IMAGE" >/dev/null
+              echo "$C started. Next: metor auth link (sign your browser in), then sign in to a runtime in the interface"; fi ;;
+    down)   exec docker stop "$C" ;;
+    status) running || { echo "$C: stopped"; exit 0; }
+            docker exec "$C" bash -lc 'claude auth status 2>&1 | head -5; echo; metor bot list' ;;
+    shell)  exec docker exec -it "$C" bash ;;
+    logs)   exec docker logs --tail "${3:-50}" "$C" ;;
+    serve)  # Caddy block for a shared server: /bots/* → gateway (the gateway does the sign-in itself, ADR-0012)
+            cat <<'CADDY'
+	# metor – UI + bot screens (gateway inside the computer, port 6010; sign-in by the gateway)
+	handle /bots* {
+		reverse_proxy 127.0.0.1:6010 {
+			# SSE (chat live updates) must not be buffered
+			flush_interval -1
+		}
+	}
+CADDY
+            echo; echo "Insert into the domain block of the Caddyfile, then: sudo systemctl reload caddy"
+            echo "Then: METOR_WATCH_BASE=https://<domain> metor box up; metor auth link  –  dedicated server: see INSTALL.md (compose)" ;;
+    login)  echo "Sign in from the interface (\"New bot\" → Sign in) or interactively in a terminal:"; echo; echo "  docker exec -it $C claude auth login"; echo; echo 'Then: metor bot create <name> --role "..."' ;;
+    *) echo "metor box build|up|down|status|shell|logs|login|serve"; exit 1 ;;
+  esac ;;
+  version|--version) echo "metor $(cat "$(cd "$(dirname "$0")/../../.." && pwd)/VERSION" 2>/dev/null || echo dev)" ;;
+  bot|auth) running || { echo "$C is not running – metor box up"; exit 1; }; c="$1"; shift; exec docker exec "$C" metor "$c" "$@" ;;
+  *) echo 'metor – CLI'; echo '  box  build | up | down | status | shell | logs | login | serve'; echo '  bot  create <name> --role "..." | list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name>'; echo '  auth link | sessions | revoke <id>      (sign-in link for a device, signed-in devices)'; echo '  Environment: METOR_WATCH_BASE=https://bots.example.com (public base URL of the interface)'; [ -n "${1:-}" ] && exit 1 || exit 0 ;;
+esac

@@ -1,0 +1,46 @@
+# Builds the box image on every push to main and on version tags (v*), and pushes it to the
+# GitHub Container Registry. Servers then `docker pull` instead of clone+build (see INSTALL.md).
+# The image is pushed as ghcr.io/<repository owner>/metor-box, so this works before and after moving the repo
+# (goodcarl → metor-com). Package visibility (private/public) is switched in the GitHub package
+# settings; before going public, run the check from knowledge/decisions/0006-legal-guardrails.md.
+name: box-image
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/metor-box
+          # latest = main; v0.1.0 → 0.1.0; plus a short sha tag for pinning
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/box/Dockerfile
+          push: true
+          # amd64 is enough for servers; arm64 (Colima/Mac) keeps building locally – QEMU emulation
+          # would slow down the Claude/npm install steps by an order of magnitude.
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

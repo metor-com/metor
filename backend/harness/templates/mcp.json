@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "browser": {
+      "command": "playwright-mcp",
+      "args": [
+        "--cdp-endpoint",
+        "http://127.0.0.1:{{CDP_PORT}}",
+        "--output-dir",
+        "/workspace/bots/{{NAME}}/.browser-output",
+        "--image-responses",
+        "allow"
+      ]
+    },
+    "routines": {
+      "command": "node",
+      "args": [
+        "/usr/local/lib/metor/metor-routines-mcp.mjs",
+        "{{NAME}}"
+      ]
+    }
+  }
+}

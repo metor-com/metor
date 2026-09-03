@@ -1,0 +1,10 @@
+metor
+Copyright 2026 Volker Carlguth
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This product bundles third-party software in its container image; see
+THIRD-PARTY.md for the components and their licenses. "metor" is a project
+name of the copyright holder. Product names of other companies mentioned in
+this repository (Claude, Codex, ChatGPT, and others) are trademarks of
+their respective owners and are used only to describe compatibility or origin.

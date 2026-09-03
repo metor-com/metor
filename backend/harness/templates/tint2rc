@@ -1,0 +1,48 @@
+# metor – bar at the bottom of the bot desktop: window switching like a dock (tint2).
+# Background 1: panel
+rounded = 0
+border_width = 0
+background_color = #1b1b1f 100
+# Background 2: active window
+rounded = 6
+border_width = 0
+background_color = #3d3d49 100
+# Background 3: inactive window
+rounded = 6
+border_width = 0
+background_color = #26262b 100
+
+panel_monitor = all
+panel_position = bottom center horizontal
+panel_size = 100% 34
+panel_margin = 0 0
+panel_padding = 6 3 6
+panel_background_id = 1
+panel_layer = top
+wm_menu = 1
+
+panel_items = TC
+
+taskbar_mode = single_desktop
+taskbar_padding = 0 0 6
+taskbar_background_id = 0
+taskbar_name = 0
+
+task_text = 1
+task_icon = 1
+task_centered = 0
+task_maximum_size = 240 30
+task_padding = 8 3
+task_font = DejaVu Sans 10
+task_font_color = #cfcfd6 100
+task_background_id = 3
+task_active_background_id = 2
+task_active_font_color = #ffffff 100
+urgent_nb_of_blink = 8
+mouse_middle = close
+
+time1_format = %H:%M
+clock_font = DejaVu Sans 10
+clock_font_color = #8a8a92 100
+clock_padding = 10 0
+clock_background_id = 0
