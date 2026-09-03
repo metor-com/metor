@@ -70,5 +70,9 @@ export function connect() {
   refresh(); reconnect(); const n = get(selected); if (n) loadHistory(n);
   const onHash = () => { const name = readHash(); if (name !== get(selected)) activate(name); };
   window.addEventListener("hashchange", onHash);
-  return () => { closeEvents?.(); closeEvents = null; window.removeEventListener("hashchange", onHash); };
+  // App in the background (phone in the pocket, other tab): no stream. The gateway then knows this
+  // device is not looking and sends push notifications instead; on return the stream reconnects and refetches.
+  const onVisibility = () => { if (document.visibilityState === "hidden") { closeEvents?.(); closeEvents = null; } else if (!closeEvents) reconnect(); };
+  document.addEventListener("visibilitychange", onVisibility);
+  return () => { closeEvents?.(); closeEvents = null; window.removeEventListener("hashchange", onHash); document.removeEventListener("visibilitychange", onVisibility); };
 }

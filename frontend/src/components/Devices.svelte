@@ -3,8 +3,29 @@
   // Link a device = QR code / link / short code, valid for two minutes; revoke = sign that device out.
   import { onDestroy } from "svelte";
   import { authSessions, authRevoke, authPair, authLogout } from "../lib/api.js";
+  import { pushState, installPrompt, installApp, enablePush, disablePush, testPush } from "../lib/push.js";
   export let onDone;
   let sessions = null, pair = null, error = null, timer = null, left = 0;
+
+  // Push notifications (ADR-0013): one card per device – state and hints come from lib/push.js
+  let testResult = null, testing = false;
+  const hints = {
+    unsupported: "This browser cannot receive push notifications.",
+    unavailable: "Push is not available in this box (the image lacks web-push).",
+    "needs-install": "On iPhone and iPad push works only from the Home Screen app: Share → Add to Home Screen, open metor from there, sign in with a pairing code, then turn notifications on.",
+    denied: "Notifications are blocked for metor – allow them in the browser or system settings, then reload.",
+    off: "Get notified when a bot needs an approval, finishes a reply or stops unexpectedly.",
+    on: "Approvals, finished replies and unexpected stops reach this device – unless you are looking at that chat.",
+  };
+  async function onTest() {
+    testing = true; testResult = null;
+    try {
+      const r = await testPush();
+      testResult = r.sent ? `Sent to ${r.sent} device${r.sent === 1 ? "" : "s"} – the notification should show up now.`
+        : r.enabled ? "Nothing sent – this device is not subscribed any more, turn notifications on again." : "Push is not available in this box.";
+    } catch (e) { testResult = e.message; }
+    testing = false;
+  }
 
   async function load() { try { sessions = await authSessions(); } catch (e) { error = e.message; sessions = []; } }
   load();
@@ -24,7 +45,7 @@
 </script>
 
 <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/35 p-4" role="presentation" on:click={() => onDone?.()}>
-  <div class="flex w-[26rem] max-w-full flex-col gap-3.5 rounded-2xl bg-white p-5 shadow-xl" role="dialog" on:click|stopPropagation>
+  <div class="flex max-h-[calc(100dvh-2rem)] w-[26rem] max-w-full flex-col gap-3.5 overflow-y-auto rounded-2xl bg-white p-5 shadow-xl" role="dialog" on:click|stopPropagation>
     <h2 class="text-lg font-bold">Devices</h2>
     {#if sessions === null}
       <p class="text-[13px] text-zinc-400">Loading…</p>
@@ -42,6 +63,24 @@
         {#if !sessions.length}<li class="px-3 py-2.5 text-sm text-zinc-400">no devices</li>{/if}
       </ul>
     {/if}
+
+    <div class="flex flex-col gap-2 rounded-xl border border-zinc-200 px-3.5 py-3 text-[13px]">
+      <div class="flex items-center gap-2">
+        <strong class="flex-1 text-sm">Notifications on this device</strong>
+        {#if $pushState.state === "on"}
+          <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50 disabled:opacity-50" disabled={testing} on:click={onTest}>Test</button>
+          <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50" on:click={() => { testResult = null; disablePush(); }}>Turn off</button>
+        {:else if $pushState.state === "off"}
+          <button type="button" class="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1 text-xs text-white hover:bg-zinc-700" on:click={enablePush}>Turn on</button>
+        {/if}
+      </div>
+      <p class="text-zinc-500">{hints[$pushState.state] ?? ""}</p>
+      {#if $installPrompt}
+        <button type="button" class="self-start rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50" on:click={installApp}>Install metor as an app</button>
+      {/if}
+      {#if testResult}<p class="text-zinc-700">{testResult}</p>{/if}
+      {#if $pushState.error}<p class="text-red-600">{$pushState.error}</p>{/if}
+    </div>
 
     {#if pair}
       <div class="flex flex-col items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-3 text-[13px]">

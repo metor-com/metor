@@ -15,6 +15,7 @@ import { HARNESSES, harnessOf, defaultModel, validModel } from "./metor-harness.
 import { setupStart, setupStatus, setupCancel, setupSubmit } from "./metor-setup.mjs";
 import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, allBots as bots } from "./metor-store.mjs";
 import { AUTH_OFF, sessionOf, claimSession, createClaim, listSessions, revokeSession, setCookieHeader, clearCookieHeader, clientIp, tooManyAttempts, noteFailure, signInPage, qrDataUrl } from "./metor-auth.mjs";
+import * as push from "./metor-push.mjs";
 
 const PORT = Number(process.env.METOR_GATEWAY_PORT ?? 6010);
 const BASE = (process.env.METOR_WATCH_BASE ?? "").replace(/\/$/, "");
@@ -86,6 +87,46 @@ setInterval(() => { if (sseClients.size) pushAgents().catch(() => {}); }, 3000);
 const streamChat = createStreamChat({ botsDir: BOTS_DIR });
 streamChat.subscribe(({ bot, entry }) => sseEmit(`chat:${bot}`, "chat", { bot, entry }));
 
+// ---------- Push notifications (ADR-0013): approvals, finished turns, unexpected stops ----------
+// A device whose interface shows that bot's chat right now (open SSE stream with its topic) is skipped;
+// the interface closes its stream while in the background, so a phone in the pocket does get the push.
+const viewers = (bot) => new Set([...sseClients].filter((c) => c.sessionId && c.topics.has(`chat:${bot}`)).map((c) => c.sessionId));
+const liveSessions = () => (AUTH_OFF ? null : new Set(listSessions().map((s) => s.id)));
+function notifyPush(kind, bot, msg) {
+  push.notify({ kind, bot, url: `/bots/#/${bot}`, ...msg }, { skip: viewers(bot), sessions: liveSessions() })
+    .then((r) => { if (r.sent || r.failed || r.removed) console.log(`push: ${kind} for ${bot} – ${r.sent} sent${r.failed ? `, ${r.failed} failed` : ""}${r.removed ? `, ${r.removed} dropped` : ""}`); })
+    .catch((e) => console.error("push:", e.message));
+}
+const excerpt = (t) => String(t ?? "").replace(/```[\s\S]*?```/g, " ").replace(/[*_`#>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 180);
+const expectedStops = new Set();   // bots the interface itself stops or removes
+const turnText = new Map();        // bot → last assistant text of the running turn (body of the "reply" push)
+streamChat.subscribe(({ bot, entry }) => {
+  if (entry.kind === "permission" && entry.permission?.status === "pending") {
+    const p = entry.permission;
+    notifyPush("approval", bot, { title: `${bot}: approval needed`, body: excerpt(p.reason ? `${p.title ?? p.tool} – ${p.reason}` : (p.title ?? p.tool ?? entry.text)) });
+  } else if (entry.role === "assistant" && entry.kind === "text" && entry.text?.trim()) turnText.set(bot, entry.text);
+});
+const lastStatus = new Map();
+setInterval(() => {
+  const known = new Set();
+  for (const b of bots()) {
+    known.add(b.name);
+    const st = streamChat.status(b.name), prev = lastStatus.get(b.name);
+    lastStatus.set(b.name, st);
+    if (prev === undefined || prev === st) continue;
+    if (prev === "busy" && st === "idle") {
+      // the chat tail (400 ms) may still be behind the state file – give the last text a moment to arrive
+      setTimeout(() => { const text = turnText.get(b.name); turnText.delete(b.name); if (text) notifyPush("reply", b.name, { title: b.name, body: excerpt(text) }); }, 1000);
+    } else if (st === "stopped") {
+      turnText.delete(b.name);
+      if (expectedStops.delete(b.name)) continue;
+      const s = streamChat.state(b.name);
+      notifyPush("stopped", b.name, { title: `${b.name}: stopped`, body: s.status === "error" ? `Error: ${excerpt(s.error)}` : "The bot's host process ended unexpectedly." });
+    }
+  }
+  for (const name of [...lastStatus.keys()]) if (!known.has(name)) { lastStatus.delete(name); turnText.delete(name); expectedStops.delete(name); }
+}, 2000);
+
 // ---------- JSON API ----------
 function readBody(req) {
   return new Promise((done) => {
@@ -103,7 +144,7 @@ async function api(req, res, url) {
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no" });
     res.write("retry: 2000\n\n");
     const topics = new Set((u.searchParams.get("topics") ?? "agents").split(",").filter(Boolean));
-    const client = { res, topics };
+    const client = { res, topics, sessionId: sessionOf(req)?.id ?? null };   // who is looking – push skips active viewers
     sseClients.add(client);
     req.on("close", () => sseClients.delete(client));
     // Every new client gets the current list at once – the broadcast (pushAgents) only fires on changes
@@ -115,13 +156,21 @@ async function api(req, res, url) {
     const session = sessionOf(req);
     if (rest[1] === "me" && req.method === "GET") return send(200, { id: session.id, name: session.name, authOff: AUTH_OFF });
     if (rest[1] === "sessions" && rest.length === 2 && req.method === "GET") return send(200, listSessions().map((s) => ({ ...s, current: s.id === session.id })));
-    if (rest[1] === "sessions" && rest.length === 3 && req.method === "DELETE") return send(revokeSession(rest[2]) ? 200 : 404, { ok: true });
-    if (rest[1] === "logout" && req.method === "POST") { revokeSession(session.id); res.writeHead(200, { "content-type": "application/json", "set-cookie": clearCookieHeader() }); return res.end("{}"); }
+    if (rest[1] === "sessions" && rest.length === 3 && req.method === "DELETE") { const ok = revokeSession(rest[2]); if (ok) push.dropSession(rest[2]); return send(ok ? 200 : 404, { ok: true }); }
+    if (rest[1] === "logout" && req.method === "POST") { revokeSession(session.id); push.dropSession(session.id); res.writeHead(200, { "content-type": "application/json", "set-cookie": clearCookieHeader() }); return res.end("{}"); }
     if (rest[1] === "pair" && req.method === "POST") {
       const c = createClaim("pair", { createdBy: session.id });
       let qr = null; try { qr = await qrDataUrl(c.url); } catch (e) { console.error("qr:", e.message); }
       return send(200, { url: c.url, code: c.code, expiresAt: c.expiresAt, qr });
     }
+  }
+  // Push notifications (ADR-0013): the gateway's public key, this device's subscription, a test message
+  if (rest[0] === "push") {
+    const session = sessionOf(req);
+    if (rest[1] === "key" && req.method === "GET") { const key = await push.publicKey(); return send(200, { enabled: !!key, publicKey: key, subscribed: key ? push.countForSession(session.id) : 0 }); }
+    if (rest[1] === "subscribe" && req.method === "POST") { const body = await readBody(req); const r = push.subscribe(session.id, body?.subscription, req.headers["user-agent"]); return send(r.error ? 400 : 200, r); }
+    if (rest[1] === "unsubscribe" && req.method === "POST") { const body = await readBody(req); return send(200, push.unsubscribe(String(body?.endpoint ?? ""))); }
+    if (rest[1] === "test" && req.method === "POST") return send(200, await push.notify({ kind: "test", title: "metor", body: "Push notifications reach this device.", url: "/bots/" }, { only: new Set([session.id]) }));
   }
   if (rest[0] === "harnesses" && rest.length === 1 && req.method === "GET") return send(200, harnessInfo());
   // Setup assistant: start/observe/cancel the runtime's device login
@@ -158,6 +207,7 @@ async function api(req, res, url) {
     const b = bots().find((x) => x.name === name);
     if (!b) return send(404, { error: `Bot ${name} does not exist` });
     if (req.method === "POST" && ["start", "stop", "rm"].includes(action) && rest.length === 3) {
+      if (action !== "start" && streamChat.status(name) !== "stopped") expectedStops.add(name);   // no "stopped" push for a stop the user asked for
       enqueue(["bot", action, name]);
       return send(202, { accepted: true });
     }
@@ -247,9 +297,12 @@ function uploadFile(req, res, bot, u, send) {
 }
 
 // ---------- Static UI (frontend/dist; SPA with hash routing, /bots/<name>/ belongs to the proxy) ----------
-const MIME = { html: "text/html; charset=utf-8", js: "text/javascript", css: "text/css", svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", json: "application/json", woff2: "font/woff2", txt: "text/plain",
+const MIME = { html: "text/html; charset=utf-8", js: "text/javascript", css: "text/css", svg: "image/svg+xml", png: "image/png", ico: "image/x-icon", json: "application/json", webmanifest: "application/manifest+json", woff2: "font/woff2", txt: "text/plain",
   jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", pdf: "application/pdf", csv: "text/csv", md: "text/markdown" };
-function serveStatic(url, res) {
+// Files a browser fetches WITHOUT the session cookie when the interface is installed as an app
+// (manifest, icons, the service worker) – nothing secret in them, so they are served before the sign-in gate
+const PUBLIC_FILES = /^\/bots\/(manifest\.webmanifest|sw\.js|icons\/[\w.-]+)$/;
+function serveStatic(url, res, { spa = true } = {}) {
   if (!existsSync(FRONTEND_DIR)) return false;
   let p = url.split("?")[0];
   if (p === "/") { res.writeHead(302, { location: "/bots/" }); res.end(); return true; }
@@ -257,11 +310,14 @@ function serveStatic(url, res) {
   p = p.slice("/bots".length) || "/";
   let file = resolve(FRONTEND_DIR, "." + p);
   if (file !== FRONTEND_DIR && !file.startsWith(FRONTEND_DIR + sep)) return false;
-  if (!existsSync(file) || statSync(file).isDirectory()) file = join(FRONTEND_DIR, "index.html");
+  if (!existsSync(file) || statSync(file).isDirectory()) { if (!spa) return false; file = join(FRONTEND_DIR, "index.html"); }
   if (!existsSync(file)) return false;
   const ext = file.split(".").pop();
-  res.writeHead(200, { "content-type": MIME[ext] ?? "application/octet-stream",
-    "cache-control": file.endsWith("index.html") ? "no-store" : "public, max-age=31536000, immutable" });
+  const name = file.split(sep).pop();
+  // index.html never cached; the service worker and the manifest revalidated (an update must not wait a year);
+  // everything else carries a content hash in its name
+  const cache = name === "index.html" ? "no-store" : name === "sw.js" || name === "manifest.webmanifest" ? "no-cache" : "public, max-age=31536000, immutable";
+  res.writeHead(200, { "content-type": MIME[ext === "webmanifest" ? "webmanifest" : ext] ?? "application/octet-stream", "cache-control": cache });
   res.end(readFileSync(file));
   return true;
 }
@@ -332,6 +388,7 @@ const server = http.createServer(async (req, res) => {
     const path = url.split("?")[0];
     if (path === "/bots/auth/claim" && req.method === "GET") return redeemAndRedirect(req, res, { token: new URL(url, "http://gateway").searchParams.get("token") });
     if (path === "/bots/auth/code" && req.method === "POST") return redeemAndRedirect(req, res, { code: (await readForm(req)).code });
+    if ((req.method === "GET" || req.method === "HEAD") && PUBLIC_FILES.test(path) && serveStatic(url, res, { spa: false })) return;
     if (!AUTH_OFF && !sessionOf(req)) {
       if (path === "/bots/api" || path.startsWith("/bots/api/")) { res.writeHead(401, { "content-type": "application/json", "cache-control": "no-store" }); return res.end(JSON.stringify({ error: "not signed in" })); }
       res.writeHead(401, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return res.end(signInPage());

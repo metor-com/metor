@@ -19,6 +19,14 @@ the sign-in page. Links and codes are valid for two minutes.
 **Devices** also lists every signed-in browser (name, last seen) - remove one to sign it out, or
 sign out the device you are on. Lost all devices? `metor auth link` over SSH mints a new setup link.
 
+**On the phone or tablet** the interface installs as an app. Android: the browser's menu or
+**Devices → Install metor as an app**. iPhone and iPad: Share → **Add to Home Screen**, open metor
+from the home screen and sign in there once with a pairing code (the home-screen app has its own
+cookie jar). Then turn on **Devices → Notifications on this device**: you get a push when a bot
+needs an approval, has finished a reply or stopped unexpectedly - never on the device that is
+looking at that chat. The box sends these itself, no third-party service is involved; the
+interface must be reached over HTTPS for this.
+
 <!-- screenshot: Devices dialog with the QR code -->
 
 ## 2. Create your first bot
@@ -60,7 +68,8 @@ a line break.
 - **Approval cards**: when the runtime asks for permission - typically for actions with external
   effect - an amber card titled "Approval" appears with the tool, the reason and the exact input.
   Choose **Allow** or **Deny**. The card stays in the history with the decision. While a card is
-  open the bot's status dot is red; with `METOR_NTFY_URL` set you also get a push notification.
+  open the bot's status dot is red, and with notifications turned on (see Devices) your phone
+  gets a push.
   Approval cards come from Claude Code bots; Codex bots currently run without approval prompts
   inside the box.
 - **Stop**: while the bot is working, a red stop button sits in the header. It interrupts the

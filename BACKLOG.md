@@ -6,13 +6,14 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 
 ## UI polish (improves daily use)
 
-1. **PWA + Web Push** - the UI as an installable phone app with real push notifications
-   ("waiting for approval", "task done"); replaces the ntfy stopgap
-2. **Bot templates** in the create dialog - a small catalogue of roles (researcher, writer,
+1. **Bot templates** in the create dialog - a small catalogue of roles (researcher, writer,
    watcher with an example routine)
-3. Terminal tab: the shell lives per connection (it survives tab and bot switches in the UI, not a
+2. Terminal tab: the shell lives per connection (it survives tab and bot switches in the UI, not a
    page reload) - put tmux in between if needed
-4. Search the history; make the bot's memory (CLAUDE.md / memory files) visible in the UI
+3. Search the history; make the bot's memory (CLAUDE.md / memory files) visible in the UI
+4. PWA follow-ups (ADR-0013 built 2026-09-04): remove the ntfy stopgap (`METOR_NTFY_URL`) after
+   one release; a per-event choice (approvals only / everything) in the notifications card; the
+   badge count on the app icon (Badging API) for open approvals
 
 ## Routine polish (ADR-0010 "consequences")
 

@@ -104,6 +104,7 @@ export function supervise() {
     }
   };
   tick(); const timer = setInterval(tick, 30_000);
-  const shutdown = () => { stopping = true; clearInterval(timer); console.log("supervise: stopping bots"); for (const b of allBots()) stopHost(b); for (const b of allBots()) desktopStop(b); process.exit(0); };
+  // The gateway goes first: otherwise it would watch the bots stop and send "stopped" push notifications on every restart
+  const shutdown = () => { stopping = true; clearInterval(timer); try { gateway?.kill("SIGTERM"); } catch {} console.log("supervise: stopping bots"); for (const b of allBots()) stopHost(b); for (const b of allBots()) desktopStop(b); process.exit(0); };
   process.on("SIGTERM", shutdown); process.on("SIGINT", shutdown);
 }

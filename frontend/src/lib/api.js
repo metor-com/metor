@@ -19,6 +19,11 @@ export const authSessions = () => req("GET", "/auth/sessions");
 export const authRevoke = (id) => req("DELETE", `/auth/sessions/${id}`);
 export const authPair = () => req("POST", "/auth/pair");
 export const authLogout = () => req("POST", "/auth/logout");
+// Push notifications (ADR-0013): the gateway's VAPID key, this browser's subscription, a test message
+export const pushKey = () => req("GET", "/push/key");
+export const pushSubscribe = (subscription) => req("POST", "/push/subscribe", { subscription });
+export const pushUnsubscribe = (endpoint) => req("POST", "/push/unsubscribe", { endpoint });
+export const pushTest = () => req("POST", "/push/test");
 
 export const listAgents = () => req("GET", "/agents");
 export const createAgent = (name, role, harness, model) => req("POST", "/agents", { name, role, ...(harness ? { harness } : {}), ...(model ? { model } : {}) });

@@ -43,7 +43,7 @@ RUN set -e; arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
 # version coupled to CLI 2.1.x) + Codex CLI (second runtime, ADR-0011 – knowledge/decisions/0011-multi-harness.md;
 # pinned – the release train ships daily, the adapter carries the version-specific knowledge).
 # Installed globally: /usr/local/lib/node_modules is on the parent walk of /usr/local/lib/metor/*.mjs
-RUN npm install -g @playwright/mcp @anthropic-ai/claude-agent-sdk@0.3.251 @openai/codex@0.152.0 qrcode@1.5.4 && which playwright-mcp && codex --version
+RUN npm install -g @playwright/mcp @anthropic-ai/claude-agent-sdk@0.3.251 @openai/codex@0.152.0 qrcode@1.5.4 web-push@3.6.7 && which playwright-mcp && codex --version
 
 # Non-root user "box" with uid 1000 (replaces the node user of the base image)
 RUN (userdel -r node || true) \
@@ -71,6 +71,7 @@ COPY VERSION /usr/local/lib/metor/VERSION
 COPY backend/harness/bin/metor.mjs /usr/local/lib/metor/metor.mjs
 COPY backend/harness/bin/metor-store.mjs /usr/local/lib/metor/metor-store.mjs
 COPY backend/harness/bin/metor-auth.mjs /usr/local/lib/metor/metor-auth.mjs
+COPY backend/harness/bin/metor-push.mjs /usr/local/lib/metor/metor-push.mjs
 COPY backend/harness/bin/metor-desktop.mjs /usr/local/lib/metor/metor-desktop.mjs
 COPY backend/harness/bin/metor-lifecycle.mjs /usr/local/lib/metor/metor-lifecycle.mjs
 COPY backend/harness/bin/metor-supervise.mjs /usr/local/lib/metor/metor-supervise.mjs

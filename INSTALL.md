@@ -196,7 +196,11 @@ start the bots.
 - `METOR_DOMAIN` - only with the caddy profile: domain for TLS.
 - `METOR_AUTH` - `off` switches the gateway's own sign-in off; only behind your own login layer or
   for local experiments (see "Security first").
-- `METOR_NTFY_URL` - push notification when a bot waits for an approval: your own topic on
-  [ntfy.sh](https://ntfy.sh) (or self-hosted), the ntfy app on the phone, done.
+- `METOR_PUSH_SUBJECT` - contact for the push services (a URL or a `mailto:` address) that goes
+  with the box's own push notifications (Devices → Notifications on this device); default: the
+  project URL. Push needs HTTPS; keys and subscriptions live in the workspace volume
+  (`.metor/push.json`) - delete the file to reset them, devices then turn notifications on again.
+- `METOR_NTFY_URL` - legacy: a message to an [ntfy.sh](https://ntfy.sh) topic when a bot waits for
+  an approval. Superseded by the built-in push notifications, kept for one more release.
 - `METOR_ROUTINE_GUARD` - auto-pause: a routine pauses after this many runs without a user message
   (default 20, `0` = off).

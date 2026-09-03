@@ -16,3 +16,4 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0010 | [Routines: metor MCP tool instead of in-session crons](0010-routines.md) | accepted (implemented) |
 | 0011 | [Multi-harness: registry, one host entry point, Codex via app-server](0011-multi-harness.md) | accepted (2026-09-01) |
 | 0012 | [Sign-in by device pairing instead of passwords](0012-device-pairing.md) | accepted (2026-09-03, implemented) |
+| 0013 | [Installable interface (PWA) with Web Push, no push relay](0013-pwa-web-push.md) | accepted (2026-09-04, implemented) |

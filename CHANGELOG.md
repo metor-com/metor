@@ -13,6 +13,14 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Phone app with push notifications** ([ADR-0013](knowledge/decisions/0013-pwa-web-push.md)):
+  the interface installs as an app (Android: "Install metor as an app" under Devices or the
+  browser menu; iPhone and iPad: Share → Add to Home Screen, then sign in once inside the app with
+  a pairing code). Turned on under **Devices → Notifications on this device**, it sends a push
+  when a bot needs an approval, has finished a reply or stopped unexpectedly – never to the device
+  that is looking at that chat. No third-party service in between: the box signs and sends the
+  messages itself (needs HTTPS).
+
 - **Claude Code sign-in from the interface**: the "New bot" dialog now runs the official Claude
   login too (open the link, sign in, paste the code the page shows) - no terminal needed. Codex
   keeps its device-code flow.

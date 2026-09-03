@@ -9,6 +9,7 @@
   import ComputerPanel from "./components/ComputerPanel.svelte";
   import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect } from "./lib/session.js";
   import { isDesktop } from "./lib/viewport.js";
+  import { initPush } from "./lib/push.js";
 
   let view = "split";         // chat | computer | split
   let showRoutines = false;
@@ -20,13 +21,15 @@
     if (action === "rm" && !confirm(`Really remove bot ${$selected}? Its directory and history will be deleted.`)) return;
     try { await (action === "rm" ? remove() : act(action)); } catch (e) { alert(e.message); }
   }
-  onMount(() => connect());
+  onMount(() => { initPush(); return connect(); });
 </script>
 
 <!-- Fixed app shell: the page itself NEVER scrolls (no horizontal drifting of the sidebar).
      Mobile: list OR bot view (messenger pattern, back arrow + back gesture via hash);
-     desktop (md:) shows both side by side as before. -->
-<div class="flex h-dvh overflow-hidden bg-zinc-100 font-sans text-[15px] text-zinc-900 antialiased">
+     desktop (md:) shows both side by side as before. Installed as an app (viewport-fit=cover),
+     the safe-area insets keep the header below the notch and the composer above the home indicator. -->
+<div class="flex h-dvh overflow-hidden bg-zinc-100 font-sans text-[15px] text-zinc-900 antialiased"
+  style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)">
   <Sidebar agents={$shown} selected={$selected} quota={$quota} hiddenOnMobile={!!$selected} onSelect={select} onCreated={created} />
 
   <main class="{$selected ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col">
