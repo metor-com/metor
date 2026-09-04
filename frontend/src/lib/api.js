@@ -48,3 +48,10 @@ export const chatPermission = (name, ref, decision) => req("POST", `/agents/${na
 export const listRoutines = (name) => req("GET", `/agents/${name}/routines`);
 export const chatInterrupt = (name) => req("POST", `/agents/${name}/chat/interrupt`);
 export const chatHistory = (name, limit = 200) => req("GET", `/agents/${name}/chat/history?limit=${limit}`);
+// Connectors (ADR-0014): MCP servers for every bot, the curated directory, restart of the running bots
+export const listConnectors = () => req("GET", "/connectors");
+export const connectorDirectory = () => req("GET", "/connectors/directory");
+export const addConnector = (body) => req("POST", "/connectors", body);
+export const updateConnector = (id, body) => req("PUT", `/connectors/${id}`, body);
+export const removeConnector = (id) => req("DELETE", `/connectors/${id}`);
+export const restartBots = () => req("POST", "/connectors/restart");

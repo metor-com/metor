@@ -11,7 +11,10 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 2. Terminal tab: the shell lives per connection (it survives tab and bot switches in the UI, not a
    page reload) - put tmux in between if needed
 3. Search the history; make the bot's memory (CLAUDE.md / memory files) visible in the UI
-4. PWA follow-ups (ADR-0013 built 2026-09-04): remove the ntfy stopgap (`METOR_NTFY_URL`) after
+4. Connector follow-ups (ADR-0014 built 2026-09-04): a choice per bot (disabled keys in
+   `bot.json`, the `forBot()` seam exists), a `metor connector` CLI, a health check before saving
+   (start the server once, list its tools), OAuth for remote servers
+5. PWA follow-ups (ADR-0013 built 2026-09-04): remove the ntfy stopgap (`METOR_NTFY_URL`) after
    one release; a per-event choice (approvals only / everything) in the notifications card; the
    badge count on the app icon (Badging API) for open approvals
 

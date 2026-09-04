@@ -6,6 +6,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CHAT_HOWTO } from "./metor-host-core.mjs";
+import { claudeAllowedTools } from "./metor-connectors.mjs";
 
 export async function run(core) {
   const { name, dir, bot } = core;
@@ -36,6 +37,7 @@ export async function run(core) {
       title: name,
       ...(bot.model ? { model: bot.model } : {}),         // model choice per bot (ADR-0011)
       extraArgs: { name, ...(existsSync(join(dir, "mcp.json")) ? { "mcp-config": join(dir, "mcp.json") } : {}) },
+      ...((a) => (a.length ? { allowedTools: a } : {}))(claudeAllowedTools(bot)),   // connectors without "ask first" (ADR-0014)
       ...(core.state.sessionId ? { resume: core.state.sessionId } : {}),
       env: { ...process.env, METOR_BOT: name, METOR_WATCH_URL: watchUrl },
       canUseTool,
@@ -51,6 +53,7 @@ export async function run(core) {
   for await (const m of q) {
     if (m.type === "system" && m.subtype === "init") {
       if (m.session_id && m.session_id !== core.state.sessionId) core.log("Session:", m.session_id);
+      if (Array.isArray(m.mcp_servers) && m.mcp_servers.length) core.log("MCP:", m.mcp_servers.map((x) => `${x.name} ${x.status}`).join(", "));
       core.saveState({ sessionId: m.session_id, status: core.state.status === "starting" ? "idle" : core.state.status });
     } else if (m.type === "stream_event") {
       const ev = m.event;

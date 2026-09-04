@@ -16,6 +16,7 @@ import { setupStart, setupStatus, setupCancel, setupSubmit } from "./metor-setup
 import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, isValidTitle as validTitle, idFor, allBots as bots } from "./metor-store.mjs";
 import { AUTH_OFF, sessionOf, claimSession, createClaim, listSessions, revokeSession, setCookieHeader, clearCookieHeader, clientIp, tooManyAttempts, noteFailure, signInPage, qrDataUrl } from "./metor-auth.mjs";
 import * as push from "./metor-push.mjs";
+import * as connectors from "./metor-connectors.mjs";
 
 const PORT = Number(process.env.METOR_GATEWAY_PORT ?? 6010);
 const BASE = (process.env.METOR_WATCH_BASE ?? "").replace(/\/$/, "");
@@ -182,6 +183,20 @@ async function api(req, res, url) {
     if (rest[1] === "subscribe" && req.method === "POST") { const body = await readBody(req); const r = push.subscribe(session.id, body?.subscription, req.headers["user-agent"]); return send(r.error ? 400 : 200, r); }
     if (rest[1] === "unsubscribe" && req.method === "POST") { const body = await readBody(req); return send(200, push.unsubscribe(String(body?.endpoint ?? ""))); }
     if (rest[1] === "test" && req.method === "POST") return send(200, await push.notify({ kind: "test", title: "metor", body: "Push notifications reach this device.", url: "/bots/" }, { only: new Set([session.id]) }));
+  }
+  // Connectors (ADR-0014): MCP servers for every bot, plus the curated directory; a change reaches
+  // a bot when it (re)starts – "restart" bounces every running bot through the serial queue
+  if (rest[0] === "connectors") {
+    if (rest.length === 1 && req.method === "GET") return send(200, { connectors: connectors.list() });
+    if (rest[1] === "directory" && req.method === "GET") return send(200, { directory: connectors.directory() });
+    if (rest.length === 1 && req.method === "POST") { const r = connectors.add(await readBody(req)); return send(r.error ? 400 : 200, r); }
+    if (rest[1] === "restart" && req.method === "POST") {
+      const names = bots().filter((b) => streamChat.status(b.name) !== "stopped").map((b) => b.name);
+      for (const name of names) { expectedStops.add(name); enqueue(["bot", "stop", name]); enqueue(["bot", "start", name]); }
+      return send(202, { accepted: true, bots: names });
+    }
+    if (rest.length === 2 && req.method === "PUT") { const r = connectors.update(rest[1], await readBody(req)); return send(r.error ? (r.error.includes("not found") ? 404 : 400) : 200, r); }
+    if (rest.length === 2 && req.method === "DELETE") { const r = connectors.remove(rest[1]); return send(r.error ? 404 : 200, r); }
   }
   if (rest[0] === "harnesses" && rest.length === 1 && req.method === "GET") return send(200, harnessInfo());
   // Setup assistant: start/observe/cancel the runtime's device login

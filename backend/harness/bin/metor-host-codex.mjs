@@ -8,6 +8,7 @@
 import { spawn } from "node:child_process";
 import { CHAT_HOWTO } from "./metor-host-core.mjs";
 import { ports } from "./metor-harness.mjs";
+import { codexOverrides } from "./metor-connectors.mjs";
 
 const METOR_LIB = "/usr/local/lib/metor";
 
@@ -22,6 +23,7 @@ export async function run(core) {
       "-c", 'mcp_servers.browser.command="playwright-mcp"',
       "-c", `mcp_servers.browser.args=["--cdp-endpoint","http://127.0.0.1:${cdp}"]`,
     ] : []),
+    ...codexOverrides(bot),   // connectors from Settings (ADR-0014)
   ];
   const child = spawn("codex", args, { cwd: dir, stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, METOR_BOT: name } });
   child.on("error", (e) => core.fail(e));

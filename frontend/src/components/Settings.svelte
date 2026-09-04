@@ -4,6 +4,7 @@
   // Devices = sign-in, pairing, notifications (ADR-0012/0013); Appearance and Behaviour are
   // per-device preferences from lib/settings.js.
   import Devices from "./Devices.svelte";
+  import Connectors from "./Connectors.svelte";
   import Switch from "./Switch.svelte";
   import { settings, update } from "../lib/settings.js";
   export let onDone;
@@ -12,6 +13,8 @@
   const SECTIONS = [
     { id: "devices", label: "Devices", hint: "Signed-in browsers, link a phone, notifications",
       icon: "M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM11 18h2" },
+    { id: "connectors", label: "Connectors", hint: "MCP servers for every bot",
+      icon: "M9 2v5M15 2v5M5 7h14v3a7 7 0 0 1-14 0V7zM12 17v5" },
     { id: "appearance", label: "Appearance", hint: "Text size, the bot list",
       icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" },
     { id: "behaviour", label: "Behaviour", hint: "Order of the bots, default view",
@@ -58,6 +61,8 @@
       <div class="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8 sm:py-7">
         {#if tab === "devices"}
           <Devices />
+        {:else if tab === "connectors"}
+          <Connectors />
         {:else if tab === "appearance"}
           <div class="flex flex-col divide-y divide-zinc-100">
             <div class="flex flex-col gap-3 pb-6">

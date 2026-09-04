@@ -13,6 +13,13 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Connectors** ([ADR-0014](knowledge/decisions/0014-connectors.md)): under **Settings →
+  Connectors** you add MCP servers that every bot can use - from a small directory (Memory,
+  Sequential thinking, Context7, DeepWiki, GitHub, Brave Search, Exa, Firecrawl, Hugging Face,
+  Stripe) or as a custom connector with a command or a URL, environment variables or headers.
+  Both runtimes get them; a connector is live once the bot has (re)started, and one button
+  restarts the running bots.
+
 - **Settings** replaces the Devices button at the bottom of the bot list: one dialog with the tabs
   **Devices** (sign-in, pairing, notifications), **Appearance** (text size, roles in the bot list)
   and **Behaviour** (bot list sorted by latest activity - newest chat on top like a messenger; the

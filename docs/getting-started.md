@@ -19,9 +19,16 @@ the sign-in page. Links and codes are valid for two minutes.
 The **Devices** tab also lists every signed-in browser (name, last seen) - remove one to sign it out, or
 sign out the device you are on. Lost all devices? `metor auth link` over SSH mints a new setup link.
 
-**Settings** has two more tabs, both per device: **Appearance** (text size; roles under the bot
-names on or off) and **Behaviour** (sort the bot list by latest activity, newest chat on top like a
-messenger; which view a bot opens with on a wide screen).
+**Settings** has three more sections. **Connectors** are MCP servers every bot can use: **Add →
+From the directory** offers well-known ones (a shared memory, documentation lookups, DeepWiki,
+GitHub, search APIs) and pre-fills the form, **Custom connector** takes any server by command or
+URL with its environment variables or headers. Bots use a connector on their own, like the browser;
+switch on **Ask before each use** to get an approval card for every call instead. Keys and tokens
+are stored inside the computer.
+A connector reaches a bot when the bot starts - after a change, the button **Restart running
+bots** does that for you. **Appearance** (text size; roles under the bot names on or off) and
+**Behaviour** (sort the bot list by latest activity, newest chat on top like a messenger; which
+view a bot opens with on a wide screen) are remembered per device.
 
 **On the phone or tablet** the interface installs as an app. Android: the browser's menu or
 **Settings → Devices → Install metor as an app**. iPhone and iPad: Share → **Add to Home Screen**, open metor

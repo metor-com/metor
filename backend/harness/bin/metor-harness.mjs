@@ -4,6 +4,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { claudeServers } from "./metor-connectors.mjs";
 
 // Port scheme per display – shared by metor.mjs and the adapters
 export const ports = (d) => ({ display: d, vnc: 5900 + d, novnc: 6000 + d, cdp: 9200 + d, ttyd: 7100 + d });
@@ -29,8 +30,11 @@ export const HARNESSES = {
     },
     writeMcpConfig(dir, bot, templatesDir) {
       const p = ports(bot.display);
-      writeFileSync(join(dir, "mcp.json"), readFileSync(join(templatesDir, "mcp.json"), "utf8")
+      const cfg = JSON.parse(readFileSync(join(templatesDir, "mcp.json"), "utf8")
         .replaceAll("{{NAME}}", bot.name).replaceAll("{{CDP_PORT}}", String(p.cdp)));
+      // Connectors from Settings (ADR-0014) join the built-in servers; built-ins win on a key clash
+      cfg.mcpServers = { ...claudeServers(bot), ...cfg.mcpServers };
+      writeFileSync(join(dir, "mcp.json"), JSON.stringify(cfg, null, 2) + "\n");
     },
     needsTrustDir: true,
     loginProbe() {

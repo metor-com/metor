@@ -17,3 +17,4 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0011 | [Multi-harness: registry, one host entry point, Codex via app-server](0011-multi-harness.md) | accepted (2026-09-01) |
 | 0012 | [Sign-in by device pairing instead of passwords](0012-device-pairing.md) | accepted (2026-09-03, implemented) |
 | 0013 | [Installable interface (PWA) with Web Push, no push relay](0013-pwa-web-push.md) | accepted (2026-09-04, implemented) |
+| 0014 | [Connectors: MCP servers configured once, for every bot](0014-connectors.md) | accepted (2026-09-04, implemented) |

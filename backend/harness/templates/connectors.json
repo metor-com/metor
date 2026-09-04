@@ -1,0 +1,70 @@
+[
+  {
+    "id": "memory", "name": "Memory", "transport": "stdio",
+    "description": "A knowledge graph the bots write to and read from – shared by all of them, so what one bot learns the others can look up.",
+    "command": "npx -y @modelcontextprotocol/server-memory",
+    "env": { "MEMORY_FILE_PATH": { "value": "/workspace/.metor/memory.jsonl", "label": "Where the graph is stored" } },
+    "auth": "none"
+  },
+  {
+    "id": "sequential-thinking", "name": "Sequential thinking", "transport": "stdio",
+    "description": "A scratchpad tool for step-by-step reasoning on harder problems.",
+    "command": "npx -y @modelcontextprotocol/server-sequential-thinking",
+    "auth": "none"
+  },
+  {
+    "id": "context7", "name": "Context7", "transport": "stdio",
+    "description": "Current documentation and code examples for libraries and frameworks, fetched on demand.",
+    "command": "npx -y @upstash/context7-mcp",
+    "env": { "CONTEXT7_API_KEY": { "label": "API key (optional, raises the rate limit)", "secret": true } },
+    "auth": "optional"
+  },
+  {
+    "id": "deepwiki", "name": "DeepWiki", "transport": "http",
+    "description": "Ask questions about public GitHub repositories, answered from generated documentation.",
+    "url": "https://mcp.deepwiki.com/mcp",
+    "auth": "none"
+  },
+  {
+    "id": "github", "name": "GitHub", "transport": "http",
+    "description": "Issues, pull requests, code search and more on GitHub – with a personal access token.",
+    "url": "https://api.githubcopilot.com/mcp/",
+    "headers": { "Authorization": { "value": "Bearer ", "label": "Bearer <personal access token>", "secret": true, "required": true } },
+    "auth": "header"
+  },
+  {
+    "id": "brave-search", "name": "Brave Search", "transport": "stdio",
+    "description": "Web and local search through the Brave Search API.",
+    "command": "npx -y @brave/brave-search-mcp-server",
+    "env": { "BRAVE_API_KEY": { "label": "API key", "secret": true, "required": true } },
+    "auth": "env"
+  },
+  {
+    "id": "exa", "name": "Exa", "transport": "stdio",
+    "description": "Neural web search with clean page contents for research tasks.",
+    "command": "npx -y exa-mcp-server",
+    "env": { "EXA_API_KEY": { "label": "API key", "secret": true, "required": true } },
+    "auth": "env"
+  },
+  {
+    "id": "firecrawl", "name": "Firecrawl", "transport": "stdio",
+    "description": "Scrape, crawl and extract structured data from web sites.",
+    "command": "npx -y firecrawl-mcp",
+    "env": { "FIRECRAWL_API_KEY": { "label": "API key", "secret": true, "required": true } },
+    "auth": "env"
+  },
+  {
+    "id": "huggingface", "name": "Hugging Face", "transport": "http",
+    "description": "Search models, datasets, papers and Spaces on the Hugging Face Hub.",
+    "url": "https://huggingface.co/mcp",
+    "headers": { "Authorization": { "value": "Bearer ", "label": "Bearer <token> (optional)", "secret": true } },
+    "auth": "optional"
+  },
+  {
+    "id": "stripe", "name": "Stripe", "transport": "http",
+    "description": "Customers, payments, invoices and subscriptions of your Stripe account.",
+    "url": "https://mcp.stripe.com",
+    "headers": { "Authorization": { "value": "Bearer ", "label": "Bearer <restricted API key>", "secret": true, "required": true } },
+    "auth": "header"
+  }
+]
