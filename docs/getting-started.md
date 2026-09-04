@@ -26,7 +26,8 @@ URL with its environment variables or headers. Bots use a connector on their own
 switch on **Ask before each use** to get an approval card for every call instead. Keys and tokens
 are stored inside the computer.
 A connector reaches a bot when the bot starts - after a change, the button **Restart running
-bots** does that for you. **Appearance** (text size; a compact bot list with one line per bot) and
+bots** does that for you. **Appearance** (text size; a compact bot list with one line per bot; whether the Claude quota bar
+shows always, never or only from a chosen usage) and
 **Behaviour** (sort the bot list by latest activity, newest chat on top like a messenger; which
 view a bot opens with on a wide screen) are remembered per device.
 

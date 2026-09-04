@@ -31,7 +31,8 @@ On a release the section is renamed to the version number and dated. Ideas and o
 - **Settings** replaces the Devices button (now in the ⋮ menu): one dialog with the sections
   **Devices** (sign-in, pairing, notifications), **Appearance** (text size, roles in the bot list)
   and **Behaviour** (bot list sorted by latest activity - newest chat on top like a messenger; the
-  view a bot opens with). Appearance and Behaviour are remembered per device.
+  view a bot opens with). Appearance also decides when the Claude quota bar shows: always, never,
+  or only from a chosen usage (for example 80 %). Appearance and Behaviour are remembered per device.
 
 - **Free-text bot names**: a bot can be called `Fußball-Späher 2` or `Mein Bot!`. The create
   dialog derives the id (`fussball-spaeher-2` - directory, links, address between bots) live and

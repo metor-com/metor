@@ -77,6 +77,21 @@
               <div><div class="text-sm font-medium">Compact bot list</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">One line per bot, without the last message underneath.</p></div>
               <Switch checked={$settings.compactList} label="Compact bot list" onChange={(v) => update({ compactList: v })} />
             </div>
+            <div class="flex flex-col gap-3 py-6">
+              <div><div class="text-sm font-medium">Claude quota</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">The usage bar of the Claude subscription at the bottom of the bot list.</p></div>
+              <div class="flex gap-1 rounded-xl bg-zinc-100 p-1">
+                {#each [["always", "Always"], ["threshold", "From a usage of…"], ["never", "Never"]] as [v, label] (v)}
+                  <button type="button" class={seg($settings.quota === v)} on:click={() => update({ quota: v })}>{label}</button>
+                {/each}
+              </div>
+              {#if $settings.quota === "threshold"}
+                <label class="flex items-center gap-3 text-[13px] text-zinc-600">
+                  <input type="range" min="10" max="95" step="5" class="flex-1 accent-zinc-900" value={$settings.quotaThreshold} on:input={(e) => update({ quotaThreshold: Number(e.currentTarget.value) })} />
+                  <span class="w-24 shrink-0 text-right">from <strong class="text-zinc-900">{$settings.quotaThreshold}%</strong></span>
+                </label>
+                <p class="text-xs text-zinc-400">Shown as soon as the 5-hour or the weekly window reaches that usage.</p>
+              {/if}
+            </div>
             <p class="pt-5 text-xs text-zinc-400">These settings belong to this device.</p>
           </div>
         {:else}

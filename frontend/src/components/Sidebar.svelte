@@ -15,6 +15,9 @@
   export let hiddenOnMobile = false;   // mobile: list OR chat (messenger pattern); desktop: always visible
   let creating = false, showSettings = false, menuOpen = false;
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
+  // Quota bar (Settings → Appearance): always, never, or once a window reaches the chosen usage
+  $: showQuota = !!quota && pct(quota.fiveHour) != null && ($settings.quota === "always"
+    || ($settings.quota === "threshold" && Math.max(pct(quota.fiveHour) ?? 0, pct(quota.sevenDay) ?? 0) >= ($settings.quotaThreshold ?? 80)));
   const initial = (a) => (a.title ?? a.name ?? "?").trim().charAt(0).toUpperCase() || "?";
   // Second line: what the bot is doing right now beats the last message; then the message; then the role
   const preview = (a) => {
@@ -82,7 +85,7 @@
     {/each}
     {#if !agents.length}<li class="p-3 text-sm text-zinc-400">no bots yet</li>{/if}
   </ul>
-  {#if quota && pct(quota.fiveHour) != null}
+  {#if showQuota}
     <div class="m-3 shrink-0 rounded-xl bg-zinc-50 px-3 py-2 text-xs text-zinc-500" title="Usage of the Claude subscription – all Claude bots share this quota (other runtimes have their own quotas)">
       <div class="mb-1 flex justify-between">
         <span>Claude quota · 5h</span>

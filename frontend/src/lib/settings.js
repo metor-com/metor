@@ -9,6 +9,8 @@ export const DEFAULTS = {
   compactList: false,      // bot list: one line per bot, without the last message
   textSize: "default",     // small | default | large
   defaultView: "split",    // view a bot opens with on desktop: chat | split
+  quota: "always",         // Claude quota bar in the bot list: always | threshold | never
+  quotaThreshold: 80,      // with "threshold": show it from this usage (%) of the 5-hour or weekly window
 };
 export const ZOOM = { small: 0.9, default: 1, large: 1.15 };
 
