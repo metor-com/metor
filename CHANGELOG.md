@@ -13,6 +13,9 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Ticks instead of "delivered"**: sent messages show one tick while on the way, two grey ticks
+  once the bot has taken the message and two green ticks once it has answered.
+
 - **Messenger-style bot list**: every bot shows an avatar with its status dot, the time of the
   last message (the time today, "Yesterday", the weekday within a week, otherwise the date), a
   one-line preview of that message ("You: …" for your own) and a badge with the number of unread

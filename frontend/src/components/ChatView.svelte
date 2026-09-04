@@ -1,5 +1,6 @@
 <script>
   import { chatSend, chatPermission, uploadFile, fileUrl } from "../lib/api.js";
+  import Ticks from "./Ticks.svelte";
   import { renderMarkdown } from "../lib/markdown.js";
   export let bot;
   export let title = null;   // what people see; bot stays the id for API calls
@@ -64,6 +65,16 @@
   }
   function onKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }
   const time = (ts) => new Date(ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  // Sent messages that the bot has answered (an assistant reply follows them) – two green ticks
+  $: answered = (() => {
+    const ids = new Set(); let replied = false;
+    for (let i = entries.length - 1; i >= 0; i -= 1) {
+      const x = entries[i];
+      if (x.role === "assistant" && (x.kind === "text" || x.kind === "permission")) replied = true;
+      else if (x.role === "user" && replied) ids.add(x.id);
+    }
+    return ids;
+  })();
   async function decide(entry, decision) {
     try { await chatPermission(bot, entry.id, decision); } catch (e) { alert(`Approval failed: ${e.message}`); }
   }
@@ -117,8 +128,10 @@
               </div>
             {/if}
             {#if e.text}<div class="break-words whitespace-pre-wrap [overflow-wrap:anywhere]">{e.text}</div>{/if}
-            <div class="mt-1 text-[11px] text-zinc-400">
-              {time(e.ts)} · {e.status === "delivered" ? "delivered" : e.status === "failed" ? "failed" : "delivering…"}
+            <div class="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-zinc-400">
+              <span>{time(e.ts)}</span>
+              {#if e.status === "failed"}<span class="text-red-300">✕ failed</span>
+              {:else}<Ticks state={answered.has(e.id) ? "answered" : e.status === "delivered" ? "delivered" : "sent"} />{/if}
             </div>
             {#if e.error}<div class="mt-1 text-xs text-red-300">{e.error}</div>{/if}
           </div>

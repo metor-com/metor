@@ -89,9 +89,9 @@ a line break.
   inside the box.
 - **Stop**: while the bot is working, a red stop button sits in the header. It interrupts the
   current turn; the bot keeps its context and you can send the next message right away.
-- **Message status**: your own messages show a time stamp and "delivered" once the bot's session
-  has taken the message, "delivering" while it is on its way, or "failed" with an error line when
-  the bot is not running.
+- **Message status**: your own messages carry ticks like in a messenger - one tick while the
+  message is on its way, two grey ticks once the bot's session has taken it, two green ticks once
+  the bot has answered; "failed" with an error line when the bot is not running.
 
 Messages triggered by a routine (see below) appear in the history as grey bubbles marked "Routine".
 
