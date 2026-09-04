@@ -144,10 +144,12 @@ in the chat: "Every weekday at 7:00, check the three feeds in `sources.md` and p
 digest." The bot creates the schedule itself and confirms it. Times are in the box's local time zone
 (Europe/Berlin by default, see INSTALL.md).
 
-The **Routines** button in the header opens a panel listing each routine with its cron expression,
-name, prompt, last and next run. Routines are changed the same way they are created - ask the bot
-to move the time, change the prompt, pause it or resume it, or delete it. Each run arrives in the
-chat as a grey "Routine" message followed by the bot's work.
+The routines button in the header (a calendar with a clock) shows the bot's routines next to the
+chat, one card each in plain words: when it runs ("Weekdays at 07:00"), the next and the last run,
+whether it is active or paused and why, and the task the bot receives. Below the cards the recent
+runs are listed. The panel is read-only: routines are changed the same way they are created - ask
+the bot to move the time, change the task, pause or resume it, or delete it. Each run arrives in
+the chat as a grey "Routine" message followed by the bot's work.
 
 **Auto-pause**: a routine that has run 20 times without you sending the bot any message is paused
 automatically and marked "paused" in the panel; the bot leaves a note in the chat. Just tell the

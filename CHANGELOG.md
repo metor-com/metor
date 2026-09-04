@@ -13,6 +13,10 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Routines next to the chat, in plain words**: a calendar button in the header shows the bot's
+  routines as cards - "Weekdays at 07:00", next and last run, active or paused with the reason,
+  the task - plus the recent runs; no cron expressions or ids in sight.
+
 - **One computer button instead of three views**: the bot's screen is shown next to the chat
   with a button in the header, and the divider between chat and computer can be dragged (the
   share is remembered per device). On a phone the computer replaces the chat while it is shown.

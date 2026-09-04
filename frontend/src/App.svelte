@@ -12,18 +12,19 @@
   import { initPush } from "./lib/push.js";
   import { settings, ZOOM, update as updateSettings } from "./lib/settings.js";
 
-  let computer = $isDesktop && $settings.defaultView !== "chat";   // the computer pane is shown (Settings → Behaviour sets the start on desktop)
-  $: if (!$isDesktop && $selected) computer = false;   // a phone opens every bot with the chat; the header button brings the computer
+  // The pane next to the chat: the bot's computer or its routines (one at a time), toggled from the
+  // header. Settings → Behaviour decides whether a bot opens with the computer on desktop.
+  let pane = $isDesktop && $settings.defaultView !== "chat" ? "computer" : null;
+  const toggle = (which) => (pane = pane === which ? null : which);
+  $: if (!$isDesktop && $selected) pane = null;   // a phone opens every bot with the chat; the header buttons bring computer or routines
   $: zoom = ZOOM[$settings.textSize] ?? 1;   // Settings → Appearance → text size
-  let showRoutines = false;
-  $: $selected, (showRoutines = false);   // a new selection closes the routines panel
 
   // Desktop: chat and computer side by side, the divider between them is draggable (share kept per
   // device). Phone: no room for both – the computer replaces the chat while it is shown.
-  let ratio = $settings.splitRatio ?? 0.5, dragging = false, pane = null;
+  let ratio = $settings.splitRatio ?? 0.5, dragging = false, paneEl = null;
   function startDrag(e) {
     dragging = true; e.currentTarget.setPointerCapture(e.pointerId);
-    const box = pane.getBoundingClientRect();
+    const box = paneEl.getBoundingClientRect();
     const move = (ev) => { ratio = Math.min(0.75, Math.max(0.25, (ev.clientX - box.left) / box.width)); };
     const stop = () => { dragging = false; updateSettings({ splitRatio: Math.round(ratio * 100) / 100 }); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop);
@@ -47,21 +48,21 @@
 
   <main class="{$selected ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col">
     {#if $current}
-      <Header agent={$current} {computer} {showRoutines}
-        onToggleComputer={() => (computer = !computer)} onBack={() => select(null)} onToggleRoutines={() => (showRoutines = !showRoutines)}
+      <Header agent={$current} {pane}
+        onToggleComputer={() => toggle("computer")} onToggleRoutines={() => toggle("routines")} onBack={() => select(null)}
         {onAct} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
-      {#if showRoutines}<RoutinesPanel bot={$selected} title={$current.title ?? $selected} />{/if}
-      <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={pane}>
-        {#if $isDesktop || !computer}
-          <div class="flex min-h-0 min-w-0 flex-col" style={$isDesktop && computer ? `flex: 0 0 ${ratio * 100}%` : "flex: 1 1 0%"}>
+      <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={paneEl}>
+        {#if $isDesktop || !pane}
+          <div class="flex min-h-0 min-w-0 flex-col" style={$isDesktop && pane ? `flex: 0 0 ${ratio * 100}%` : "flex: 1 1 0%"}>
             <ChatView bot={$selected} title={$current.title ?? $selected} entries={$entries} partial={$partial} onLocalEntry={applyEntry} />
           </div>
         {/if}
-        {#if $isDesktop && computer}
-          <div class="group relative w-1.5 shrink-0 cursor-col-resize bg-zinc-200 hover:bg-zinc-400 {dragging ? 'bg-zinc-500' : ''}" role="separator" aria-orientation="vertical" aria-label="Drag to resize chat and computer"
+        {#if $isDesktop && pane}
+          <div class="group relative w-1.5 shrink-0 cursor-col-resize bg-zinc-200 hover:bg-zinc-400 {dragging ? 'bg-zinc-500' : ''}" role="separator" aria-orientation="vertical" aria-label="Drag to resize the chat and the pane"
             on:pointerdown|preventDefault={startDrag}></div>
         {/if}
-        {#if computer}<ComputerPanel bot={$selected} />{/if}
+        {#if pane === "computer"}<ComputerPanel bot={$selected} />
+        {:else if pane === "routines"}{#key $selected}<RoutinesPanel bot={$selected} title={$current.title ?? $selected} />{/key}{/if}
       </section>
     {:else}
       <div class="m-auto max-w-sm px-6 text-center text-zinc-500">
