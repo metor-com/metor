@@ -2,7 +2,7 @@
 // connection (one SSE stream) and the selected bot's chat entries and streaming text. Components
 // read the stores and call the functions; App.svelte only wires layout and view state.
 import { writable, derived, get } from "svelte/store";
-import { listAgents, chatHistory, agentAction, chatInterrupt } from "./api.js";
+import { listAgents, chatHistory, agentAction, chatInterrupt, chatRead } from "./api.js";
 import { openEvents } from "./events.js";
 import { settings } from "./settings.js";
 
@@ -34,16 +34,26 @@ function reconnect() {
   closeEvents = openEvents({
     topics: ["agents", ...(name ? [`chat:${name}`] : [])],
     onAgents: (list) => { agents.set(list); pending.update((p) => p.filter((x) => !list.some((a) => a.name === x.name))); },
-    onChat: ({ bot, entry }) => { if (bot === get(selected)) applyEntry(entry); },
+    onChat: ({ bot, entry }) => { if (bot === get(selected)) { applyEntry(entry); if (entry.role === "assistant") markRead(bot); } },
     onOpen: () => { refresh(); const n = get(selected); if (n) loadHistory(n); },
   });
+}
+// Read marks (unread badge in the bot list): the open chat counts as read whenever the page is
+// visible – on selection, on every new entry, on return to the foreground. Optimistic locally,
+// the gateway confirms through the next agents event.
+let readTimer = null;
+function markRead(name) {
+  if (!name || document.visibilityState === "hidden") return;
+  agents.update((list) => list.map((a) => (a.name === name && a.unread ? { ...a, unread: 0 } : a)));
+  clearTimeout(readTimer);
+  readTimer = setTimeout(() => { chatRead(name).catch(() => {}); }, 300);
 }
 function activate(name) {
   selected.set(name);
   entries.set([]);
   partial.set(null);
   reconnect();
-  if (name) loadHistory(name);
+  if (name) { loadHistory(name); markRead(name); }
 }
 // Select a bot (null = overview); the hash makes it a history entry for the back gesture on mobile
 export function select(name) {
@@ -77,7 +87,7 @@ export function connect() {
   window.addEventListener("hashchange", onHash);
   // App in the background (phone in the pocket, other tab): no stream. The gateway then knows this
   // device is not looking and sends push notifications instead; on return the stream reconnects and refetches.
-  const onVisibility = () => { if (document.visibilityState === "hidden") { closeEvents?.(); closeEvents = null; } else if (!closeEvents) reconnect(); };
+  const onVisibility = () => { if (document.visibilityState === "hidden") { closeEvents?.(); closeEvents = null; } else { if (!closeEvents) reconnect(); markRead(get(selected)); } };
   document.addEventListener("visibilitychange", onVisibility);
   return () => { closeEvents?.(); closeEvents = null; window.removeEventListener("hashchange", onHash); document.removeEventListener("visibilitychange", onVisibility); };
 }

@@ -47,6 +47,7 @@ export const listFiles = (name, path = "") => req("GET", `/agents/${name}/files?
 export const chatPermission = (name, ref, decision) => req("POST", `/agents/${name}/chat/permission`, { ref, decision });
 export const listRoutines = (name) => req("GET", `/agents/${name}/routines`);
 export const chatInterrupt = (name) => req("POST", `/agents/${name}/chat/interrupt`);
+export const chatRead = (name) => req("POST", `/agents/${name}/chat/read`);   // "I am looking at this chat" – clears the unread badge
 export const chatHistory = (name, limit = 200) => req("GET", `/agents/${name}/chat/history?limit=${limit}`);
 // Connectors (ADR-0014): MCP servers for every bot, the curated directory, restart of the running bots
 export const listConnectors = () => req("GET", "/connectors");

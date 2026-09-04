@@ -13,6 +13,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Messenger-style bot list**: every bot shows an avatar with its status dot, the time of the
+  last message (the time today, "Yesterday", the weekday within a week, otherwise the date), a
+  one-line preview of that message ("You: …" for your own) and a badge with the number of unread
+  bot messages. Opening a chat marks it read on every device. "Compact bot list" in Settings →
+  Appearance switches to one line per bot.
+
 - **Connectors** ([ADR-0014](knowledge/decisions/0014-connectors.md)): under **Settings →
   Connectors** you add MCP servers that every bot can use - from a small directory (Memory,
   Sequential thinking, Context7, DeepWiki, GitHub, Brave Search, Exa, Firecrawl, Hugging Face,

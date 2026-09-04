@@ -6,7 +6,7 @@ import { writable } from "svelte/store";
 const KEY = "metor.settings";
 export const DEFAULTS = {
   sortByActivity: false,   // bot list: newest message first (messenger style) instead of alphabetical
-  showRoles: true,         // the one-line role under each bot name
+  compactList: false,      // bot list: one line per bot, without the last message
   textSize: "default",     // small | default | large
   defaultView: "split",    // view a bot opens with on desktop: chat | split
 };

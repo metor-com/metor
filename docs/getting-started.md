@@ -26,7 +26,7 @@ URL with its environment variables or headers. Bots use a connector on their own
 switch on **Ask before each use** to get an approval card for every call instead. Keys and tokens
 are stored inside the computer.
 A connector reaches a bot when the bot starts - after a change, the button **Restart running
-bots** does that for you. **Appearance** (text size; roles under the bot names on or off) and
+bots** does that for you. **Appearance** (text size; a compact bot list with one line per bot) and
 **Behaviour** (sort the bot list by latest activity, newest chat on top like a messenger; which
 view a bot opens with on a wide screen) are remembered per device.
 
@@ -63,8 +63,9 @@ Click **+ New bot** at the bottom of the sidebar.
   and codes are valid for 15 minutes. Runtime logins are per box, not per bot.
 
 **Create** sets up the desktop and the session; that takes up to a minute. The bot appears in the
-sidebar with a status dot: green = ready, amber = working, red = waiting for approval, grey =
-stopped.
+sidebar like a chat in a messenger: an avatar with a status dot (green = ready, amber = working,
+red = waiting for approval, grey = stopped), the time of the last message, a one-line preview of
+it and, once the bot has written something you have not looked at yet, a badge with the count.
 
 <!-- screenshot: new bot dialog with the Codex setup wizard -->
 

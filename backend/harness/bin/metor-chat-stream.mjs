@@ -97,6 +97,53 @@ export function createStreamChat({ botsDir } = {}) {
     return s.status === "busy" ? "busy" : s.status === "error" ? "waiting" : "idle";
   }
 
+  // ---------- Messenger view of a chat (bot list): last message, its time, unread count ----------
+  // "Read" = the moment the user last looked at that chat (read.json, written by the gateway on
+  // request of the interface). Only the tail of the history is scanned – 64 KB is hundreds of
+  // entries – and grown until it reaches an entry older than the read mark; cached per file state.
+  const summaries = new Map();
+  const isMessage = (e) => e && !e.type && (e.role === "user" || (e.role === "assistant" && (e.kind === "text" || e.kind === "permission")));
+  const preview = (e) => {
+    const text = String(e.text ?? "").replace(/```[\s\S]*?```/g, " ").replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*_`#>|]+/g, "").replace(/\s+/g, " ").trim();
+    if (text) return text.slice(0, 160);
+    const n = e.attachments?.length ?? 0;
+    return n ? `${n} attachment${n === 1 ? "" : "s"}` : "";
+  };
+  function readAt(bot) { try { return Date.parse(JSON.parse(readFileSync(join(botsDir, bot, ".metor", "read.json"), "utf8")).ts) || 0; } catch { return 0; } }
+  function markRead(bot) {
+    if (!existsSync(join(botsDir, bot, "bot.json"))) return { error: `Bot ${bot} does not exist` };
+    const dir = join(botsDir, bot, ".metor"); mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "read.json"), JSON.stringify({ ts: now() }) + "\n");
+    return { ok: true };
+  }
+  function summary(bot) {
+    const empty = { lastMessageAt: null, lastMessage: null, unread: 0 };
+    const file = join(botsDir, bot, ".metor", "chat.jsonl");
+    let st; try { st = statSync(file); } catch { return empty; }
+    const read = readAt(bot);
+    const key = `${st.size}:${st.mtimeMs}:${read}`;
+    const cached = summaries.get(bot); if (cached?.key === key) return cached.value;
+    let chunk = 65536, value = empty;
+    for (;;) {
+      const start = Math.max(0, st.size - chunk);
+      const fd = openSync(file, "r"); const buf = Buffer.alloc(st.size - start); readSync(fd, buf, 0, buf.length, start); closeSync(fd);
+      const lines = buf.toString("utf8").split("\n"); if (start > 0) lines.shift();   // the cut-off first line
+      const entries = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((e) => e?.ts);
+      const complete = start === 0 || (entries.length && Date.parse(entries[0].ts) <= read) || chunk >= 4 * 1024 * 1024;
+      if (complete) {
+        const msgs = entries.filter(isMessage);
+        const last = msgs[msgs.length - 1] ?? null;
+        value = { lastMessageAt: last ? Date.parse(last.ts) : null,
+          lastMessage: last ? { who: last.role === "user" ? "you" : last.kind === "permission" ? "approval" : "bot", text: preview(last) } : null,
+          unread: msgs.filter((e) => e.role === "assistant" && Date.parse(e.ts) > read).length };
+        break;
+      }
+      chunk *= 4;
+    }
+    summaries.set(bot, { key, value });
+    return value;
+  }
+
   // Tail: chat.jsonl of all stream bots; new lines → listeners (offsets start at the end of the file,
   // the UI fetches the history via readHistory – no cursor needed, a reconnect refetches anyway).
   // Plus partial.json (the host's token streaming): change → transient {type:"partial"} entry.
@@ -134,7 +181,7 @@ export function createStreamChat({ botsDir } = {}) {
   const timer = setInterval(tailTick, 400);
 
   return {
-    send, answerPermission, interrupt, status, state, readHistory: (bot, opts) => readHistory(botsDir, bot, opts),
+    send, answerPermission, interrupt, status, state, summary, markRead, readHistory: (bot, opts) => readHistory(botsDir, bot, opts),
     subscribe(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     close() { clearInterval(timer); },
   };

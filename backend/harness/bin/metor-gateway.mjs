@@ -27,16 +27,13 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 function watchPath(b) { return `/bots/${b.name}/vnc.html?autoconnect=1&resize=scale&path=bots/${b.name}/websockify&password=${b.watchToken}`; }
 
 // ---------- Status: from each bot's harness.json (written by its host process) ----------
-// Latest chat activity = mtime of the history file (every message and status line touches it), else creation
-function lastActivity(b) {
-  let t = Date.parse(b.createdAt ?? "") || 0;
-  try { t = Math.max(t, statSync(join(BOTS_DIR, b.name, ".metor", "chat.jsonl")).mtimeMs); } catch {}
-  return Math.round(t);
-}
 async function agentList() {
   return bots().map((b) => {
     const h = harnessOf(b);
-    return { name: b.name, title: b.title ?? b.name, role: b.role ?? "", createdAt: b.createdAt ?? null, lastActivityAt: lastActivity(b), display: b.display ?? null,
+    const sum = streamChat.summary(b.name);   // messenger view: last message, its time, unread count
+    return { name: b.name, title: b.title ?? b.name, role: b.role ?? "", createdAt: b.createdAt ?? null,
+      lastActivityAt: sum.lastMessageAt ?? (Date.parse(b.createdAt ?? "") || 0), lastMessageAt: sum.lastMessageAt, lastMessage: sum.lastMessage, unread: sum.unread,
+      display: b.display ?? null,
       harness: h, harnessLabel: HARNESSES[h]?.label ?? h,
       model: b.model ?? null,
       modelLabel: HARNESSES[h]?.models.find((m) => m.id === b.model)?.label ?? (b.model ?? "Default model"),
@@ -282,6 +279,8 @@ async function api(req, res, url) {
         .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "dir" ? -1 : 1));
       return send(200, { path: rel, entries });
     }
+    // The user is looking at this chat: everything so far counts as read (unread badge in the bot list)
+    if (action === "chat" && rest[3] === "read" && req.method === "POST") { const r = streamChat.markRead(name); pushAgents().catch(() => {}); return send(r.error ? 400 : 200, r); }
     if (action === "chat" && rest[3] === "interrupt" && req.method === "POST") {
       const r = streamChat.interrupt(name);
       return send(r.error ? 400 : 202, r);

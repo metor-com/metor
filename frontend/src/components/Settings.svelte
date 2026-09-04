@@ -74,8 +74,8 @@
               </div>
             </div>
             <div class="flex items-center justify-between gap-6 py-6">
-              <div><div class="text-sm font-medium">Roles in the bot list</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">The one-line role under each bot name. Off gives a denser list.</p></div>
-              <Switch checked={$settings.showRoles} label="Roles in the bot list" onChange={(v) => update({ showRoles: v })} />
+              <div><div class="text-sm font-medium">Compact bot list</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">One line per bot, without the last message underneath.</p></div>
+              <Switch checked={$settings.compactList} label="Compact bot list" onChange={(v) => update({ compactList: v })} />
             </div>
             <p class="pt-5 text-xs text-zinc-400">These settings belong to this device.</p>
           </div>

@@ -1,9 +1,12 @@
 <script>
+  // The bot list, messenger style: avatar with the status dot, title, time of the last message,
+  // its preview and the unread badge (counts and previews come from the gateway's agents list).
   import StatusDot from "./StatusDot.svelte";
   import AgentCreate from "./AgentCreate.svelte";
   import Settings from "./Settings.svelte";
   import { settings } from "../lib/settings.js";
   import { statusLabel } from "../lib/status.js";
+  import { whenLabel } from "../lib/when.js";
   export let agents = [];
   export let selected = null;
   export let quota = null;
@@ -12,25 +15,49 @@
   export let hiddenOnMobile = false;   // mobile: list OR chat (messenger pattern); desktop: always visible
   let creating = false, showSettings = false;
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
+  const initial = (a) => (a.title ?? a.name ?? "?").trim().charAt(0).toUpperCase() || "?";
+  // Second line: what the bot is doing right now beats the last message; then the message; then the role
+  const preview = (a) => {
+    if (a.status === "busy") return { text: "working…", cls: "text-emerald-700" };
+    if (a.status === "waiting") return { text: "waiting for your approval", cls: "text-amber-700" };
+    if (a.status === "setting up") return { text: "setting up…", cls: "text-zinc-400" };
+    const m = a.lastMessage;
+    if (m?.text) return { text: m.who === "you" ? `You: ${m.text}` : m.who === "approval" ? m.text : m.text, cls: a.unread ? "text-zinc-800" : "text-zinc-500" };
+    return { text: a.role || statusLabel(a.status), cls: "text-zinc-400" };
+  };
 </script>
 
-<aside class="{hiddenOnMobile ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-white md:w-64 md:border-r md:border-zinc-200">
+<aside class="{hiddenOnMobile ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-white md:w-72 md:border-r md:border-zinc-200">
   <div class="shrink-0 border-b border-zinc-200 px-4 py-4 font-bold">
     metor <span class="ml-1.5 text-[13px] font-normal text-zinc-400">Dock</span>
   </div>
   <ul class="min-h-0 flex-1 overflow-y-auto p-2">
     {#each agents as a (a.name)}
+      {@const p = preview(a)}
       <li>
         <button
-          class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors {a.name === selected ? 'bg-zinc-100' : 'hover:bg-zinc-50'}"
+          class="flex w-full items-center gap-3 rounded-xl px-3 {$settings.compactList ? 'py-2' : 'py-2.5'} text-left transition-colors {a.name === selected ? 'bg-zinc-100' : 'hover:bg-zinc-50'}"
           on:click={() => onSelect(a.name)}
         >
-          <StatusDot status={a.status} />
-          <span class="min-w-0 flex-1">
-            <strong class="block truncate text-sm">{a.title ?? a.name}</strong>
-            {#if a.role && $settings.showRoles}<span class="block truncate text-xs text-zinc-500">{a.role}</span>{/if}
+          <span class="relative shrink-0">
+            <span class="flex {$settings.compactList ? 'size-8 text-sm' : 'size-11 text-base'} items-center justify-center rounded-full bg-zinc-200 font-semibold text-zinc-700">{initial(a)}</span>
+            <span class="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-white leading-none {a.name === selected ? 'border-zinc-100' : ''}"><StatusDot status={a.status} /></span>
           </span>
-          <span class="shrink-0 text-xs text-zinc-400">{statusLabel(a.status)}</span>
+          <span class="min-w-0 flex-1">
+            <span class="flex items-baseline justify-between gap-2">
+              <strong class="truncate text-[15px] font-semibold">{a.title ?? a.name}</strong>
+              <span class="shrink-0 text-xs {a.unread ? 'font-medium text-zinc-900' : 'text-zinc-400'}">{whenLabel(a.lastMessageAt)}</span>
+            </span>
+            {#if !$settings.compactList}
+              <span class="mt-0.5 flex items-center justify-between gap-2">
+                <span class="truncate text-[13px] {p.cls}">{p.text}</span>
+                {#if a.unread}<span class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[11px] font-semibold text-white">{a.unread > 99 ? "99+" : a.unread}</span>{/if}
+              </span>
+            {:else if a.unread}
+              <span class="sr-only">{a.unread} unread</span>
+            {/if}
+          </span>
+          {#if $settings.compactList && a.unread}<span class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[11px] font-semibold text-white">{a.unread > 99 ? "99+" : a.unread}</span>{/if}
         </button>
       </li>
     {/each}
@@ -54,7 +81,7 @@
       on:click={() => (creating = true)}
     >+ New bot</button>
     <button class="shrink-0 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-900"
-      title="Devices, appearance, behaviour" aria-label="Settings" on:click={() => (showSettings = true)}>⚙︎ Settings</button>
+      title="Devices, connectors, appearance, behaviour" aria-label="Settings" on:click={() => (showSettings = true)}>⚙︎ Settings</button>
   </div>
   {#if creating}
     <AgentCreate onDone={(name, title) => { creating = false; if (name) onCreated(name, title); }} />
