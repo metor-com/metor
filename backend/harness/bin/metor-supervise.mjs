@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { injectTurn } from "./metor-chat-stream.mjs";
 import { dueRoutines, recordRun } from "./metor-routines.mjs";
 import { HARNESSES, harnessOf } from "./metor-harness.mjs";
-import { BOTS_DIR, TEMPLATES, allBots, botDir } from "./metor-store.mjs";
+import { BOTS_DIR, TEMPLATES, allBots, botDir, writeBot } from "./metor-store.mjs";
 import { desktopAlive, desktopCoreDead, desktopForgetPids, desktopStart, desktopStop } from "./metor-desktop.mjs";
 import { hostAlive, hostPidFile, startAgent, stopHost } from "./metor-lifecycle.mjs";
 import { AUTH_OFF, createClaim, hasOpenClaim, hasSessions } from "./metor-auth.mjs";
@@ -41,6 +41,16 @@ export function supervise() {
     rmSync(hostPidFile(b), { force: true });
     const hs = join(botDir(b.name), ".metor", "harness.json");
     try { const s = JSON.parse(readFileSync(hs, "utf8")); if (s.pid) writeFileSync(hs, JSON.stringify({ ...s, pid: null, status: "stopped" }) + "\n"); } catch {}
+  }
+  // One-time: bots created before titles existed get `title` written into bot.json (readBot fills
+  // it in memory; this makes the file self-describing for the CLI, backups and hand edits)
+  for (const b of allBots()) {
+    try {
+      if (JSON.parse(readFileSync(join(botDir(b.name), "bot.json"), "utf8")).title != null) continue;
+      const { name, title, ...rest } = b;
+      writeBot({ name, title, ...rest });
+      console.log(`supervise: ${name}: title "${title}" added to bot.json`);
+    } catch {}
   }
   // Login gate PER harness (ADR-0011): every runtime has its own login; a missing
   // Codex login must not block Claude bots and vice versa. Non-ok probes are retried every tick.
