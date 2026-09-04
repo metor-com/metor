@@ -4,12 +4,6 @@ Four ways, from the most convenient to the most manual. The prebuilt box image c
 Container Registry: **`ghcr.io/metor-com/metor-box`** (tags `latest` = main, `0.1.0` etc. for
 releases, plus a short commit sha), built by `.github/workflows/box-image.yml` for `linux/amd64`.
 
-> **Until the package is public:** the image is a private package. Each server needs a one-time
-> `docker login ghcr.io` with a GitHub token that has the `read:packages` scope; `install.sh` asks
-> for it (or takes `METOR_GHCR_USER`/`METOR_GHCR_TOKEN`) when it has no access to the image. Docker
-> keeps the login in `/root/.docker/config.json` so that updates work; `docker logout ghcr.io`
-> removes it. This paragraph goes away once the package is public.
-
 ## Security first
 
 Whoever gets into the interface can read every chat, drive every bot and open every bot's terminal.
@@ -70,7 +64,7 @@ ssh root@<server> 'METOR_DOMAIN=bots.example.com bash -c "curl -fsSL https://www
 |---|---|
 | `METOR_DOMAIN` | Domain for the interface; unset = `<public-ip>.sslip.io`; `local` (or empty) = this machine only, without Caddy |
 | `METOR_INSTALL_DOCKER` | `no` = stop instead of installing Docker (with the compose plugin) via get.docker.com when it is missing |
-| `METOR_GHCR_USER`, `METOR_GHCR_TOKEN` | GitHub user + token with `read:packages`, only needed while the image package is private |
+| `METOR_GHCR_USER`, `METOR_GHCR_TOKEN` | GitHub user + token with `read:packages`, only for a private image (a mirror via `METOR_IMAGE`); the official package is public |
 | `METOR_DIR`, `METOR_IMAGE` | Install directory (default `/opt/metor`) and image (default `ghcr.io/metor-com/metor-box:latest`) |
 
 The script ends by printing the setup link; the two manual steps that remain are opening that link

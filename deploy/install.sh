@@ -97,7 +97,7 @@ if [ -n "$DOMAIN" ] && { port_busy 80 || port_busy 443; }; then
   echo "     section C, for Caddy and nginx examples (WebSockets and unbuffered responses are required)."
 fi
 
-# ---------- Image (a private package needs a GitHub login with read:packages) ----------
+# ---------- Image (public; the login below only runs when the image is not reachable, e.g. a private mirror via METOR_IMAGE) ----------
 quiet_login() { grep -v -i "warning\|unencrypted\|credential\|docs.docker.com" || true; }   # Docker's config.json notice is noise here
 if ! docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
   if [ -n "${METOR_GHCR_TOKEN:-}" ]; then
@@ -108,7 +108,7 @@ if ! docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
     docker login ghcr.io </dev/tty 2>&1 | quiet_login
   fi
   docker manifest inspect "$IMAGE" >/dev/null 2>&1 || { echo "Still no access to $IMAGE – check user and token (scope read:packages)."; exit 1; }
-  echo "The login is kept in /root/.docker/config.json for updates; 'docker logout ghcr.io' removes it once the package is public."
+  echo "The login is kept in /root/.docker/config.json for updates; 'docker logout ghcr.io' removes it."
 fi
 say "Pulling $IMAGE"
 docker pull -q "$IMAGE"
