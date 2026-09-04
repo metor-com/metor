@@ -1,6 +1,6 @@
 <script>
   // Header of the bot view: name, status, runtime · model, the computer toggle, stop button and the
-  // actions (routines, start/pause, remove) – as buttons on desktop, in a ⋯ menu on mobile.
+  // actions (pause/start, remove) in a ⋮ menu at the far right.
   import { statusLabel } from "../lib/status.js";
   export let agent;                // the selected bot (from the agents list)
   export let pane = null;          // what is shown next to the chat (instead of it on a phone): "computer" | "routines" | null
@@ -37,19 +37,12 @@
   {#if agent.status === "busy"}
     <button class="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 md:px-3.5" on:click={onInterrupt}>■ Stop</button>
   {/if}
-  <!-- Desktop: every action as its own button -->
-  <div class="hidden shrink-0 gap-2 md:flex">
-    {#if agent.status === "stopped"}
-      <button class="rounded-lg border border-zinc-300 bg-white px-3.5 py-1.5 text-sm hover:bg-zinc-50" on:click={() => onAct("start")}>Start</button>
-    {:else}
-      <button class="rounded-lg border border-zinc-300 bg-white px-3.5 py-1.5 text-sm hover:bg-zinc-50" on:click={() => onAct("stop")}>Pause</button>
-    {/if}
-    <button class="rounded-lg border border-red-200 bg-white px-3.5 py-1.5 text-sm text-red-600 hover:bg-red-50" on:click={() => onAct("rm")}>Remove</button>
-  </div>
-  <!-- Mobile: actions in the ⋯ menu -->
-  <div class="relative shrink-0 md:hidden">
-    <button class="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm hover:bg-zinc-50" aria-label="More actions"
-      on:click|stopPropagation={() => (menuOpen = !menuOpen)}>⋯</button>
+  <!-- Bot actions (pause/start, remove) in the ⋮ menu at the far right, on every width -->
+  <div class="relative shrink-0">
+    <button type="button" class="flex size-9 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100" aria-label="More actions" title="More actions"
+      on:click|stopPropagation={() => (menuOpen = !menuOpen)}>
+      <svg class="size-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>
+    </button>
     {#if menuOpen}
       <div class="absolute right-0 top-full z-20 mt-1.5 w-44 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
         {#if agent.status === "stopped"}
