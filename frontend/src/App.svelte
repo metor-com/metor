@@ -49,7 +49,7 @@
     {:else}
       <div class="m-auto max-w-sm px-6 text-center text-zinc-500">
         <h2 class="mb-2 text-xl font-bold text-zinc-900">metor</h2>
-        <p>Pick a bot on the left or create a new one. The bot's chat and computer will appear here.</p>
+        <p>Pick a bot on the left or create one with the + button. The bot's chat and computer will appear here.</p>
         <button class="mt-4 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 md:hidden" on:click={() => select(null)}>Back to bots</button>
       </div>
     {/if}

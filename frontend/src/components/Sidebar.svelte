@@ -13,7 +13,7 @@
   export let onSelect;
   export let onCreated;
   export let hiddenOnMobile = false;   // mobile: list OR chat (messenger pattern); desktop: always visible
-  let creating = false, showSettings = false;
+  let creating = false, showSettings = false, menuOpen = false;
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
   const initial = (a) => (a.title ?? a.name ?? "?").trim().charAt(0).toUpperCase() || "?";
   // Second line: what the bot is doing right now beats the last message; then the message; then the role
@@ -27,9 +27,28 @@
   };
 </script>
 
+<svelte:window on:click={() => (menuOpen = false)} />
 <aside class="{hiddenOnMobile ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-white md:w-72 md:border-r md:border-zinc-200">
-  <div class="shrink-0 border-b border-zinc-200 px-4 py-4 font-bold">
-    metor <span class="ml-1.5 text-[13px] font-normal text-zinc-400">Dock</span>
+  <!-- Messenger header: wordmark, the ⋮ menu (Settings) and the round + for a new bot -->
+  <div class="flex shrink-0 items-center justify-between px-4 py-3">
+    <span class="text-2xl font-bold tracking-tight text-zinc-900">metor</span>
+    <div class="flex items-center gap-1">
+      <div class="relative">
+        <button type="button" class="flex size-10 items-center justify-center rounded-full text-zinc-700 hover:bg-zinc-100" aria-label="Menu" title="Menu"
+          on:click|stopPropagation={() => (menuOpen = !menuOpen)}>
+          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>
+        </button>
+        {#if menuOpen}
+          <div class="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
+            <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
+          </div>
+        {/if}
+      </div>
+      <button type="button" class="flex size-9 items-center justify-center rounded-full bg-zinc-900 text-white shadow-sm hover:bg-zinc-700" aria-label="New bot" title="New bot"
+        on:click={() => (creating = true)}>
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+      </button>
+    </div>
   </div>
   <ul class="min-h-0 flex-1 overflow-y-auto p-2">
     {#each agents as a (a.name)}
@@ -64,7 +83,7 @@
     {#if !agents.length}<li class="p-3 text-sm text-zinc-400">no bots yet</li>{/if}
   </ul>
   {#if quota && pct(quota.fiveHour) != null}
-    <div class="mx-3 shrink-0 rounded-xl bg-zinc-50 px-3 py-2 text-xs text-zinc-500" title="Usage of the Claude subscription – all Claude bots share this quota (other runtimes have their own quotas)">
+    <div class="m-3 shrink-0 rounded-xl bg-zinc-50 px-3 py-2 text-xs text-zinc-500" title="Usage of the Claude subscription – all Claude bots share this quota (other runtimes have their own quotas)">
       <div class="mb-1 flex justify-between">
         <span>Claude quota · 5h</span>
         <span>{pct(quota.fiveHour)}%{#if pct(quota.sevenDay) != null} · week {pct(quota.sevenDay)}%{/if}</span>
@@ -75,14 +94,6 @@
       </div>
     </div>
   {/if}
-  <div class="m-3 flex shrink-0 gap-2">
-    <button
-      class="min-w-0 flex-1 rounded-xl border border-dashed border-zinc-300 px-3 py-2.5 text-sm text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-900"
-      on:click={() => (creating = true)}
-    >+ New bot</button>
-    <button class="shrink-0 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-900"
-      title="Devices, connectors, appearance, behaviour" aria-label="Settings" on:click={() => (showSettings = true)}>⚙︎ Settings</button>
-  </div>
   {#if creating}
     <AgentCreate onDone={(name, title) => { creating = false; if (name) onCreated(name, title); }} />
   {/if}

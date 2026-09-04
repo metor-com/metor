@@ -12,7 +12,7 @@ at `https://<your-domain>/bots/` after opening your setup link (section 1).
 The interface has no passwords. The first browser gets in with a **setup link** that the installer
 prints at the end (and that `metor auth link` inside the box prints again at any time, valid for
 24 hours, single use). Every further phone or computer is linked from a device that is already
-signed in: open **Settings** at the bottom of the bot list, tab **Devices**, click **Link a device**, and on the new
+signed in: open the **⋮ menu** at the top of the bot list → **Settings**, section **Devices**, click **Link a device**, and on the new
 device either scan the QR code with the camera or open the interface and type the pairing code on
 the sign-in page. Links and codes are valid for two minutes.
 
@@ -42,7 +42,7 @@ interface must be reached over HTTPS for this.
 
 ## 2. Create your first bot
 
-Click **+ New bot** at the bottom of the sidebar.
+Click the round **+** at the top right of the bot list.
 
 - **Name** - free text, for example `Scout` or `Fußball-Späher 2`. The dialog shows the **id** it
   derives from the name (`fussball-spaeher-2`: lower case, umlauts as `ae`/`oe`/`ue`, everything

@@ -26,7 +26,9 @@ On a release the section is renamed to the version number and dated. Ideas and o
   Both runtimes get them; a connector is live once the bot has (re)started, and one button
   restarts the running bots.
 
-- **Settings** replaces the Devices button at the bottom of the bot list: one dialog with the tabs
+- **Messenger header**: the bot list starts with the metor wordmark, the ⋮ menu (Settings) and a
+  round + for a new bot, like a messenger; the buttons at the bottom are gone.
+- **Settings** replaces the Devices button (now in the ⋮ menu): one dialog with the sections
   **Devices** (sign-in, pairing, notifications), **Appearance** (text size, roles in the bot list)
   and **Behaviour** (bot list sorted by latest activity - newest chat on top like a messenger; the
   view a bot opens with). Appearance and Behaviour are remembered per device.
