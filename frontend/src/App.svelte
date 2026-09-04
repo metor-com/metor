@@ -7,6 +7,8 @@
   import RoutinesPanel from "./components/RoutinesPanel.svelte";
   import ChatView from "./components/ChatView.svelte";
   import ComputerPanel from "./components/ComputerPanel.svelte";
+  import Connect from "./components/Connect.svelte";
+  import { app } from "./lib/base.js";
   import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect } from "./lib/session.js";
   import { isDesktop } from "./lib/viewport.js";
   import { initPush } from "./lib/push.js";
@@ -34,8 +36,14 @@
     if (action === "rm" && !confirm(`Really remove bot "${$current?.title ?? $selected}"? Its directory and history will be deleted.`)) return;
     try { await (action === "rm" ? remove() : act(action)); } catch (e) { alert(e.message); }
   }
-  onMount(() => { initPush(); return connect(); });
+  // Desktop app (ADR-0015) without a computer, or signed out of it: the connect screen instead of the shell
+  const needsConnect = !!app && !app.gateway?.signedIn;
+  onMount(() => { if (needsConnect) return; initPush(); return connect(); });
 </script>
+
+{#if needsConnect}
+<Connect />
+{:else}
 
 <!-- Fixed app shell: the page itself NEVER scrolls (no horizontal drifting of the sidebar).
      Mobile: list OR bot view (messenger pattern, back arrow + back gesture via hash);
@@ -73,3 +81,4 @@
     {/if}
   </main>
 </div>
+{/if}

@@ -1,6 +1,7 @@
 <script>
   import { onDestroy } from "svelte";
   import { watchUrl } from "../lib/api.js";
+  import { url } from "../lib/base.js";
   import FilesPanel from "./FilesPanel.svelte";
   export let bot;
   let src = null, error = null, timer = null;
@@ -16,7 +17,7 @@
   async function attempt(name) {
     try {
       const r = await watchUrl(name);
-      if (bot === name) { src = r.path; error = null; }
+      if (bot === name) { src = url(r.path); error = null; }
     } catch (e) {
       // Right after creation the desktop takes a few seconds to appear – keep trying instead of giving up
       if (bot === name) { error = e.message; timer = setTimeout(() => attempt(name), 4000); }
@@ -42,7 +43,7 @@
       </p>
     {/if}
     {#if termOpened}
-      <iframe title="Terminal of {bot}" src={`/bots/${bot}/terminal/`} class="absolute inset-0 h-full w-full border-0" class:hidden={mode !== "terminal"} allow="clipboard-read; clipboard-write"></iframe>
+      <iframe title="Terminal of {bot}" src={url(`/bots/${bot}/terminal/`)} class="absolute inset-0 h-full w-full border-0" class:hidden={mode !== "terminal"} allow="clipboard-read; clipboard-write"></iframe>
     {/if}
     {#if mode === "files"}
       <div class="absolute inset-0 flex"><FilesPanel {bot} /></div>

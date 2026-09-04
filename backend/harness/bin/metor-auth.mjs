@@ -48,14 +48,16 @@ export const hasSessions = () => load().sessions.length > 0;
 export const hasOpenClaim = (kind) => load().claims.some((c) => c.kind === kind && c.expiresAt > now());
 
 // Redeem a claim by link token or by pairing code → a new session; every claim works once
-export function claimSession({ token, code } = {}, { userAgent, ip } = {}) {
+export function claimSession({ token, code } = {}, { userAgent, ip, name = null } = {}) {
   const db = load();
   const t = token ? sha(token) : null, c = normalizeCode(code); const ch = c ? sha(c) : null;
   const i = db.claims.findIndex((cl) => cl.expiresAt > now() && ((t && same(cl.hash, t)) || (ch && same(cl.codeHash, ch))));
   if (i < 0) return null;
   const claim = db.claims.splice(i, 1)[0];
   const secret = randomBytes(32).toString("base64url");
-  const session = { id: randomBytes(6).toString("hex"), hash: sha(secret), name: deviceName(userAgent), createdAt: now(), lastSeenAt: now(), ip: ip ?? null, via: claim.kind };
+  // A native app names itself (the desktop app, ADR-0015); browsers are named from the user agent
+  const label = typeof name === "string" && name.trim() && !/\p{Cc}/u.test(name) ? name.trim().slice(0, 60) : deviceName(userAgent);
+  const session = { id: randomBytes(6).toString("hex"), hash: sha(secret), name: label, createdAt: now(), lastSeenAt: now(), ip: ip ?? null, via: claim.kind };
   db.sessions.push(session); save(db);
   return { secret, session };
 }
@@ -66,9 +68,15 @@ export function cookies(req) {
   for (const part of String(req.headers.cookie ?? "").split(/;\s*/)) { const i = part.indexOf("="); if (i > 0) out[part.slice(0, i)] = part.slice(i + 1); }
   return out;
 }
+// The session secret travels as the cookie (browsers) or as a bearer token (the desktop app and
+// scripts, ADR-0015): `Authorization: Bearer <secret>` – the same secret, the same session
+export function sessionSecret(req) {
+  const m = /^Bearer\s+(\S+)$/i.exec(String(req.headers.authorization ?? "").trim());
+  return m ? m[1] : cookies(req)[COOKIE] ?? null;
+}
 export function sessionOf(req) {
   if (AUTH_OFF) return { id: "off", name: "sign-in disabled (METOR_AUTH=off)" };
-  const raw = cookies(req)[COOKIE]; if (!raw) return null;
+  const raw = sessionSecret(req); if (!raw) return null;
   const h = sha(raw); const db = load();
   const s = db.sessions.find((x) => same(x.hash, h)); if (!s) return null;
   if (now() - s.lastSeenAt > 60_000) { s.lastSeenAt = now(); save(db); }   // one write per minute at most

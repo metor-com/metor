@@ -64,5 +64,6 @@ Two problems, both outside metor's code:
    `open`. On Intel Macs: Colima or Docker Desktop through the same wrapper.
 5. **Homebrew tap** `metor-com/homebrew-tap` with the wrapper as a formula; `container` as an
    optional dependency.
-6. Later: a menu-bar app (Tauri) around the same commands – start/stop, open, update, bot status;
-   phone access to the local box via Cloudflare Tunnel or Tailscale.
+6. Later: the Electron desktop app (ADR-0015) with a menu-bar item around the same commands –
+   start/stop, open, update, bot status; phone access to the local box via Cloudflare Tunnel or
+   Tailscale.

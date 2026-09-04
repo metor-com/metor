@@ -180,7 +180,20 @@ list. The computer button in the header switches between the chat and the comput
 and the bot actions (Pause, Start, Remove) are in the **more** menu (the three dots). The screen
 tab works with touch, but for real intervention a desktop browser is more comfortable.
 
-## 10. Managing bots
+## 10. The desktop app
+
+metor is also an app for macOS, Windows and Linux (`client/desktop`, built from the repository or
+taken from a release). It shows the same interface, and adds what a browser tab cannot:
+notifications for approvals, finished replies and unexpected stops while the app runs, a tray
+icon, several computers side by side (menu **Computer**), and screen sharing for the bots.
+
+On first start the app asks for a computer: paste the **setup link** (from the installer or
+`metor auth link` inside the box - the address comes with it), or enter the address plus a
+**pairing code** from *Settings → Devices → Link a device* on a device that is already signed in.
+The app then appears under Devices as "metor app on Mac/Windows/Linux"; removing it there signs
+the app out, and the app's connect screen offers the computer again.
+
+## 11. Managing bots
 
 With a bot selected, the header (or the more menu on phones) offers:
 
@@ -194,7 +207,7 @@ With a bot selected, the header (or the more menu on phones) offers:
 
 Bots restart automatically when the box restarts, unless they were paused.
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 - **A bot shows "stopped" and messages fail.** Most often the runtime login has expired. Sign in
   again: open "New bot", pick the runtime and click **Sign in** (terminal alternative for Claude

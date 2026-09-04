@@ -18,3 +18,4 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0012 | [Sign-in by device pairing instead of passwords](0012-device-pairing.md) | accepted (2026-09-03, implemented) |
 | 0013 | [Installable interface (PWA) with Web Push, no push relay](0013-pwa-web-push.md) | accepted (2026-09-04, implemented) |
 | 0014 | [Connectors: MCP servers configured once, for every bot](0014-connectors.md) | accepted (2026-09-04, implemented) |
+| 0015 | [Native clients: Electron on the desktop, PWA on phones, one `client/` directory](0015-native-clients.md) | accepted (2026-09-04, desktop app implemented) |

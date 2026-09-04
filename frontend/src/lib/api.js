@@ -1,5 +1,6 @@
 // One JSON endpoint per method; events arrive separately via the SSE stream (events.js).
-const base = "/bots/api";
+import { url, signedOut } from "./base.js";
+const base = url("/bots/api");
 
 async function req(method, path, body) {
   const r = await fetch(base + path, {
@@ -8,7 +9,7 @@ async function req(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await r.json().catch(() => null);
-  if (r.status === 401) location.href = "/bots/";   // session gone → the gateway serves the sign-in page
+  if (r.status === 401) signedOut();   // session gone → the gateway's sign-in page, or the app's connect screen
   if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
   return data;
 }

@@ -13,6 +13,16 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Desktop app for macOS, Windows and Linux** (`client/desktop`, ADR-0015): the same interface as
+  an app of its own - connect with a setup link, a pairing link or a pairing code, several
+  computers side by side, native notifications for approvals, finished replies and unexpected
+  stops while the app runs, a tray icon, the bot's screen and terminal as before. The app shows
+  up under Settings → Devices as "metor app on Mac/Windows/Linux" and can be signed out there.
+- **Sign-in for apps and scripts**: the session secret can travel as a bearer token
+  (`Authorization: Bearer …`) instead of the cookie; a setup or pairing claim can be redeemed as
+  JSON (`POST /bots/api/auth/redeem`); `GET /bots/api/version` tells version and capabilities
+  before signing in.
+
 - **Routines next to the chat, in plain words**: a calendar button in the header shows the bot's
   routines as cards - "Weekdays at 07:00", next and last run, active or paused with the reason,
   the task - plus the recent runs; no cron expressions or ids in sight.

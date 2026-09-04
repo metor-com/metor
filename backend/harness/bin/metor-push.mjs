@@ -37,6 +37,8 @@ function save() {
   renameSync(tmp, FILE);
 }
 
+// Is push possible in this image at all? (no key pair is created by asking)
+export const available = async () => !!(await webPush());
 // The public half of the VAPID pair – created on first use; null when push is unavailable
 export async function publicKey() {
   const wp = await webPush(); if (!wp) return null;

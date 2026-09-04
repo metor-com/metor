@@ -12,3 +12,5 @@ frontend/dist/
 # editors
 .idea/
 .vscode/
+client/desktop/ui/
+client/desktop/dist/

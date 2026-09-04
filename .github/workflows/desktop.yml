@@ -1,0 +1,46 @@
+# Builds the desktop app (client/desktop, ADR-0015) for macOS, Windows and Linux. On a tag
+# desktop-v* the installers are published to a GitHub Release – the updater in the app looks there.
+# Without signing secrets (CSC_LINK, CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD,
+# APPLE_TEAM_ID) the builds are unsigned: fine for testing, not for distribution.
+name: desktop
+on:
+  push:
+    tags: ["desktop-v*"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the interface
+        run: npm ci && npm run build
+        working-directory: frontend
+      - name: Install the app's dependencies and take the interface build
+        run: npm ci && node scripts/copy-ui.mjs
+        working-directory: client/desktop
+      - name: Package
+        run: npx electron-builder --publish ${{ startsWith(github.ref, 'refs/tags/desktop-v') && 'always' || 'never' }}
+        working-directory: client/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No certificate in this repository yet – do not fail looking for one
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metor-desktop-${{ matrix.os }}
+          path: |
+            client/desktop/dist/*.dmg
+            client/desktop/dist/*.zip
+            client/desktop/dist/*.exe
+            client/desktop/dist/*.AppImage
+            client/desktop/dist/*.deb
+          if-no-files-found: warn

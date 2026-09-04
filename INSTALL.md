@@ -196,5 +196,8 @@ start the bots.
   (`.metor/push.json`) - delete the file to reset them, devices then turn notifications on again.
 - `METOR_NTFY_URL` - legacy: a message to an [ntfy.sh](https://ntfy.sh) topic when a bot waits for
   an approval. Superseded by the built-in push notifications, kept for one more release.
+- `METOR_APP_ORIGINS` - further origins (comma-separated) that may call the API across origins
+  with a bearer token; the desktop app's own origin `app://metor` is always allowed. Only needed
+  for a client of your own or the interface's dev server.
 - `METOR_ROUTINE_GUARD` - auto-pause: a routine pauses after this many runs without a user message
   (default 20, `0` = off).

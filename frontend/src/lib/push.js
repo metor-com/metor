@@ -8,10 +8,12 @@
 //   off | on      – not subscribed / subscribed
 import { writable, get } from "svelte/store";
 import { pushKey, pushSubscribe, pushUnsubscribe, pushTest } from "./api.js";
+import { app } from "./base.js";
 
 export const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 export const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-const supported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+// The desktop app has no service worker: it keeps a stream to the gateway and notifies natively (ADR-0015)
+const supported = () => !app && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
 export const pushState = writable({ state: supported() ? "off" : "unsupported", devices: 0, error: null });
 // Android/desktop Chrome: the browser offers the install once – we keep the event for an "Install app" button

@@ -1,0 +1,26 @@
+{
+  "name": "metor-desktop",
+  "productName": "metor",
+  "version": "0.1.0",
+  "description": "metor – the desktop app for macOS, Windows and Linux (ADR-0015)",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.mjs",
+  "scripts": {
+    "ui": "cd ../../frontend && npm run build && node ../client/desktop/scripts/copy-ui.mjs",
+    "start": "npm run ui && electron .",
+    "dev": "electron .",
+    "dist": "npm run ui && electron-builder",
+    "dist:mac": "npm run ui && electron-builder --mac",
+    "dist:win": "npm run ui && electron-builder --win",
+    "dist:linux": "npm run ui && electron-builder --linux"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^44.2.0",
+    "electron-builder": "^26.15.3"
+  }
+}

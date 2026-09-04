@@ -23,6 +23,9 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
 - `frontend/` - the UI (ADR-0008): Svelte + Vite, **without SvelteKit**; the gateway serves the
   build under `/bots/` (multi-stage Docker build, **build context = repo root**).
   Dev: `cd frontend && npm run dev` (proxied to the running box).
+- `client/` - native apps (ADR-0015): `desktop/` is the Electron shell for macOS/Windows/Linux
+  around the unchanged `frontend/` build (served from `app://metor`, session as a bearer token
+  added in the main process); phones use the PWA. Dev: `cd client/desktop && npm install && npm start`.
 - `knowledge/` - **read first**: `README.md` (index), `GLOSSARY.md` (binding terms),
   `decisions/` (ADRs), `harness/claude-code-facts.md` and `harness/codex-facts.md` (verified
   harness facts), `design/` (drafts for upcoming work).

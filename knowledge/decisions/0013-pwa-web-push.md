@@ -51,6 +51,8 @@ costs: the sender is whoever holds the key pair, and that can be each installati
 - `METOR_NTFY_URL` stays as an option for one more release and can then go.
 - Native clients (Tauri) remain possible on top: same gateway endpoints; only native APNs/FCM
   push would need a relay – which is exactly why the phone starts as a PWA.
+  (Shell revised in [ADR-0015](0015-native-clients.md): Electron on the desktop, Capacitor if a
+  native phone app is ever needed.)
 
 ## Verified 2026-09-04 (local box, headless Chromium inside the box via `playwright-core`)
 

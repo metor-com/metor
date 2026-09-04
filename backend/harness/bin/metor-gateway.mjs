@@ -7,7 +7,8 @@
 import http from "node:http";
 import net from "node:net";
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { createStreamChat, readHistory } from "./metor-chat-stream.mjs";
 import { readRoutines, readRuns } from "./metor-routines.mjs";
@@ -21,6 +22,26 @@ import * as connectors from "./metor-connectors.mjs";
 const PORT = Number(process.env.METOR_GATEWAY_PORT ?? 6010);
 const BASE = (process.env.METOR_WATCH_BASE ?? "").replace(/\/$/, "");
 const FRONTEND_DIR = process.env.METOR_FRONTEND_DIR ?? "/usr/local/lib/metor/frontend";
+// Version: VERSION file next to this script in the image, repo root in a checkout (as in metor.mjs)
+const VERSION = (() => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  for (const f of [join(here, "VERSION"), join(here, "..", "..", "..", "VERSION")]) { try { return readFileSync(f, "utf8").trim(); } catch {} }
+  return "dev";
+})();
+// Native clients (ADR-0015) load the interface from their own origin and talk to the API across
+// origins with a bearer token; the browser only lets them when the gateway names that origin.
+// The desktop app's origin is built in, further ones (a mobile shell, a dev server) come from the environment.
+const APP_ORIGINS = new Set(["app://metor", ...String(process.env.METOR_APP_ORIGINS ?? "").split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean)]);
+function cors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || !APP_ORIGINS.has(origin)) return false;
+  res.setHeader("access-control-allow-origin", origin);
+  res.setHeader("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("access-control-allow-headers", "authorization, content-type");
+  res.setHeader("access-control-max-age", "600");
+  res.setHeader("vary", "origin");
+  return true;
+}
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // path= forces noVNC onto the gateway path; without it, it connects to ws://…/websockify at the root (no bot there).
@@ -101,6 +122,7 @@ streamChat.subscribe(({ bot, entry }) => sseEmit(`chat:${bot}`, "chat", { bot, e
 const viewers = (bot) => new Set([...sseClients].filter((c) => c.sessionId && c.topics.has(`chat:${bot}`)).map((c) => c.sessionId));
 const liveSessions = () => (AUTH_OFF ? null : new Set(listSessions().map((s) => s.id)));
 function notifyPush(kind, bot, msg) {
+  sseEmit("notify", "notify", { kind, bot, url: `/bots/#/${bot}`, ...msg });   // native clients listen here (ADR-0015)
   push.notify({ kind, bot, url: `/bots/#/${bot}`, ...msg }, { skip: viewers(bot), sessions: liveSessions() })
     .then((r) => { if (r.sent || r.failed || r.removed) console.log(`push: ${kind} for ${bot} – ${r.sent} sent${r.failed ? `, ${r.failed} failed` : ""}${r.removed ? `, ${r.removed} dropped` : ""}`); })
     .catch((e) => console.error("push:", e.message));
@@ -402,6 +424,23 @@ function readForm(req) {
     req.on("end", () => done(Object.fromEntries(new URLSearchParams(buf)))); req.on("error", () => done({}));
   });
 }
+// What a client may ask before signing in: who is there, which version, what it can do
+async function versionInfo() {
+  return { name: "metor", version: VERSION, authOff: AUTH_OFF,
+    capabilities: { bearer: true, redeem: true, connectors: true, push: await push.available(), harnesses: Object.keys(HARNESSES) } };
+}
+// JSON twin of the redirect flow below, for native clients (ADR-0015): the session secret is
+// returned once and never again – the client keeps it (keychain) and sends it as a bearer token
+async function redeemJson(req, res) {
+  const send = (code, obj) => { res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
+  const ip = clientIp(req);
+  if (tooManyAttempts(ip)) return send(429, { error: "Too many attempts – please wait ten minutes." });
+  const body = (await readBody(req)) ?? {};
+  const r = claimSession({ token: body.token, code: body.code }, { userAgent: req.headers["user-agent"], ip, name: body.name });
+  if (!r) { noteFailure(ip); return send(401, { error: "This link or code is invalid or has expired." }); }
+  console.log(`auth: new session ${r.session.id} (${r.session.name}, via ${r.session.via}, bearer)`);
+  return send(200, { secret: r.secret, session: { id: r.session.id, name: r.session.name } });
+}
 function redeemAndRedirect(req, res, claim) {
   const ip = clientIp(req);
   const page = (code, error) => { res.writeHead(code, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); res.end(signInPage({ error })); };
@@ -416,6 +455,10 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = req.url ?? "/";
     const path = url.split("?")[0];
+    cors(req, res);   // headers only; the sign-in gate below still applies to every request
+    if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }   // CORS preflight – carries no credentials by design
+    if (path === "/bots/api/version" && req.method === "GET") { res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }); return res.end(JSON.stringify(await versionInfo())); }
+    if (path === "/bots/api/auth/redeem" && req.method === "POST") return await redeemJson(req, res);
     if (path === "/bots/auth/claim" && req.method === "GET") return redeemAndRedirect(req, res, { token: new URL(url, "http://gateway").searchParams.get("token") });
     if (path === "/bots/auth/code" && req.method === "POST") return redeemAndRedirect(req, res, { code: (await readForm(req)).code });
     if ((req.method === "GET" || req.method === "HEAD") && PUBLIC_FILES.test(path) && serveStatic(url, res, { spa: false })) return;
@@ -452,14 +495,17 @@ const server = http.createServer(async (req, res) => {
   }
 });
 // Pass WebSocket (noVNC ↔ websockify, terminal ↔ ttyd) through transparently.
-// Access: a valid watch cookie is required (comes from the HTTP proxy above, only after Caddy login) –
-// this replaces basic_auth for WS handshakes, where browsers don't send credentials.
+// Access: the session (cookie, or the bearer token of a native client whose page sits on a foreign
+// origin – there the SameSite cookies never travel). With the gateway sign-in off (an operator's own
+// login layer in front, which browsers do not send on WS handshakes) the watch cookie set by the
+// HTTP proxy above remains the gate, as it was before ADR-0012.
 server.on("upgrade", (req, socket, head) => {
   const t = target(req.url ?? "/");
   if (!t) return socket.destroy();
-  if (!AUTH_OFF && !sessionOf(req)) return socket.destroy();   // the session cookie travels with the handshake
-  const cookies = String(req.headers.cookie ?? "").split(/;\s*/);
-  if (!t.bot.watchToken || !cookies.includes(`metor_watch_${t.bot.name}=${t.bot.watchToken}`)) return socket.destroy();
+  if (AUTH_OFF) {
+    const cookies = String(req.headers.cookie ?? "").split(/;\s*/);
+    if (!t.bot.watchToken || !cookies.includes(`metor_watch_${t.bot.name}=${t.bot.watchToken}`)) return socket.destroy();
+  } else if (!sessionOf(req)) return socket.destroy();
   const up = net.connect(t.port, "127.0.0.1", () => {
     const lines = [`${req.method} ${t.path} HTTP/1.1`, ...Object.entries(req.headers).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`), "", ""];
     up.write(lines.join("\r\n")); if (head.length) up.write(head);

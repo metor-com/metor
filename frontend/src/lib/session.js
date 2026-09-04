@@ -5,6 +5,7 @@ import { writable, derived, get } from "svelte/store";
 import { listAgents, chatHistory, agentAction, chatInterrupt, chatRead } from "./api.js";
 import { openEvents } from "./events.js";
 import { settings } from "./settings.js";
+import { app } from "./base.js";
 
 const readHash = () => location.hash.replace(/^#\/?/, "") || null;
 
@@ -22,20 +23,27 @@ export const shown = derived([agents, pending, settings], ([a, p, s]) => {
 export const current = derived([shown, selected], ([s, n]) => s.find((a) => a.name === n) ?? null);
 export const quota = derived(shown, (s) => s.find((a) => a.quota)?.quota ?? null);   // identical account-wide – the first value is enough
 
-let closeEvents = null;
+let closeEvents = null, inBackground = false;
 
 export async function refresh() { try { agents.set(await listAgents()); } catch {} }
 async function loadHistory(name) {
   try { const h = await chatHistory(name); if (get(selected) === name) entries.set(h); } catch {}
 }
-function reconnect() {
+// Desktop app: the gateway's notifications (approval needed, reply finished, unexpected stop) arrive
+// on the stream as well and become native notifications – unless this window shows that chat right now.
+// In the background the app keeps a stream with only that topic, so the gateway does not count it as
+// a viewer (the phone still gets its push) while the desktop still gets told.
+const onNotify = app ? (n) => { if (document.hasFocus() && document.visibilityState === "visible" && n.bot === get(selected)) return; app.notify(n); } : null;
+function reconnect(background = false) {
   closeEvents?.();
   const name = get(selected);
+  inBackground = background;
   closeEvents = openEvents({
-    topics: ["agents", ...(name ? [`chat:${name}`] : [])],
+    topics: background ? ["notify"] : ["agents", ...(name ? [`chat:${name}`] : []), ...(app ? ["notify"] : [])],
     onAgents: (list) => { agents.set(list); pending.update((p) => p.filter((x) => !list.some((a) => a.name === x.name))); },
     onChat: ({ bot, entry }) => { if (bot === get(selected)) { applyEntry(entry); if (entry.role === "assistant") markRead(bot); } },
-    onOpen: () => { refresh(); const n = get(selected); if (n) loadHistory(n); },
+    onNotify,
+    onOpen: background ? null : () => { refresh(); const n = get(selected); if (n) loadHistory(n); },
   });
 }
 // Read marks (unread badge in the bot list): the open chat counts as read whenever the page is
@@ -87,7 +95,11 @@ export function connect() {
   window.addEventListener("hashchange", onHash);
   // App in the background (phone in the pocket, other tab): no stream. The gateway then knows this
   // device is not looking and sends push notifications instead; on return the stream reconnects and refetches.
-  const onVisibility = () => { if (document.visibilityState === "hidden") { closeEvents?.(); closeEvents = null; } else { if (!closeEvents) reconnect(); markRead(get(selected)); } };
+  const onVisibility = () => {
+    if (document.visibilityState === "hidden") { if (app) reconnect(true); else { closeEvents?.(); closeEvents = null; } }
+    else { if (!closeEvents || inBackground) reconnect(); markRead(get(selected)); }
+  };
   document.addEventListener("visibilitychange", onVisibility);
+  app?.onOpenBot((bot) => { if (bot && bot !== get(selected)) select(bot); });   // a tap on a native notification
   return () => { closeEvents?.(); closeEvents = null; window.removeEventListener("hashchange", onHash); document.removeEventListener("visibilitychange", onVisibility); };
 }

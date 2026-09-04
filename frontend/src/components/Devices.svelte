@@ -5,6 +5,7 @@
   import { onDestroy } from "svelte";
   import { authSessions, authRevoke, authPair, authLogout } from "../lib/api.js";
   import { pushState, installPrompt, installApp, enablePush, disablePush, testPush } from "../lib/push.js";
+  import { signedOut } from "../lib/base.js";
   let sessions = null, pair = null, error = null, timer = null, left = 0;
 
   // Push notifications: one card per device – state and hints come from lib/push.js
@@ -37,7 +38,7 @@
   }
   async function revoke(s) {
     if (!confirm(s.current ? "Sign out this device?" : `Sign out "${s.name}"?`)) return;
-    try { if (s.current) { await authLogout(); location.href = "/bots/"; return; } await authRevoke(s.id); await load(); } catch (e) { error = e.message; }
+    try { if (s.current) { await authLogout(); signedOut(); return; } await authRevoke(s.id); await load(); } catch (e) { error = e.message; }
   }
   const fmt = (ms) => new Date(ms).toLocaleString(undefined, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   const copy = (t) => navigator.clipboard?.writeText(t).catch(() => {});

@@ -1,4 +1,4 @@
-# Backlog (as of 2026-09-02)
+# Backlog (as of 2026-09-04)
 
 Priority: top = recommended next. Finished items are removed here and recorded in
 [CHANGELOG.md](CHANGELOG.md); large items get an ADR when work starts.
@@ -42,13 +42,22 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   matters); related idea: an e-mail address per bot as an entrance (delegate by forwarding)
 - **Server installation** - built 2026-09-01: ghcr workflow, compose (with or without Caddy),
   install.sh, INSTALL.md. Remaining: npm CLI as a launcher (`npm i -g metor` -> `metor setup`; check npm names), arm64 variant
+- **Native clients (ADR-0015)** - desktop app built 2026-09-04 (`client/desktop/`, Electron;
+  gateway prerequisites bearer/redeem/CORS/version done). Remaining: signing accounts (Apple
+  Developer Program for notarization, a Windows code-signing service) and the first release
+  through the `desktop` workflow (tag `desktop-v*`), Homebrew cask + winget manifests (own
+  repositories), the microphone permission prompt on macOS (`askForMediaAccess`) once voice
+  exists, control of a local computer from the tray (`metor setup`, see "metor on the Mac"),
+  a screen-sharing button in the interface (the app already answers `getDisplayMedia`), a
+  monochrome template tray icon for macOS. Phones stay the PWA; Capacitor in `client/mobile/`
+  only when store presence or background voice demands it (then a push relay, own ADR).
 - **metor on the Mac** - `brew install metor-com/tap/metor && metor setup` with Apple's
   `container` runtime (macOS 26, Apple silicon) or Colima/Docker Desktop as fallback. Spike done
   2026-09-03: the whole box runs under Apple `container`, bots start in 2 s; two blockers noted in
   [knowledge/design/mac-install.md](knowledge/design/mac-install.md) (volume ownership → entrypoint
   fix in the image; localhost port publishing broken upstream, container IP works). Steps:
-  multi-arch image, entrypoint, second wrapper backend, `metor setup`, Homebrew tap; later a
-  menu-bar app
+  multi-arch image, entrypoint, second wrapper backend, `metor setup`, Homebrew tap; later the
+  menu-bar item of the Electron desktop app (ADR-0015)
 - **Host names without a domain: `<ip-with-dashes>.ip.metor.com`** - our own sslip.io: a tiny
   DNS server (the open-source sslip.io binary or CoreDNS) answering every `<a>-<b>-<c>-<d>.ip.metor.com`
   with the embedded address, the zone delegated from metor.com; the installer then defaults to that
