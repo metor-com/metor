@@ -10,8 +10,10 @@
   import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect } from "./lib/session.js";
   import { isDesktop } from "./lib/viewport.js";
   import { initPush } from "./lib/push.js";
+  import { settings, ZOOM } from "./lib/settings.js";
 
-  let view = "split";         // chat | computer | split
+  let view = $settings.defaultView === "chat" ? "chat" : "split";   // chat | computer | split (Settings → Behaviour)
+  $: zoom = ZOOM[$settings.textSize] ?? 1;   // Settings → Appearance → text size
   let showRoutines = false;
   // Mobile (<768px): no room for "Side by side" – split behaves like chat there
   $: effView = !$isDesktop && view === "split" ? "chat" : view;
@@ -28,8 +30,9 @@
      Mobile: list OR bot view (messenger pattern, back arrow + back gesture via hash);
      desktop (md:) shows both side by side as before. Installed as an app (viewport-fit=cover),
      the safe-area insets keep the header below the notch and the composer above the home indicator. -->
-<div class="flex h-dvh overflow-hidden bg-zinc-100 font-sans text-[15px] text-zinc-900 antialiased"
-  style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)">
+<!-- Text size = CSS zoom on the shell; height and insets are divided by it so the shell still fills exactly the viewport -->
+<div class="flex overflow-hidden bg-zinc-100 font-sans text-[15px] text-zinc-900 antialiased"
+  style="zoom: {zoom}; height: calc(100dvh / {zoom}); padding-top: calc(env(safe-area-inset-top) / {zoom}); padding-bottom: calc(env(safe-area-inset-bottom) / {zoom}); padding-left: calc(env(safe-area-inset-left) / {zoom}); padding-right: calc(env(safe-area-inset-right) / {zoom})">
   <Sidebar agents={$shown} selected={$selected} quota={$quota} hiddenOnMobile={!!$selected} onSelect={select} onCreated={created} />
 
   <main class="{$selected ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col">

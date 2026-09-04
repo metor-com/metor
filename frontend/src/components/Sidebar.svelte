@@ -1,7 +1,8 @@
 <script>
   import StatusDot from "./StatusDot.svelte";
   import AgentCreate from "./AgentCreate.svelte";
-  import Devices from "./Devices.svelte";
+  import Settings from "./Settings.svelte";
+  import { settings } from "../lib/settings.js";
   import { statusLabel } from "../lib/status.js";
   export let agents = [];
   export let selected = null;
@@ -9,7 +10,7 @@
   export let onSelect;
   export let onCreated;
   export let hiddenOnMobile = false;   // mobile: list OR chat (messenger pattern); desktop: always visible
-  let creating = false, devices = false;
+  let creating = false, showSettings = false;
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
 </script>
 
@@ -27,7 +28,7 @@
           <StatusDot status={a.status} />
           <span class="min-w-0 flex-1">
             <strong class="block truncate text-sm">{a.title ?? a.name}</strong>
-            {#if a.role}<span class="block truncate text-xs text-zinc-500">{a.role}</span>{/if}
+            {#if a.role && $settings.showRoles}<span class="block truncate text-xs text-zinc-500">{a.role}</span>{/if}
           </span>
           <span class="shrink-0 text-xs text-zinc-400">{statusLabel(a.status)}</span>
         </button>
@@ -53,12 +54,12 @@
       on:click={() => (creating = true)}
     >+ New bot</button>
     <button class="shrink-0 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-900"
-      title="Signed-in devices, link a phone, sign out" on:click={() => (devices = true)}>Devices</button>
+      title="Devices, appearance, behaviour" aria-label="Settings" on:click={() => (showSettings = true)}>⚙︎ Settings</button>
   </div>
   {#if creating}
     <AgentCreate onDone={(name, title) => { creating = false; if (name) onCreated(name, title); }} />
   {/if}
-  {#if devices}
-    <Devices onDone={() => (devices = false)} />
+  {#if showSettings}
+    <Settings onDone={() => (showSettings = false)} />
   {/if}
 </aside>

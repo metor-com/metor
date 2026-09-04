@@ -44,7 +44,7 @@ installer leaves its own Caddy off, names the process, and prints the block to a
 (or free the ports and run the installer again - it is idempotent). Open the link, then in the
 interface click **New bot**, pick the runtime and sign in
 to it - Claude Code: open the link, sign in, paste the code the page shows at the end; Codex: device
-code. Further devices: **Devices → Link a device**. A new setup link at any time:
+code. Further devices: **Settings → Devices → Link a device**. A new setup link at any time:
 
 ```sh
 cd /opt/metor && docker compose exec box metor auth link
@@ -191,7 +191,7 @@ start the bots.
 - `METOR_AUTH` - `off` switches the gateway's own sign-in off; only behind your own login layer or
   for local experiments (see "Security first").
 - `METOR_PUSH_SUBJECT` - contact for the push services (a URL or a `mailto:` address) that goes
-  with the box's own push notifications (Devices → Notifications on this device); default: the
+  with the box's own push notifications (Settings → Devices → Notifications on this device); default: the
   project URL. Push needs HTTPS; keys and subscriptions live in the workspace volume
   (`.metor/push.json`) - delete the file to reset them, devices then turn notifications on again.
 - `METOR_NTFY_URL` - legacy: a message to an [ntfy.sh](https://ntfy.sh) topic when a bot waits for

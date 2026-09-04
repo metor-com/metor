@@ -4,6 +4,7 @@
 import { writable, derived, get } from "svelte/store";
 import { listAgents, chatHistory, agentAction, chatInterrupt } from "./api.js";
 import { openEvents } from "./events.js";
+import { settings } from "./settings.js";
 
 const readHash = () => location.hash.replace(/^#\/?/, "") || null;
 
@@ -13,7 +14,11 @@ export const selected = writable(readHash());
 export const entries = writable([]);          // chat history of the selected bot, patches folded in
 export const partial = writable(null);        // streaming text of the running answer
 
-export const shown = derived([agents, pending], ([a, p]) => [...a, ...p.filter((x) => !a.some((y) => y.name === x.name))]);
+export const shown = derived([agents, pending, settings], ([a, p, s]) => {
+  const list = [...a, ...p.filter((x) => !a.some((y) => y.name === x.name))];
+  // Messenger order (Settings → Behaviour): newest chat activity first; otherwise the gateway's alphabetical order
+  return s.sortByActivity ? [...list].sort((x, y) => (y.lastActivityAt ?? 0) - (x.lastActivityAt ?? 0) || x.name.localeCompare(y.name)) : list;
+});
 export const current = derived([shown, selected], ([s, n]) => s.find((a) => a.name === n) ?? null);
 export const quota = derived(shown, (s) => s.find((a) => a.quota)?.quota ?? null);   // identical account-wide – the first value is enough
 

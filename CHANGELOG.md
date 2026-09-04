@@ -13,15 +13,20 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Settings** replaces the Devices button at the bottom of the bot list: one dialog with the tabs
+  **Devices** (sign-in, pairing, notifications), **Appearance** (text size, roles in the bot list)
+  and **Behaviour** (bot list sorted by latest activity - newest chat on top like a messenger; the
+  view a bot opens with). Appearance and Behaviour are remembered per device.
+
 - **Free-text bot names**: a bot can be called `Fußball-Späher 2` or `Mein Bot!`. The create
   dialog derives the id (`fussball-spaeher-2` - directory, links, address between bots) live and
   lets you change it; the name is what the sidebar, the header, notifications and the bot's own
   instructions show. CLI: `metor bot create "Mein Bot!" [--id mein-bot]`.
 
 - **Phone app with push notifications** ([ADR-0013](knowledge/decisions/0013-pwa-web-push.md)):
-  the interface installs as an app (Android: "Install metor as an app" under Devices or the
+  the interface installs as an app (Android: "Install metor as an app" under Settings → Devices or the
   browser menu; iPhone and iPad: Share → Add to Home Screen, then sign in once inside the app with
-  a pairing code). Turned on under **Devices → Notifications on this device**, it sends a push
+  a pairing code). Turned on under **Settings → Devices → Notifications on this device**, it sends a push
   when a bot needs an approval, has finished a reply or stopped unexpectedly – never to the device
   that is looking at that chat. No third-party service in between: the box signs and sends the
   messages itself (needs HTTPS).

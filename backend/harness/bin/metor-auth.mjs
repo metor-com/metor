@@ -116,7 +116,7 @@ export function signInPage({ error = null } = {}) {
 ${error ? `<p class="err">${esc(error)}</p>` : ""}
 <ol>
 <li><strong>Setup link</strong>: shown by the installer and by <code>metor auth link</code> inside the box – open it on this device.</li>
-<li><strong>From a signed-in device</strong>: open <em>Devices → Link a device</em> there and scan the QR code with this phone, or enter the pairing code here:</li>
+<li><strong>From a signed-in device</strong>: open <em>Settings → Devices → Link a device</em> there and scan the QR code with this phone, or enter the pairing code here:</li>
 </ol>
 <form method="post" action="/bots/auth/code"><input name="code" placeholder="XXXX-XXXX" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required><button type="submit">Sign in</button></form>
 </main></body></html>`;

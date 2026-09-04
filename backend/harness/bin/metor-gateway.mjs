@@ -26,10 +26,16 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 function watchPath(b) { return `/bots/${b.name}/vnc.html?autoconnect=1&resize=scale&path=bots/${b.name}/websockify&password=${b.watchToken}`; }
 
 // ---------- Status: from each bot's harness.json (written by its host process) ----------
+// Latest chat activity = mtime of the history file (every message and status line touches it), else creation
+function lastActivity(b) {
+  let t = Date.parse(b.createdAt ?? "") || 0;
+  try { t = Math.max(t, statSync(join(BOTS_DIR, b.name, ".metor", "chat.jsonl")).mtimeMs); } catch {}
+  return Math.round(t);
+}
 async function agentList() {
   return bots().map((b) => {
     const h = harnessOf(b);
-    return { name: b.name, title: b.title ?? b.name, role: b.role ?? "", createdAt: b.createdAt ?? null, display: b.display ?? null,
+    return { name: b.name, title: b.title ?? b.name, role: b.role ?? "", createdAt: b.createdAt ?? null, lastActivityAt: lastActivity(b), display: b.display ?? null,
       harness: h, harnessLabel: HARNESSES[h]?.label ?? h,
       model: b.model ?? null,
       modelLabel: HARNESSES[h]?.models.find((m) => m.id === b.model)?.label ?? (b.model ?? "Default model"),

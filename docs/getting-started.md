@@ -12,22 +12,26 @@ at `https://<your-domain>/bots/` after opening your setup link (section 1).
 The interface has no passwords. The first browser gets in with a **setup link** that the installer
 prints at the end (and that `metor auth link` inside the box prints again at any time, valid for
 24 hours, single use). Every further phone or computer is linked from a device that is already
-signed in: open **Devices** at the bottom of the bot list, click **Link a device**, and on the new
+signed in: open **Settings** at the bottom of the bot list, tab **Devices**, click **Link a device**, and on the new
 device either scan the QR code with the camera or open the interface and type the pairing code on
 the sign-in page. Links and codes are valid for two minutes.
 
-**Devices** also lists every signed-in browser (name, last seen) - remove one to sign it out, or
+The **Devices** tab also lists every signed-in browser (name, last seen) - remove one to sign it out, or
 sign out the device you are on. Lost all devices? `metor auth link` over SSH mints a new setup link.
 
+**Settings** has two more tabs, both per device: **Appearance** (text size; roles under the bot
+names on or off) and **Behaviour** (sort the bot list by latest activity, newest chat on top like a
+messenger; which view a bot opens with on a wide screen).
+
 **On the phone or tablet** the interface installs as an app. Android: the browser's menu or
-**Devices → Install metor as an app**. iPhone and iPad: Share → **Add to Home Screen**, open metor
+**Settings → Devices → Install metor as an app**. iPhone and iPad: Share → **Add to Home Screen**, open metor
 from the home screen and sign in there once with a pairing code (the home-screen app has its own
-cookie jar). Then turn on **Devices → Notifications on this device**: you get a push when a bot
+cookie jar). Then turn on **Settings → Devices → Notifications on this device**: you get a push when a bot
 needs an approval, has finished a reply or stopped unexpectedly - never on the device that is
 looking at that chat. The box sends these itself, no third-party service is involved; the
 interface must be reached over HTTPS for this.
 
-<!-- screenshot: Devices dialog with the QR code -->
+<!-- screenshot: Settings → Devices with the QR code -->
 
 ## 2. Create your first bot
 
@@ -70,7 +74,7 @@ a line break.
 - **Approval cards**: when the runtime asks for permission - typically for actions with external
   effect - an amber card titled "Approval" appears with the tool, the reason and the exact input.
   Choose **Allow** or **Deny**. The card stays in the history with the decision. While a card is
-  open the bot's status dot is red, and with notifications turned on (see Devices) your phone
+  open the bot's status dot is red, and with notifications turned on (Settings → Devices) your phone
   gets a push.
   Approval cards come from Claude Code bots; Codex bots currently run without approval prompts
   inside the box.
