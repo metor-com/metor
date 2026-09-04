@@ -44,57 +44,58 @@
   onDestroy(() => clearTimeout(timer));
 </script>
 
-<div class="flex flex-col gap-3.5">
-  {#if sessions === null}
-    <p class="text-[13px] text-zinc-400">Loading…</p>
-  {:else}
-    <ul class="flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-      {#each sessions as s (s.id)}
-        <li class="flex items-center gap-3 px-3 py-2.5 text-sm">
-          <span class="min-w-0 flex-1">
-            <strong class="block truncate">{s.name}{#if s.current} <span class="font-normal text-emerald-700">· this device</span>{/if}</strong>
-            <span class="block truncate text-xs text-zinc-500">last seen {fmt(s.lastSeenAt)} · since {fmt(s.createdAt)}</span>
-          </span>
-          <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50" on:click={() => revoke(s)}>{s.current ? "Sign out" : "Remove"}</button>
-        </li>
-      {/each}
-      {#if !sessions.length}<li class="px-3 py-2.5 text-sm text-zinc-400">no devices</li>{/if}
-    </ul>
-  {/if}
-
-  {#if pair}
-    <div class="flex flex-col items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-3 text-[13px]">
-      <p class="self-start text-zinc-700">On the new device: scan the code with the camera, or open the sign-in page there and enter the pairing code.</p>
-      {#if pair.qr}<img class="h-48 w-48 rounded-lg bg-white p-1" src={pair.qr} alt="QR code with the pairing link" />{/if}
-      <div class="flex items-center gap-2">
-        <span class="text-zinc-500">Pairing code</span>
-        <code class="rounded-lg bg-white px-2.5 py-1 text-base font-bold tracking-wider">{pair.code}</code>
-        <button type="button" class="rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" on:click={() => copy(pair.url)}>Copy link</button>
+<div class="flex flex-col gap-8">
+  <div class="flex flex-col gap-3">
+    <div><div class="text-sm font-medium">Signed-in devices</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Every browser that opened a setup or pairing link. Remove one to sign it out.</p></div>
+    {#if sessions === null}
+      <p class="text-[13px] text-zinc-400">Loading…</p>
+    {:else}
+      <ul class="flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200">
+        {#each sessions as s (s.id)}
+          <li class="flex items-center gap-3 px-4 py-3 text-sm">
+            <span class="min-w-0 flex-1">
+              <strong class="block truncate font-medium">{s.name}{#if s.current} <span class="font-normal text-emerald-700">· this device</span>{/if}</strong>
+              <span class="block truncate text-xs text-zinc-500">last seen {fmt(s.lastSeenAt)} · since {fmt(s.createdAt)}</span>
+            </span>
+            <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-50" on:click={() => revoke(s)}>{s.current ? "Sign out" : "Remove"}</button>
+          </li>
+        {/each}
+        {#if !sessions.length}<li class="px-4 py-3 text-sm text-zinc-400">no devices</li>{/if}
+      </ul>
+    {/if}
+    {#if pair}
+      <div class="flex flex-col items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4 text-[13px]">
+        <p class="self-start leading-relaxed text-zinc-700">On the new device: scan the code with the camera, or open the sign-in page there and enter the pairing code.</p>
+        {#if pair.qr}<img class="h-48 w-48 rounded-lg bg-white p-1" src={pair.qr} alt="QR code with the pairing link" />{/if}
+        <div class="flex items-center gap-2">
+          <span class="text-zinc-500">Pairing code</span>
+          <code class="rounded-lg bg-white px-2.5 py-1 text-base font-bold tracking-wider">{pair.code}</code>
+          <button type="button" class="rounded-lg border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100" on:click={() => copy(pair.url)}>Copy link</button>
+        </div>
+        <p class="text-xs text-zinc-400">Valid for {left} s, single use.</p>
       </div>
-      <p class="text-xs text-zinc-400">Valid for {left} s, single use.</p>
+    {/if}
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <button type="button" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700" on:click={startPair}>{pair ? "New code" : "Link a device"}</button>
+      <span class="text-xs leading-relaxed text-zinc-400">Lost all devices? <code>metor auth link</code> inside the box mints a new setup link.</span>
     </div>
-  {/if}
-  <div class="flex items-center justify-between gap-2">
-    <button type="button" class="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm text-white hover:bg-zinc-700" on:click={startPair}>{pair ? "New code" : "Link a device"}</button>
-    <span class="text-xs text-zinc-400">Lost all devices? <code>metor auth link</code> inside the box mints a new setup link.</span>
+    {#if error}<p class="text-[13px] text-red-600">{error}</p>{/if}
   </div>
-  {#if error}<p class="text-[13px] text-red-600">{error}</p>{/if}
 
-  <div class="flex flex-col gap-2 rounded-xl border border-zinc-200 px-3.5 py-3 text-[13px]">
-    <div class="flex items-center gap-2">
-      <strong class="flex-1 text-sm">Notifications on this device</strong>
+  <div class="flex flex-col gap-3">
+    <div class="flex items-center gap-3">
+      <div class="min-w-0 flex-1"><div class="text-sm font-medium">Notifications on this device</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">{hints[$pushState.state] ?? ""}</p></div>
       {#if $pushState.state === "on"}
-        <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50 disabled:opacity-50" disabled={testing} on:click={onTest}>Test</button>
-        <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50" on:click={() => { testResult = null; disablePush(); }}>Turn off</button>
+        <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-50 disabled:opacity-50" disabled={testing} on:click={onTest}>Test</button>
+        <button type="button" class="shrink-0 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-50" on:click={() => { testResult = null; disablePush(); }}>Turn off</button>
       {:else if $pushState.state === "off"}
-        <button type="button" class="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1 text-xs text-white hover:bg-zinc-700" on:click={enablePush}>Turn on</button>
+        <button type="button" class="shrink-0 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white hover:bg-zinc-700" on:click={enablePush}>Turn on</button>
       {/if}
     </div>
-    <p class="text-zinc-500">{hints[$pushState.state] ?? ""}</p>
     {#if $installPrompt}
-      <button type="button" class="self-start rounded-lg border border-zinc-300 px-2.5 py-1 text-xs hover:bg-zinc-50" on:click={installApp}>Install metor as an app</button>
+      <button type="button" class="self-start rounded-lg border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-50" on:click={installApp}>Install metor as an app</button>
     {/if}
-    {#if testResult}<p class="text-zinc-700">{testResult}</p>{/if}
-    {#if $pushState.error}<p class="text-red-600">{$pushState.error}</p>{/if}
+    {#if testResult}<p class="text-[13px] text-zinc-700">{testResult}</p>{/if}
+    {#if $pushState.error}<p class="text-[13px] text-red-600">{$pushState.error}</p>{/if}
   </div>
 </div>
