@@ -118,8 +118,9 @@ open the **Files** tab in the computer panel (next section).
 
 ## 6. The computer panel
 
-The header offers three views: **Chat**, **Computer**, and on desktop widths **Side by side**,
-which shows chat and computer next to each other. The computer panel has three sub-tabs:
+The computer button in the header (a small monitor) shows the bot's computer next to the chat;
+drag the divider between the two to give either more room (the share is remembered per device).
+On a phone the computer replaces the chat while it is shown. The computer panel has three sub-tabs:
 
 - **Screen** - the bot's desktop, streamed via noVNC. You see the browser window the bot drives and
   can take over with mouse and keyboard at any time: log into a site, solve a captcha, approve a
@@ -173,7 +174,7 @@ restarts and updates. If a runtime's login expires, only that runtime's bots sto
 
 On a phone the interface follows the messenger pattern: the sidebar is the bot list, tapping a bot
 opens its view, the **back arrow** at the top left (or the browser's back gesture) returns to the
-list. The header offers **Chat** and **Computer** as tabs; "Side by side" is desktop-only. Routines
+list. The computer button in the header switches between the chat and the computer. Routines
 and the bot actions (Pause, Start, Remove) are in the **more** menu (the three dots). The screen
 tab works with touch, but for real intervention a desktop browser is more comfortable.
 

@@ -13,6 +13,10 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **One computer button instead of three views**: the bot's screen is shown next to the chat
+  with a button in the header, and the divider between chat and computer can be dragged (the
+  share is remembered per device). On a phone the computer replaces the chat while it is shown.
+
 - **Ticks instead of "delivered"**: sent messages show one tick while on the way, two grey ticks
   once the bot has taken the message and two green ticks once it has answered.
 

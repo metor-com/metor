@@ -8,7 +8,8 @@ export const DEFAULTS = {
   sortByActivity: false,   // bot list: newest message first (messenger style) instead of alphabetical
   compactList: false,      // bot list: one line per bot, without the last message
   textSize: "default",     // small | default | large
-  defaultView: "split",    // view a bot opens with on desktop: chat | split
+  defaultView: "split",    // a bot opens with the computer shown ("split") or chat only ("chat"); desktop only
+  splitRatio: 0.5,         // share of the width the chat takes when the computer is shown (the divider is draggable)
   quota: "always",         // Claude quota bar in the bot list: always | threshold | never
   quotaThreshold: 80,      // with "threshold": show it from this usage (%) of the 5-hour or weekly window
 };

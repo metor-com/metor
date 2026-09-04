@@ -1,19 +1,17 @@
 <script>
-  // Header of the bot view: name, status, runtime · model, view tabs, stop button and the
+  // Header of the bot view: name, status, runtime · model, the computer toggle, stop button and the
   // actions (routines, start/pause, remove) – as buttons on desktop, in a ⋯ menu on mobile.
   import { statusLabel } from "../lib/status.js";
   export let agent;                // the selected bot (from the agents list)
-  export let view = "split";       // effective view: chat | computer | split
+  export let computer = true;      // the bot's computer is shown (next to the chat on desktop, instead of it on a phone)
   export let showRoutines = false;
-  export let onView;               // (view) => void
+  export let onToggleComputer;
   export let onBack;               // mobile: back to the bot list
   export let onToggleRoutines;
   export let onAct;                // ("start" | "stop" | "rm") => void
   export let onInterrupt;          // stop the running turn
 
   let menuOpen = false;
-  // reactive ($:), not const: the class string depends on `view`, but the template only sees `tab`
-  $: tab = (v) => `rounded-lg px-3 py-1.5 text-sm transition-colors md:px-3.5 ${view === v ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`;
   const viaMenu = (fn) => () => { menuOpen = false; fn(); };
 </script>
 
@@ -26,11 +24,11 @@
     <span class="hidden shrink-0 text-[13px] text-zinc-500 sm:inline">{statusLabel(agent.status)}</span>
     <span class="hidden shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500 md:inline" title="Runtime and model of this bot">{agent.harnessLabel ?? "Claude Code"} · {agent.modelLabel ?? "Default model"}</span>
   </div>
-  <nav class="flex shrink-0 gap-1 rounded-xl bg-zinc-100 p-1">
-    <button class={tab("chat")} on:click={() => onView("chat")}>Chat</button>
-    <button class={tab("computer")} on:click={() => onView("computer")}>Computer</button>
-    <button class="hidden md:block {tab('split')}" on:click={() => onView("split")}>Side by side</button>
-  </nav>
+  <!-- The bot's computer: one toggle (screen next to the chat on desktop, instead of it on a phone) -->
+  <button type="button" class="flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors {computer ? 'bg-zinc-900 text-white' : 'border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50'}"
+    aria-label={computer ? "Hide the computer" : "Show the computer"} aria-pressed={computer} title={computer ? "Hide the computer" : "Show the computer"} on:click={onToggleComputer}>
+    <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>
+  </button>
   {#if agent.status === "busy"}
     <button class="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 md:px-3.5" on:click={onInterrupt}>■ Stop</button>
   {/if}

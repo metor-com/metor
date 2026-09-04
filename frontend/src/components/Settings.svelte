@@ -101,9 +101,9 @@
               <Switch checked={$settings.sortByActivity} label="Sort bots by latest activity" onChange={(v) => update({ sortByActivity: v })} />
             </div>
             <div class="flex flex-col gap-3 py-6">
-              <div><div class="text-sm font-medium">Open a bot with</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Side by side shows chat and computer next to each other. It needs a wide screen; phones always start with the chat.</p></div>
+              <div><div class="text-sm font-medium">Open a bot with</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Whether the bot's computer is shown next to the chat from the start. The computer button in the header toggles it at any time; the divider between chat and computer can be dragged.</p></div>
               <div class="flex gap-1 rounded-xl bg-zinc-100 p-1">
-                {#each [["chat", "Chat"], ["split", "Side by side"]] as [v, label] (v)}
+                {#each [["chat", "Chat only"], ["split", "Chat and computer"]] as [v, label] (v)}
                   <button type="button" class={seg($settings.defaultView === v)} on:click={() => update({ defaultView: v })}>{label}</button>
                 {/each}
               </div>
