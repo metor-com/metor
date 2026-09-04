@@ -37,15 +37,16 @@ function trustDir(dir) {
 }
 
 // ---------- Create / start / stop / remove ----------
-export function createAgent({ name, role = "General assistant for the user.", harness = "claude-stream", model, permissionMode = "acceptEdits" }) {
+export function createAgent({ name, title, role = "General assistant for the user.", harness = "claude-stream", model, permissionMode = "acceptEdits" }) {
   const dir = botDir(name); if (existsSync(join(dir, "bot.json"))) throw new Error(`Bot ${name} already exists`);
+  title = String(title ?? name).trim().replace(/\s+/g, " ") || name;
   const desc = HARNESSES[harness];
   if (!desc) throw new Error(`unknown harness: ${harness} (available: ${Object.keys(HARNESSES).join(", ")})`);
   model ??= defaultModel(harness);
   if (model && !validModel(harness, model)) throw new Error(`unknown model "${model}" for ${desc.label} (available: ${desc.models.map((m) => m.id).join(", ")})`);
   mkdirSync(dir, { recursive: true });
-  desc.scaffold(dir, { name, role }, TEMPLATES);
-  const bot = { name, role, harness, ...(model ? { model } : {}), permissionMode, autostart: true, sessionId: null, createdAt: new Date().toISOString() };
+  desc.scaffold(dir, { name, title, role }, TEMPLATES);
+  const bot = { name, title, role, harness, ...(model ? { model } : {}), permissionMode, autostart: true, sessionId: null, createdAt: new Date().toISOString() };
   writeBot(bot);
   return bot;
 }

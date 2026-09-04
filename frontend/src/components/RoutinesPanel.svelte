@@ -4,6 +4,7 @@
   import { onMount } from "svelte";
   import { listRoutines } from "../lib/api.js";
   export let bot;
+  export let title = null;
 
   let routines = null;   // null = loading
   const fmtTs = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "–");
@@ -14,7 +15,7 @@
   {#if routines === null}
     <p class="text-sm text-zinc-400">Loading routines…</p>
   {:else if !routines.routines?.length}
-    <p class="text-sm text-zinc-400">No routines yet. Tell {bot} in the chat what should happen regularly – the bot sets them up itself.</p>
+    <p class="text-sm text-zinc-400">No routines yet. Tell {title ?? bot} in the chat what should happen regularly – the bot sets them up itself.</p>
   {:else}
     <ul class="flex flex-col gap-2">
       {#each routines.routines as r (r.id)}

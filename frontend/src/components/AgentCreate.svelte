@@ -1,8 +1,14 @@
 <script>
   import { onDestroy } from "svelte";
   import { createAgent, listHarnesses, setupStart, setupStatus, setupCancel, setupCode } from "../lib/api.js";
+  import { slugify, isValidId } from "../lib/slug.js";
   export let onDone;
+  // The name is free text (title); the id – directory, links, address between bots – is derived
+  // from it live and can be overridden. The gateway computes the id again and is authoritative.
   let name = "", role = "", busy = false, error = null;
+  let id = "", idEdited = false;
+  $: previewId = idEdited ? id.trim() : slugify(name);
+  $: idOk = !idEdited || isValidId(id.trim());
   let harnesses = null, harness = "claude-stream", model = null;
   let wizard = null, pollTimer = null, code = "";   // wizard: state of the sign-in for the selected runtime
   const ACTIVE = ["starting", "pending", "verifying"];
@@ -51,8 +57,8 @@
   async function submit() {
     busy = true; error = null;
     try {
-      await createAgent(name.trim(), role.trim(), harness, model);
-      onDone?.(name.trim());
+      const r = await createAgent(name.trim(), role.trim(), harness, model, idEdited ? id.trim() : undefined);
+      onDone?.(r.name, name.trim());
     } catch (e) { error = e.message; busy = false; }
   }
 </script>
@@ -61,7 +67,17 @@
   <form class="flex w-[26rem] max-w-full flex-col gap-3.5 rounded-2xl bg-white p-5 shadow-xl" on:click|stopPropagation on:submit|preventDefault={submit}>
     <h2 class="text-lg font-bold">New bot</h2>
     <label class="flex flex-col gap-1.5 text-[13px] text-zinc-500">Name
-      <input class="rounded-lg border border-zinc-300 px-2.5 py-2 text-[15px] text-zinc-900 outline-none focus:border-zinc-900" bind:value={name} placeholder="e.g. scout" pattern="[a-z0-9][a-z0-9\-]*" required autofocus />
+      <input class="rounded-lg border border-zinc-300 px-2.5 py-2 text-[15px] text-zinc-900 outline-none focus:border-zinc-900" bind:value={name} placeholder="e.g. Scout or Fußball-Späher 2" maxlength="60" required autofocus />
+      <span class="flex items-center gap-1.5 text-xs text-zinc-400">
+        {#if idEdited}
+          <span>id</span>
+          <input class="w-40 rounded border px-1.5 py-0.5 font-mono text-xs text-zinc-700 outline-none {idOk ? 'border-zinc-300 focus:border-zinc-900' : 'border-red-400'}" bind:value={id} spellcheck="false" autocapitalize="off" />
+          <button type="button" class="underline hover:text-zinc-700" on:click={() => { idEdited = false; id = ""; }}>derive from the name</button>
+        {:else}
+          <span>id: <code class="text-zinc-600">{previewId || "assigned automatically"}</code> – directory, links and the address other bots use</span>
+          <button type="button" class="shrink-0 underline hover:text-zinc-700" on:click={() => { id = previewId; idEdited = true; }}>change</button>
+        {/if}
+      </span>
     </label>
     <label class="flex flex-col gap-1.5 text-[13px] text-zinc-500">Role
       <textarea rows="3" class="resize-none rounded-lg border border-zinc-300 px-2.5 py-2 text-[15px] text-zinc-900 outline-none focus:border-zinc-900" bind:value={role} placeholder="What should this bot do?"></textarea>
@@ -129,7 +145,7 @@
     {#if error}<p class="text-[13px] text-red-600">{error}</p>{/if}
     <div class="flex justify-end gap-2">
       <button type="button" class="rounded-lg border border-zinc-300 px-3.5 py-2 text-sm hover:bg-zinc-50" on:click={() => { stopWizard(); onDone?.(null); }}>Cancel</button>
-      <button type="submit" class="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={busy || !name.trim() || !current?.setup.ok}>{busy ? "Setting up…" : "Create"}</button>
+      <button type="submit" class="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={busy || !name.trim() || !idOk || !current?.setup.ok}>{busy ? "Setting up…" : "Create"}</button>
     </div>
     <p class="text-xs text-zinc-400">Setup (desktop + session) takes up to a minute.</p>
   </form>

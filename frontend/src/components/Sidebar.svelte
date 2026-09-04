@@ -26,7 +26,7 @@
         >
           <StatusDot status={a.status} />
           <span class="min-w-0 flex-1">
-            <strong class="block truncate text-sm">{a.name}</strong>
+            <strong class="block truncate text-sm">{a.title ?? a.name}</strong>
             {#if a.role}<span class="block truncate text-xs text-zinc-500">{a.role}</span>{/if}
           </span>
           <span class="shrink-0 text-xs text-zinc-400">{statusLabel(a.status)}</span>
@@ -56,7 +56,7 @@
       title="Signed-in devices, link a phone, sign out" on:click={() => (devices = true)}>Devices</button>
   </div>
   {#if creating}
-    <AgentCreate onDone={(name) => { creating = false; if (name) onCreated(name); }} />
+    <AgentCreate onDone={(name, title) => { creating = false; if (name) onCreated(name, title); }} />
   {/if}
   {#if devices}
     <Devices onDone={() => (devices = false)} />

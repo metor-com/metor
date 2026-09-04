@@ -13,7 +13,7 @@ import { createStreamChat, readHistory } from "./metor-chat-stream.mjs";
 import { readRoutines, readRuns } from "./metor-routines.mjs";
 import { HARNESSES, harnessOf, defaultModel, validModel } from "./metor-harness.mjs";
 import { setupStart, setupStatus, setupCancel, setupSubmit } from "./metor-setup.mjs";
-import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, allBots as bots } from "./metor-store.mjs";
+import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, isValidTitle as validTitle, idFor, allBots as bots } from "./metor-store.mjs";
 import { AUTH_OFF, sessionOf, claimSession, createClaim, listSessions, revokeSession, setCookieHeader, clearCookieHeader, clientIp, tooManyAttempts, noteFailure, signInPage, qrDataUrl } from "./metor-auth.mjs";
 import * as push from "./metor-push.mjs";
 
@@ -29,7 +29,7 @@ function watchPath(b) { return `/bots/${b.name}/vnc.html?autoconnect=1&resize=sc
 async function agentList() {
   return bots().map((b) => {
     const h = harnessOf(b);
-    return { name: b.name, role: b.role ?? "", createdAt: b.createdAt ?? null, display: b.display ?? null,
+    return { name: b.name, title: b.title ?? b.name, role: b.role ?? "", createdAt: b.createdAt ?? null, display: b.display ?? null,
       harness: h, harnessLabel: HARNESSES[h]?.label ?? h,
       model: b.model ?? null,
       modelLabel: HARNESSES[h]?.models.find((m) => m.id === b.model)?.label ?? (b.model ?? "Default model"),
@@ -58,12 +58,16 @@ function harnessInfo() {
 
 // ---------- Command queue: metor bot … strictly serial (parallel creates → freeDisplay race) ----------
 let chain = Promise.resolve();
+const creating = new Set();   // ids queued for "bot create" but not on disk yet (duplicate check)
 function enqueue(args) {
+  const id = args[0] === "bot" && args[1] === "create" ? args[args.indexOf("--id") + 1] : null;
+  if (id) creating.add(id);
   const p = chain.then(() => new Promise((done) => {
     execFile("metor", args, { encoding: "utf8", timeout: 180_000 }, (err, stdout, stderr) => {
+      if (err) console.error(`metor ${args.slice(0, 3).join(" ")}: ${(stderr || stdout || err.message).trim().split("\n").pop()}`);
       done({ ok: !err, out: `${stdout ?? ""}${stderr ?? ""}`.trim() });
     });
-  })).then(async (r) => { await pushAgents(true); return r; });
+  })).then(async (r) => { if (id) creating.delete(id); await pushAgents(true); return r; }, (e) => { if (id) creating.delete(id); throw e; });
   chain = p.then(() => {}, () => {});
   return p;
 }
@@ -98,12 +102,13 @@ function notifyPush(kind, bot, msg) {
     .catch((e) => console.error("push:", e.message));
 }
 const excerpt = (t) => String(t ?? "").replace(/```[\s\S]*?```/g, " ").replace(/[*_`#>|]+/g, "").replace(/\s+/g, " ").trim().slice(0, 180);
+const titleOf = (bot) => bots().find((b) => b.name === bot)?.title ?? bot;   // people see the title, not the id
 const expectedStops = new Set();   // bots the interface itself stops or removes
 const turnText = new Map();        // bot → last assistant text of the running turn (body of the "reply" push)
 streamChat.subscribe(({ bot, entry }) => {
   if (entry.kind === "permission" && entry.permission?.status === "pending") {
     const p = entry.permission;
-    notifyPush("approval", bot, { title: `${bot}: approval needed`, body: excerpt(p.reason ? `${p.title ?? p.tool} – ${p.reason}` : (p.title ?? p.tool ?? entry.text)) });
+    notifyPush("approval", bot, { title: `${titleOf(bot)}: approval needed`, body: excerpt(p.reason ? `${p.title ?? p.tool} – ${p.reason}` : (p.title ?? p.tool ?? entry.text)) });
   } else if (entry.role === "assistant" && entry.kind === "text" && entry.text?.trim()) turnText.set(bot, entry.text);
 });
 const lastStatus = new Map();
@@ -116,12 +121,12 @@ setInterval(() => {
     if (prev === undefined || prev === st) continue;
     if (prev === "busy" && st === "idle") {
       // the chat tail (400 ms) may still be behind the state file – give the last text a moment to arrive
-      setTimeout(() => { const text = turnText.get(b.name); turnText.delete(b.name); if (text) notifyPush("reply", b.name, { title: b.name, body: excerpt(text) }); }, 1000);
+      setTimeout(() => { const text = turnText.get(b.name); turnText.delete(b.name); if (text) notifyPush("reply", b.name, { title: b.title ?? b.name, body: excerpt(text) }); }, 1000);
     } else if (st === "stopped") {
       turnText.delete(b.name);
       if (expectedStops.delete(b.name)) continue;
       const s = streamChat.state(b.name);
-      notifyPush("stopped", b.name, { title: `${b.name}: stopped`, body: s.status === "error" ? `Error: ${excerpt(s.error)}` : "The bot's host process ended unexpectedly." });
+      notifyPush("stopped", b.name, { title: `${b.title ?? b.name}: stopped`, body: s.status === "error" ? `Error: ${excerpt(s.error)}` : "The bot's host process ended unexpectedly." });
     }
   }
   for (const name of [...lastStatus.keys()]) if (!known.has(name)) { lastStatus.delete(name); turnText.delete(name); expectedStops.delete(name); }
@@ -190,16 +195,21 @@ async function api(req, res, url) {
     if (req.method === "GET") return send(200, await agentList());
     if (req.method === "POST") {
       const body = await readBody(req);
-      const name = body?.name, role = String(body?.role ?? "").trim() || "General assistant for the user.";
-      if (!validName(name)) return send(400, { error: "invalid name (a-z, 0-9, hyphen; api/assets are reserved)" });
-      if (existsSync(join(BOTS_DIR, name, "bot.json"))) return send(409, { error: `Bot ${name} already exists` });
+      // The title is free text; the id comes from it (slugify) unless the client sends one explicitly
+      const title = String(body?.title ?? body?.name ?? "").trim().replace(/\s+/g, " ");
+      const role = String(body?.role ?? "").trim() || "General assistant for the user.";
+      if (!validTitle(title)) return send(400, { error: "name missing or longer than 60 characters" });
+      let name;
+      try { name = body?.name != null && String(body.name) !== "" ? String(body.name) : idFor(title); } catch (e) { return send(400, { error: e.message }); }
+      if (!validName(name)) return send(400, { error: "invalid id (a-z, 0-9, hyphen, at most 40 characters; api/assets are reserved)" });
+      if (existsSync(join(BOTS_DIR, name, "bot.json")) || creating.has(name)) return send(409, { error: `A bot with the id "${name}" already exists – pick another name or change the id` });
       const harness = body?.harness ?? "claude-stream";
       if (!HARNESSES[harness]) return send(400, { error: `unknown runtime: ${harness}` });
       const model = body?.model ?? defaultModel(harness);
       if (model && !validModel(harness, model)) return send(400, { error: `unknown model "${model}" for ${HARNESSES[harness].label}` });
       if (!harnessSetupState(harness).ok) return send(409, { error: `${HARNESSES[harness].label} is not set up yet`, needsSetup: true, harness });
-      enqueue(["bot", "create", name, "--role", role, "--harness", harness, ...(model ? ["--model", model] : [])]);
-      return send(202, { accepted: true, name });
+      enqueue(["bot", "create", title, "--id", name, "--role", role, "--harness", harness, ...(model ? ["--model", model] : [])]);
+      return send(202, { accepted: true, name, title });
     }
   }
   if (rest[0] === "agents" && validName(rest[1])) {

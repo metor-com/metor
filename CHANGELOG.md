@@ -13,6 +13,11 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Free-text bot names**: a bot can be called `Fußball-Späher 2` or `Mein Bot!`. The create
+  dialog derives the id (`fussball-spaeher-2` - directory, links, address between bots) live and
+  lets you change it; the name is what the sidebar, the header, notifications and the bot's own
+  instructions show. CLI: `metor bot create "Mein Bot!" [--id mein-bot]`.
+
 - **Phone app with push notifications** ([ADR-0013](knowledge/decisions/0013-pwa-web-push.md)):
   the interface installs as an app (Android: "Install metor as an app" under Devices or the
   browser menu; iPhone and iPad: Share → Add to Home Screen, then sign in once inside the app with

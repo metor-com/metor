@@ -60,7 +60,7 @@ export function applyEntry(entry) {
     entries.update((list) => (list.some((e) => e.id === entry.id) ? list : [...list, entry]));
   }
 }
-export function created(name) { pending.update((p) => [...p, { name, role: "", status: "setting up" }]); select(name); }
+export function created(name, title) { pending.update((p) => [...p, { name, title: title ?? name, role: "", status: "setting up" }]); select(name); }
 export const act = (action) => agentAction(get(selected), action);   // start | stop
 export async function remove() { await agentAction(get(selected), "rm"); select(null); }
 export const interrupt = () => chatInterrupt(get(selected));

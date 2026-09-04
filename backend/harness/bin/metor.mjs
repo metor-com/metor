@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HARNESSES, harnessOf } from "./metor-harness.mjs";
-import { allBots, botDir, readBot } from "./metor-store.mjs";
+import { allBots, botDir, readBot, idFor } from "./metor-store.mjs";
 import { desktopAlive, ensureDesktopConfig, watchUrl } from "./metor-desktop.mjs";
 import { createAgent, harnessState, hostAlive, removeAgent, startAgent, stopAgent } from "./metor-lifecycle.mjs";
 import { supervise } from "./metor-supervise.mjs";
@@ -21,9 +21,10 @@ const has = (flags, name) => flags.includes(`--${name}`);
 
 const bot = {
   create(flags) {
-    const name = flags[0]; if (!name) die("metor bot create <name> --role \"...\" [--harness <id>] [--model <id>]");
-    const b = createAgent({ name, role: arg(flags, "role"), harness: arg(flags, "harness"), model: arg(flags, "model"), permissionMode: arg(flags, "mode") });
-    console.log(`Bot ${name} created in ${botDir(name)} (${HARNESSES[harnessOf(b)].label}${b.model ? ` · ${b.model}` : ""})`);
+    const title = flags[0]; if (!title) die("metor bot create <name> [--id <id>] --role \"...\" [--harness <id>] [--model <id>]");
+    const name = arg(flags, "id") ?? idFor(title);   // the name is free text, the id follows the directory rules
+    const b = createAgent({ name, title, role: arg(flags, "role"), harness: arg(flags, "harness"), model: arg(flags, "model"), permissionMode: arg(flags, "mode") });
+    console.log(`Bot "${b.title}" created as ${name} in ${botDir(name)} (${HARNESSES[harnessOf(b)].label}${b.model ? ` · ${b.model}` : ""})`);
     if (!has(flags, "no-start")) startAgent(b);
   },
   list() {
@@ -77,7 +78,8 @@ const VERSION = (() => {
   return "dev";
 })();
 const usage = `metor – CLI (inside the computer; on the host use the metor shell wrapper)
-  bot  create <name> --role "..." [--harness claude-stream|codex] [--model <id>] [--mode acceptEdits] [--no-start]
+  bot  create <name> [--id <id>] --role "..." [--harness claude-stream|codex] [--model <id>] [--mode acceptEdits] [--no-start]
+       (the name is free text; the id – directory, API path, address between bots – is derived from it: "Mein Bot!" -> mein-bot)
        list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name> [--keep-files]
   auth link [--plain] | sessions | revoke <id>       (sign-in link for a device, signed-in devices)
   supervise                                          (entrypoint, PID 1)`;

@@ -18,7 +18,7 @@
   $: $selected, (showRoutines = false);   // a new selection closes the routines panel
 
   async function onAct(action) {
-    if (action === "rm" && !confirm(`Really remove bot ${$selected}? Its directory and history will be deleted.`)) return;
+    if (action === "rm" && !confirm(`Really remove bot "${$current?.title ?? $selected}"? Its directory and history will be deleted.`)) return;
     try { await (action === "rm" ? remove() : act(action)); } catch (e) { alert(e.message); }
   }
   onMount(() => { initPush(); return connect(); });
@@ -37,9 +37,9 @@
       <Header agent={$current} view={effView} {showRoutines}
         onView={(v) => (view = v)} onBack={() => select(null)} onToggleRoutines={() => (showRoutines = !showRoutines)}
         {onAct} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
-      {#if showRoutines}<RoutinesPanel bot={$selected} />{/if}
+      {#if showRoutines}<RoutinesPanel bot={$selected} title={$current.title ?? $selected} />{/if}
       <section class="flex min-h-0 min-w-0 flex-1">
-        {#if effView !== "computer"}<ChatView bot={$selected} entries={$entries} partial={$partial} onLocalEntry={applyEntry} />{/if}
+        {#if effView !== "computer"}<ChatView bot={$selected} title={$current.title ?? $selected} entries={$entries} partial={$partial} onLocalEntry={applyEntry} />{/if}
         {#if effView === "split"}<div class="w-px shrink-0 bg-zinc-200"></div>{/if}
         {#if effView !== "chat"}<ComputerPanel bot={$selected} />{/if}
       </section>

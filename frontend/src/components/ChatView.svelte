@@ -2,6 +2,7 @@
   import { chatSend, chatPermission, uploadFile, fileUrl } from "../lib/api.js";
   import { renderMarkdown } from "../lib/markdown.js";
   export let bot;
+  export let title = null;   // what people see; bot stays the id for API calls
   export let entries = [];
   export let partial = null;
   export let onLocalEntry;
@@ -150,7 +151,7 @@
         </div>
       </div>
     {/if}
-    {#if !entries.length && !partial}<p class="m-auto text-center text-zinc-400">No history yet. Send {bot} a message.</p>{/if}
+    {#if !entries.length && !partial}<p class="m-auto text-center text-zinc-400">No history yet. Send {title ?? bot} a message.</p>{/if}
   </div>
   {#if pending.length}
     <div class="flex shrink-0 flex-wrap gap-2 border-t border-zinc-200 bg-white px-3 pt-3 md:px-4">

@@ -23,7 +23,7 @@ export const HARNESSES = {
     scaffold(dir, bot, templatesDir) {
       mkdirSync(join(dir, ".claude"), { recursive: true });
       const tpl = readFileSync(join(templatesDir, "CLAUDE.md"), "utf8")
-        .replaceAll("{{NAME}}", bot.name).replaceAll("{{ROLE}}", bot.role);
+        .replaceAll("{{NAME}}", bot.name).replaceAll("{{TITLE}}", bot.title ?? bot.name).replaceAll("{{ROLE}}", bot.role);
       writeFileSync(join(dir, "CLAUDE.md"), tpl);
       writeFileSync(join(dir, ".claude", "settings.json"), readFileSync(join(templatesDir, "settings.json"), "utf8"));
     },
@@ -61,7 +61,7 @@ export const HARNESSES = {
     roleFile: "AGENTS.md",
     scaffold(dir, bot, templatesDir) {
       const tpl = readFileSync(join(templatesDir, "AGENTS.md"), "utf8")
-        .replaceAll("{{NAME}}", bot.name).replaceAll("{{ROLE}}", bot.role);
+        .replaceAll("{{NAME}}", bot.name).replaceAll("{{TITLE}}", bot.title ?? bot.name).replaceAll("{{ROLE}}", bot.role);
       writeFileSync(join(dir, "AGENTS.md"), tpl);
     },
     // MCP servers come per process via `-c mcp_servers…` overrides (spike S20, codex-facts.md)

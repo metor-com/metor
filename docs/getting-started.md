@@ -33,8 +33,10 @@ interface must be reached over HTTPS for this.
 
 Click **+ New bot** at the bottom of the sidebar.
 
-- **Name** - lowercase letters, digits and hyphens, for example `scout`. The name is the bot's
-  identity in the chat, its directory name and part of every link.
+- **Name** - free text, for example `Scout` or `Fußball-Späher 2`. The dialog shows the **id** it
+  derives from the name (`fussball-spaeher-2`: lower case, umlauts as `ae`/`oe`/`ue`, everything
+  else a hyphen) - that id is the directory name, part of every link and the address other bots
+  use; change it there if you want a different one. The name is what you see everywhere else.
 - **Role** - what this bot is for. A good role is one or two sentences about the job and the way of
   working, not a task list: "Researches topics on the web and writes short, sourced summaries as
   Markdown files. Asks before spending more than an hour on something." The role becomes the top of

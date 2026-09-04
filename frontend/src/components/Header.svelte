@@ -22,7 +22,7 @@
   <button class="-my-1 shrink-0 rounded-lg px-2 py-1 text-xl text-zinc-500 hover:text-zinc-900 md:hidden"
     on:click={onBack} aria-label="Back to bots">←</button>
   <div class="flex min-w-0 flex-1 items-baseline gap-2">
-    <strong class="truncate text-base">{agent.name}</strong>
+    <strong class="truncate text-base" title="id: {agent.name}">{agent.title ?? agent.name}</strong>
     <span class="hidden shrink-0 text-[13px] text-zinc-500 sm:inline">{statusLabel(agent.status)}</span>
     <span class="hidden shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500 md:inline" title="Runtime and model of this bot">{agent.harnessLabel ?? "Claude Code"} · {agent.modelLabel ?? "Default model"}</span>
   </div>

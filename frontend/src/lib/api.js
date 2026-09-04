@@ -26,7 +26,8 @@ export const pushUnsubscribe = (endpoint) => req("POST", "/push/unsubscribe", { 
 export const pushTest = () => req("POST", "/push/test");
 
 export const listAgents = () => req("GET", "/agents");
-export const createAgent = (name, role, harness, model) => req("POST", "/agents", { name, role, ...(harness ? { harness } : {}), ...(model ? { model } : {}) });
+// title = what people see; the gateway derives the id from it unless `name` (an explicit id) is given
+export const createAgent = (title, role, harness, model, name) => req("POST", "/agents", { title, role, ...(name ? { name } : {}), ...(harness ? { harness } : {}), ...(model ? { model } : {}) });
 export const listHarnesses = () => req("GET", "/harnesses");
 export const setupStart = (id) => req("POST", `/harnesses/${id}/setup/start`);
 export const setupStatus = (id) => req("GET", `/harnesses/${id}/setup/status`);
