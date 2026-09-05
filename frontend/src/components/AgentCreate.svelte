@@ -10,6 +10,14 @@
   $: previewId = idEdited ? id.trim() : slugify(name);
   $: idOk = !idEdited || isValidId(id.trim());
   let harnesses = null, harness = "claude-stream", model = null;
+  let modelId = "";   // "Other model id…": a full id the runtime knows (claude-fable-5-1), for models the list has no name for yet
+  const OTHER = "__other";
+  $: chosenModel = model === OTHER ? modelId.trim() : model;
+  // The real id behind the chosen alias, as the bots' answers reported it (null until a bot of that family has answered)
+  $: resolvedId = current?.models.find((m) => m.id === model)?.resolved ?? null;
+  let lastResolved = null;
+  $: if (model === OTHER) { if (!modelId.trim() && lastResolved) modelId = lastResolved; } else lastResolved = resolvedId;
+  $: modelOk = model !== OTHER || /^[A-Za-z0-9][\w.:[\]-]{0,63}$/.test(modelId.trim());
   let wizard = null, pollTimer = null, code = "";   // wizard: state of the sign-in for the selected runtime
   const ACTIVE = ["starting", "pending", "verifying"];
 
@@ -57,7 +65,7 @@
   async function submit() {
     busy = true; error = null;
     try {
-      const r = await createAgent(name.trim(), role.trim(), harness, model, idEdited ? id.trim() : undefined);
+      const r = await createAgent(name.trim(), role.trim(), harness, chosenModel, idEdited ? id.trim() : undefined);
       onDone?.(r.name, name.trim());
     } catch (e) { error = e.message; busy = false; }
   }
@@ -95,9 +103,19 @@
         <label class="flex flex-1 flex-col gap-1.5 text-[13px] text-zinc-500">Model
           <select class="rounded-lg border border-zinc-300 px-2 py-2 text-[15px] text-zinc-900 outline-none focus:border-zinc-900" bind:value={model}>
             {#each current?.models ?? [] as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
+            <option value={OTHER}>Other model id…</option>
           </select>
         </label>
       </div>
+      {#if model !== OTHER && resolvedId}
+        <p class="-mt-1 text-xs text-zinc-400">Right now that is <code class="font-mono">{resolvedId}</code> – the name follows the newest model; to pin this one, choose <em>Other model id…</em>.</p>
+      {/if}
+      {#if model === OTHER}
+        <label class="flex flex-col gap-1.5 text-[13px] text-zinc-500">Model id
+          <input class="rounded-lg border border-zinc-300 px-2 py-2 font-mono text-[15px] text-zinc-900 outline-none focus:border-zinc-900" bind:value={modelId} placeholder="claude-fable-5-1" autocapitalize="off" autocorrect="off" spellcheck="false" />
+          <span class="text-xs text-zinc-400">A full id the runtime knows; it refuses one it does not. The names above follow the newest models by themselves.</span>
+        </label>
+      {/if}
     {/if}
 
     {#if current && !current.setup.ok}
@@ -121,9 +139,20 @@
           </div>
           <p class="text-amber-900/70">Waiting for confirmation… (code valid for 15 minutes)</p>
           {#if wizard.hint}<p class="text-xs text-amber-900/60">{wizard.hint}</p>{/if}
+        {:else if (wizard.state === "pending" || wizard.state === "verifying") && wizard.mode === "key"}
+          <p class="text-amber-900">1. <a class="font-medium underline" href={wizard.url} target="_blank" rel="noopener noreferrer">Get a key at Google AI Studio</a> (free).</p>
+          <p class="text-amber-900">2. Paste the {wizard.keyLabel ?? "API key"} here – it stays inside the bots' computer:</p>
+          <div class="flex items-center gap-2">
+            <input type="password" class="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 font-mono text-sm outline-none focus:border-zinc-900"
+              bind:value={code} placeholder={wizard.keyLabel ?? "API key"} autocomplete="off" spellcheck="false"
+              on:keydown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitCode(); } }} />
+            <button type="button" class="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={!code.trim() || wizard.state === "verifying"} on:click={submitCode}>{wizard.state === "verifying" ? "Checking…" : "Confirm"}</button>
+          </div>
+          {#if wizard.error}<p class="text-[13px] text-red-600">{wizard.error}</p>{/if}
+          {#if wizard.hint}<p class="text-xs text-amber-900/60">{wizard.hint}</p>{/if}
         {:else if wizard.state === "pending"}
           <p class="text-amber-900">1. <a class="font-medium underline" href={wizard.url} target="_blank" rel="noopener noreferrer">Open the sign-in page</a> and sign in.</p>
-          <p class="text-amber-900">2. Paste the code the page shows at the end:</p>
+          <p class="text-amber-900">2. {wizard.codeLabel ?? "Paste the code the page shows at the end:"}</p>
           <div class="flex items-center gap-2">
             <input class="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 font-mono text-sm outline-none focus:border-zinc-900"
               bind:value={code} placeholder="code from the sign-in page" autocomplete="off" spellcheck="false"
@@ -145,7 +174,7 @@
     {#if error}<p class="text-[13px] text-red-600">{error}</p>{/if}
     <div class="flex justify-end gap-2">
       <button type="button" class="rounded-lg border border-zinc-300 px-3.5 py-2 text-sm hover:bg-zinc-50" on:click={() => { stopWizard(); onDone?.(null); }}>Cancel</button>
-      <button type="submit" class="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={busy || !name.trim() || !idOk || !current?.setup.ok}>{busy ? "Setting up…" : "Create"}</button>
+      <button type="submit" class="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={busy || !name.trim() || !idOk || !modelOk || !current?.setup.ok}>{busy ? "Setting up…" : "Create"}</button>
     </div>
     <p class="text-xs text-zinc-400">Setup (desktop + session) takes up to a minute.</p>
   </form>

@@ -32,7 +32,10 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   an orchestrator with hard caps (members/rounds/contributions, see the design draft above),
   Claude and Codex bots in the same chat; memory scopes (user / project / bot) as shared
   knowledge, with the memory backend behind a configurable endpoint
-- **OpenCode as third runtime** - through the same seam (registry, kind "http" via
+- **Gemini follow-ups** (built 2026-09-05, ADR-0016): verify the ACP update shapes and session
+  replay with a signed-in account; record the model the session reports for the labels; an API-key
+  field in the wizard; Gemini in the bot-to-bot bridge and in `scripts/smoke.sh`
+- **OpenCode as fourth runtime** - through the same seam (registry, kind "http" via
   `opencode serve`); subscription paths: GitHub Copilot (official partnership, device flow) and
   ChatGPT headless; Anthropic is not permitted there (see
   [ADR-0011](knowledge/decisions/0011-multi-harness.md))

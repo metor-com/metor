@@ -195,7 +195,7 @@ export function createCore(name) {
     partialAppend, partialClear,
     extractFiles, emitText, emitTool, patchTool,
     onShutdown(fn) { cleanups.push(fn); },
-    ready() { saveState({ status: "idle" }); log(`Host for ${name} started (harness ${bot.harness ?? "claude-stream"}, resume: ${state.sessionId ?? "-"})`); },
+    ready() { saveState({ status: "idle", error: null }); log(`Host for ${name} started (harness ${bot.harness ?? "claude-stream"}, resume: ${state.sessionId ?? "-"})`); },
     fail(e) { log("Harness error:", e?.message ?? e); saveState({ status: "error", error: String(e?.message ?? e) }); process.exit(1); },
   };
 }

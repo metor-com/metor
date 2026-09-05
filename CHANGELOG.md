@@ -13,11 +13,18 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Gemini CLI as a third runtime** (ADR-0016): bots on Google's Gemini, signed in from the
+  create dialog with a Gemini API key from Google AI Studio - the free tier needs no
+  subscription; the key is checked once and stays inside the bots' computer. Gemini bots chat,
+  use their computer and browser, run routines and send files like the others; connectors from
+  Settings apply to them too.
+
 - **The newest models, always**: Claude Code bots can pick **Fable** next to Opus, Sonnet and
-  Haiku - each name means the newest model of that family (today Fable 5.1, Opus 5, Sonnet 5,
-  Haiku 4.5), so the list keeps up with Claude Code itself. Codex bots see the models Codex
-  offers right now (asked from Codex, not a fixed list). `metor bot create --model` also takes a
-  full model id.
+  Haiku - each name means the newest model of that family, so the list keeps up with Claude Code
+  itself. The names carry the version ("Fable 5.1", "Opus 5"): first from what Claude Code
+  reports, then from what the bots' own answers actually ran, which is what counts. Codex bots
+  see the models Codex offers right now (asked from Codex, not a fixed list). The create dialog's *Other model id…* (and
+  `metor bot create --model`) takes a full model id such as `claude-fable-5-1`.
 
 - **metor on your own Mac**: `metor setup` picks a container runtime (Apple's `container` on an
   Apple silicon Mac with macOS 26, otherwise Docker or Colima), gets the image, starts the bots'

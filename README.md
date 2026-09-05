@@ -21,8 +21,9 @@ for what is missing and [CHANGELOG.md](CHANGELOG.md) for what is there.
   (up to 25 MB, 10 per message); the bot returns files as cards with preview or download.
 - **Routines**: tell a bot what should happen regularly and it creates the schedule itself; a panel
   lists the schedules, and a routine nobody looks at pauses itself.
-- **Runtime and model per bot**: Claude Code (Opus, Sonnet, Haiku) or Codex (GPT models), chosen
-  when the bot is created; the Claude quota is shown in the sidebar.
+- **Runtime and model per bot**: Claude Code (Fable, Opus, Sonnet, Haiku), Codex (GPT models)
+  or Gemini CLI (free with a key from Google AI Studio), chosen when the bot is created; the Claude quota is
+  shown in the sidebar.
 - **Setup wizard** for a runtime that is not signed in yet: the official Claude Code or Codex login,
   driven from the UI (link plus code, no terminal needed).
 - **Sign-in without passwords**: the first browser gets in with a setup link, further phones and
@@ -48,7 +49,7 @@ checkout, `metor setup` does all of the steps below with the published image (se
 git clone https://github.com/metor-com/metor.git && cd metor
 export PATH="$PWD/backend/harness/bin:$PATH"
 metor box build                               # builds the image metor-box:dev
-metor box up                                  # starts the container metor-box (volumes: metor-workspace, metor-claude, metor-codex)
+metor box up                                  # starts the container metor-box (volumes: metor-workspace, metor-claude, metor-codex, metor-gemini)
 metor auth link                               # prints the one-time sign-in link for your browser
 ```
 

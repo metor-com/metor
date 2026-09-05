@@ -109,6 +109,16 @@ export function remove(id) {
 export const forBot = (_bot) => load().filter((c) => c.enabled);
 const nonEmpty = (m) => m && Object.keys(m).length ? m : null;
 // Claude Code: entries for the bot's mcp.json (--mcp-config)
+// Gemini CLI: .gemini/settings.json → mcpServers (stdio: command/args/env; remote: url (SSE) or httpUrl; trust skips confirmations)
+export function geminiServers(bot) {
+  const out = {};
+  for (const c of forBot(bot)) {
+    out[c.key] = c.transport === "stdio"
+      ? { command: c.command, args: c.args, ...(nonEmpty(c.env) ? { env: c.env } : {}), trust: !c.approval }
+      : { ...(c.transport === "sse" ? { url: c.url } : { httpUrl: c.url }), ...(nonEmpty(c.headers) ? { headers: c.headers } : {}), trust: !c.approval };
+  }
+  return out;
+}
 export function claudeServers(bot) {
   const out = {};
   for (const c of forBot(bot)) {

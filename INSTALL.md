@@ -181,6 +181,11 @@ volume.
   wizard runs the official login: open the link, sign in with your Claude subscription, paste the
   code the page shows at the end. Terminal alternative: `docker compose exec box claude auth login`
   (compose) or `docker exec -it metor-box claude auth login` (development).
+- **Gemini CLI** - sign in from the interface: "new bot" -> runtime Gemini CLI -> Sign in. The
+  wizard asks for a Gemini API key from Google AI Studio (free tier, about 1,000 requests a day,
+  no subscription), checks it with one request and keeps it inside the box
+  (`/home/box/.gemini/.env`, volume `metor-gemini`). Google closed the CLI's own Google-account
+  login in September 2026, so the key is the way in.
 - **Codex** - sign in from the interface: "new bot" -> runtime Codex -> Sign in. The wizard shows
   the official device-code login (link + one-time code, confirmation in the browser or on the
   phone). Beforehand, enable **device code authorization** once in the ChatGPT security settings;
@@ -196,7 +201,7 @@ start the bots.
   histories and routines survive; sessions resume with their context.
 - **Backup:** back up the three volumes - `metor-workspace` (bots, histories, routines, files),
   `metor-claude` (Claude login **and sessions**; without this volume the conversation contexts are
-  gone) and `metor-codex` (Codex login and sessions).
+  gone), `metor-codex` (Codex login and sessions) and `metor-gemini` (Gemini login and sessions).
 - **Bots via CLI:** `docker compose exec box metor bot list|create|start|stop|rm ...`
 - **Version:** `docker compose exec box metor version`.
 - **Devices and lost access:** `docker compose exec box metor auth sessions` lists the signed-in

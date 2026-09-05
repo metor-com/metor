@@ -26,6 +26,7 @@ services:
       - metor-workspace:/workspace
       - metor-claude:/home/box/.claude
       - metor-codex:/home/box/.codex
+      - metor-gemini:/home/box/.gemini
     ports:
       - "127.0.0.1:6010:6010"   # loopback only; public access goes exclusively through the proxy
 
@@ -50,6 +51,8 @@ volumes:
     name: metor-claude
   metor-codex:
     name: metor-codex
+  metor-gemini:
+    name: metor-gemini
   caddy-data:
     name: metor-caddy-data
   caddy-config:

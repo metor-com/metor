@@ -168,13 +168,25 @@ header of a bot shows both as a small badge on desktop widths.
 - **Codex** bots use your ChatGPT subscription. Their quota is separate and not shown in the
   interface yet. Codex bots can chat, use shell and files, drive their browser, run routines and
   send files; assigning tasks to other bots is not available for Codex bots yet.
+- **Gemini CLI** bots use a Gemini API key from Google AI Studio - the free tier (about 1,000
+  requests a day) needs no subscription. Sign in once from the create dialog: get the key at
+  AI Studio, paste it, done; it stays inside the bots' computer. Gemini bots can
+  chat, use shell and files, drive their browser, run routines and send files; like Codex bots
+  they cannot assign tasks to other bots yet. The model choice is "Auto" - Gemini picks the
+  model per task and the bot's header shows which one answered last - or one of the models
+  Gemini lists, or a pinned id through *Other model id…*.
 
 **Which models?** For Claude Code the choice is a family - **Fable**, **Opus**, **Sonnet**,
-**Haiku** - and each name always means the newest model of that family that Claude Code offers
-(today Fable 5.1, Opus 5, Sonnet 5, Haiku 4.5), so the list keeps up with Claude Code itself.
+**Haiku** - and each name always means the newest model of that family that Claude Code offers,
+so the list keeps up with Claude Code itself. The version shown next to the name ("Fable 5.1")
+comes from what Claude Code reports and, as soon as a bot of that family has answered, from the
+model that actually ran - that one counts, because Claude Code's own list can lag behind.
 For Codex the interface shows the models Codex offers right now; it asks Codex each time the
-create dialog opens (cached for ten minutes). On the command line, `metor bot create --model`
-also accepts a full model id such as `claude-fable-5-1`; the runtime rejects one it does not know.
+create dialog opens (cached for ten minutes). Once a bot of a family has answered, the dialog also shows the real id behind the name
+("Right now that is claude-fable-5-1"). The last entry, *Other model id…*, pins a bot to a full id
+- it comes prefilled with that one - or takes any id the runtime knows, for a model the list has
+no name for yet; on the command line that is `metor bot create --model <id>`. A pinned bot stays
+on that model when a newer one appears; a bot on a name follows.
 
 Runtime logins live in the box (one per runtime, shared by all bots of that runtime) and survive
 restarts and updates. If a runtime's login expires, only that runtime's bots stop.

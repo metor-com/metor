@@ -1,5 +1,5 @@
 # metor – computer ("box"): one environment per user, all bots run inside it.
-# Linux + Node + Claude Code + Codex + metor CLI; one desktop per bot (Xvfb, Chromium, x11vnc, noVNC) + Playwright MCP.
+# Linux + Node + Claude Code + Codex + Gemini CLI + metor CLI; one desktop per bot (Xvfb, Chromium, x11vnc, noVNC) + Playwright MCP.
 # The interface (frontend/, Svelte) is built in a multi-stage build – the build context is the REPO ROOT.
 
 # ---------- Stage 1: build the interface (no Node build needed on the server) ----------
@@ -43,12 +43,12 @@ RUN set -e; arch="${TARGETARCH:-$(dpkg --print-architecture)}"; \
 # version coupled to CLI 2.1.x) + Codex CLI (second runtime, ADR-0011 – knowledge/decisions/0011-multi-harness.md;
 # pinned – the release train ships daily, the adapter carries the version-specific knowledge).
 # Installed globally: /usr/local/lib/node_modules is on the parent walk of /usr/local/lib/metor/*.mjs
-RUN npm install -g @playwright/mcp @anthropic-ai/claude-agent-sdk@0.3.251 @openai/codex@0.152.0 qrcode@1.5.4 web-push@3.6.7 && which playwright-mcp && codex --version
+RUN npm install -g @playwright/mcp @anthropic-ai/claude-agent-sdk@0.3.251 @openai/codex@0.152.0 @google/gemini-cli@0.58.0 qrcode@1.5.4 web-push@3.6.7 && which playwright-mcp && codex --version && gemini --version
 
 # Non-root user "box" with uid 1000 (replaces the node user of the base image)
 RUN (userdel -r node || true) \
     && useradd -m -u ${BOX_UID} -s /bin/bash box \
-    && mkdir -p /workspace /home/box/.claude /home/box/.codex \
+    && mkdir -p /workspace /home/box/.claude /home/box/.codex /home/box/.gemini \
     && chown -R box:box /workspace /home/box
 
 RUN printf '#!/bin/sh\nexec node /usr/local/lib/metor/metor.mjs "$@"\n' > /usr/local/bin/metor && chmod +x /usr/local/bin/metor
@@ -80,6 +80,7 @@ COPY backend/harness/bin/metor-harness.mjs /usr/local/lib/metor/metor-harness.mj
 COPY backend/harness/bin/metor-host-core.mjs /usr/local/lib/metor/metor-host-core.mjs
 COPY backend/harness/bin/metor-host-claude.mjs /usr/local/lib/metor/metor-host-claude.mjs
 COPY backend/harness/bin/metor-host-codex.mjs /usr/local/lib/metor/metor-host-codex.mjs
+COPY backend/harness/bin/metor-host-gemini.mjs /usr/local/lib/metor/metor-host-gemini.mjs
 COPY backend/harness/bin/metor-setup.mjs /usr/local/lib/metor/metor-setup.mjs
 COPY backend/harness/bin/metor-gateway.mjs /usr/local/lib/metor/metor-gateway.mjs
 COPY backend/harness/bin/metor-chat-stream.mjs /usr/local/lib/metor/metor-chat-stream.mjs
@@ -92,5 +93,5 @@ COPY --from=frontend /fe/dist /usr/local/lib/metor/frontend
 
 # noVNC ports of the bot desktops (display 11..49 → port 6011..6049), publish only on the host's loopback
 EXPOSE 6010 6011-6049
-VOLUME ["/workspace", "/home/box/.claude", "/home/box/.codex"]
+VOLUME ["/workspace", "/home/box/.claude", "/home/box/.codex", "/home/box/.gemini"]
 ENTRYPOINT ["tini", "--", "metor", "supervise"]

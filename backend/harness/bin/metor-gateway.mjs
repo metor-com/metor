@@ -63,6 +63,8 @@ async function agentList() {
   });
 }
 
+// Model names for the badges are ready before the first create dialog asks
+for (const id of Object.keys(HARNESSES)) modelsFor(id).catch(() => {});
 // Login state per runtime, cached for 30 s (the probe is a subprocess)
 const probeCache = new Map();
 function harnessSetupState(id) {
@@ -229,7 +231,7 @@ async function api(req, res, url) {
     }
     if (rest[3] === "cancel" && req.method === "POST") return send(200, setupCancel(id));
     // Mode "code": the code the provider showed the user, handed to the waiting CLI (never logged)
-    if (rest[3] === "code" && req.method === "POST") { const body = await readBody(req); return send(200, setupSubmit(id, body?.code)); }
+    if (rest[3] === "code" && req.method === "POST") { const body = await readBody(req); return send(200, await setupSubmit(id, body?.code)); }
   }
   if (rest[0] === "agents" && rest.length === 1) {
     if (req.method === "GET") return send(200, await agentList());

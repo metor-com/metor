@@ -73,7 +73,7 @@ choose_image() {
 }
 exec_in() { "$RT" exec "$@"; }
 PROGRESS=""; [ -t 1 ] || PROGRESS="--progress plain"   # Apple's CLI draws progress bars only on a terminal
-VOLS="-v metor-workspace:/workspace -v metor-claude:/home/box/.claude -v metor-codex:/home/box/.codex"
+VOLS="-v metor-workspace:/workspace -v metor-claude:/home/box/.claude -v metor-codex:/home/box/.codex -v metor-gemini:/home/box/.gemini"
 
 box_up() {
   need_runtime; choose_image
@@ -94,11 +94,11 @@ box_up() {
         $VOLS "$IMAGE" >/dev/null ;;
     container)
       container rm "$C" >/dev/null 2>&1 || true
-      for v in metor-workspace metor-claude metor-codex; do container volume inspect "$v" >/dev/null 2>&1 || container volume create "$v" >/dev/null; done
+      for v in metor-workspace metor-claude metor-codex metor-gemini; do container volume inspect "$v" >/dev/null 2>&1 || container volume create "$v" >/dev/null; done
       # Apple's runtime hands fresh volumes to the container root-owned (Docker copies the image's
       # ownership); the box runs as uid 1000 – take ownership of the three mount points once
       # shellcheck disable=SC2086
-      container run --rm $PROGRESS --user 0:0 --entrypoint /bin/sh $VOLS "$IMAGE" -c 'chown 1000:1000 /workspace /home/box/.claude /home/box/.codex' >/dev/null
+      container run --rm $PROGRESS --user 0:0 --entrypoint /bin/sh $VOLS "$IMAGE" -c 'chown 1000:1000 /workspace /home/box/.claude /home/box/.codex /home/box/.gemini' >/dev/null
       # No restart policy here: after a reboot, `metor box up` (or the desktop app) starts the computer again
       # shellcheck disable=SC2086
       container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${METOR_MEMORY:-4g}" --cpus "${METOR_CPUS:-4}" \

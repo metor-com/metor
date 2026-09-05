@@ -3,6 +3,7 @@
 // the quota from rate_limit_event. All file IPC lives in the core (metor-host-core.mjs).
 // SDK resume keeps session ID AND context (claude-code-facts.md) – restarts are lossless.
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { recordSeenModel } from "./metor-harness.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CHAT_HOWTO } from "./metor-host-core.mjs";
@@ -80,6 +81,7 @@ export async function run(core) {
       lastQuota = { fiveHour: w.five_hour?.utilization ?? null, sevenDay: w.seven_day?.utilization ?? null,
         resetsAt: m.rate_limit_info?.resetsAt ?? null };
     } else if (m.type === "result") {
+      try { recordSeenModel("claude-stream", bot.model, Object.keys(m.modelUsage ?? {})); } catch {}   // the model behind the alias, for the labels
       core.partialClear();
       core.saveState({ status: "idle", ...(lastQuota ? { quota: lastQuota } : {}) });
     }
