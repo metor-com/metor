@@ -102,7 +102,7 @@
     {/if}
     {#if restartNote}<p class="text-[13px] text-zinc-600">{restartNote}</p>{/if}
     {#if error}<p class="text-[13px] text-red-600">{error}</p>{/if}
-    <p class="text-xs leading-relaxed text-zinc-400">Connectors apply to every bot; a choice per bot is planned. Keys and tokens are stored inside the computer, where the bots can read them anyway.</p>
+    <p class="text-xs leading-relaxed text-zinc-400">Connectors apply to every bot; a choice per bot is planned. Keys and tokens are stored inside the bots' computer, where the bots can read them anyway.</p>
   </div>
 
 {:else if mode === "pick"}

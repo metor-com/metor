@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld("metor", {
   // A computer on this machine through the bundled host command (Docker or Apple's container runtime)
   local: {
     status: () => ipcRenderer.invoke("metor:local-status"),         // { wrapper, runtime, state, platform, computer }
-    run: (action) => ipcRenderer.invoke("metor:local", action),     // setup | up | down → { ok, error? }
+    run: (action, id) => ipcRenderer.invoke("metor:local", action, id ?? null),   // setup | up | down [for that local computer] → { ok, error? }
     onProgress: (cb) => ipcRenderer.on("metor:local-progress", (_e, p) => cb(p)),
   },
 });

@@ -120,7 +120,7 @@ export function signInPage({ error = null } = {}) {
  .err{color:#b91c1c} ol{padding-left:20px;color:#52525b} li{margin:4px 0}
 </style></head><body><main>
 <h1>metor</h1>
-<p>This computer is locked. Sign in from a device that already has access, or with the setup link.</p>
+<p>The bots' computer is locked. Sign in from a device that already has access, or with the setup link.</p>
 ${error ? `<p class="err">${esc(error)}</p>` : ""}
 <ol>
 <li><strong>Setup link</strong>: shown by the installer and by <code>metor auth link</code> inside the box – open it on this device.</li>

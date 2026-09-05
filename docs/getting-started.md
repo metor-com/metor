@@ -11,7 +11,7 @@ at `https://<your-domain>/bots/` after opening your setup link (section 1).
 
 The interface has no passwords. The first browser gets in with a **setup link** that the installer
 prints at the end (and that `metor auth link` inside the box prints again at any time, valid for
-24 hours, single use). Every further phone or computer is linked from a device that is already
+24 hours, single use). Every further phone or browser is linked from a device that is already
 signed in: open the **⋮ menu** at the top of the bot list → **Settings**, section **Devices**, click **Link a device**, and on the new
 device either scan the QR code with the camera or open the interface and type the pairing code on
 the sign-in page. Links and codes are valid for two minutes.
@@ -24,7 +24,7 @@ From the directory** offers well-known ones (a shared memory, documentation look
 GitHub, search APIs) and pre-fills the form, **Custom connector** takes any server by command or
 URL with its environment variables or headers. Bots use a connector on their own, like the browser;
 switch on **Ask before each use** to get an approval card for every call instead. Keys and tokens
-are stored inside the computer.
+are stored inside the bots' computer.
 A connector reaches a bot when the bot starts - after a change, the button **Restart running
 bots** does that for you. **Appearance** (text size; a compact bot list with one line per bot; whether the Claude quota bar
 shows always, never or only from a chosen usage) and
@@ -126,7 +126,7 @@ On a phone the computer replaces the chat while it is shown. The computer panel 
   can take over with mouse and keyboard at any time: log into a site, solve a captcha, approve a
   two-factor prompt, close a pop-up. Logins persist in the bot's browser profile, so one manual
   login usually lasts. When a bot gets stuck it says so in the chat and waits for you. Right after
-  creating a bot the panel may show "Loading computer" or "Waiting for the computer" for a few
+  creating a bot the panel may show "Loading the bot's computer" or "Waiting for the bot's computer" for a few
   seconds until the desktop is up.
 - **Terminal** - a real shell in the bot's directory (copy and paste supported). Use it to look
   around, run a command yourself, or fix something the bot could not. The shell lives as long as
@@ -185,24 +185,31 @@ tab works with touch, but for real intervention a desktop browser is more comfor
 metor is also an app for macOS, Windows and Linux (`client/desktop`, built from the repository or
 taken from a release). It shows the same interface, and adds what a browser tab cannot:
 notifications for approvals, finished replies and unexpected stops while the app runs, a tray
-icon, several computers side by side (menu **Computer**), and screen sharing for the bots.
+icon, several bots' computers side by side (menu **Computers**), and screen sharing for the bots.
 
-On first start the app asks for a computer: paste the **setup link** (from the installer or
-`metor auth link` inside the box - the address comes with it), or enter the address plus a
-**pairing code** from *Settings → Devices → Link a device* on a device that is already signed in.
-The app then appears under Devices as "metor app on Mac/Windows/Linux"; removing it there signs
-the app out, and the app's connect screen offers the computer again.
+On first start the app asks one question: should the bots' computer be **on this Mac** or **on a
+server**? On this Mac, the app creates it right there (see below). On a server, paste the **setup
+link** (from the installer or `metor auth link` inside the box - the address comes with it), or
+enter the address plus a **pairing code** from *Settings → Devices → Link a device* on a device
+that is already signed in. The app then appears under Devices as "metor app on Mac/Windows/Linux";
+removing it there signs the app out, and the app's connect screen offers the bots' computer again.
 
-**A computer on your own Mac.** You do not need a server: the connect screen has a card *A
-computer on this Mac*. It tells which runtime it found - Apple's `container` on an Apple silicon
-Mac with macOS 26 (install it from Apple's GitHub releases), otherwise Docker or Colima - and one
-button does the rest: **Set up** downloads the image (about 1 GB, a few minutes), starts the
-computer and connects the app with it; its output shows live while it runs. After that the app
-starts the computer whenever it opens (menu *Computer → Local computer* to switch that off, or to
-start and stop by hand), so a reboot of the Mac changes nothing. The computer has its own volumes:
-sign in to a runtime once under *New bot → Sign in*, then create bots as usual. A computer that
-does not answer - stopped, or a server that is down - lands on the connect screen with the reason
-and a *Try again* button instead of a dead interface.
+**The bots' computer on your own Mac.** You do not need a server: choose *On this Mac* and the
+app does what the situation needs - no computer yet, it sets one up (the first time this
+downloads the image, about 1 GB, a few minutes; the output shows live); one that is stopped, it
+starts; one that is running, it opens; several, it lets you pick. It needs a container runtime -
+Apple's `container` on an Apple silicon Mac with macOS 26 (install it from Apple's GitHub
+releases), otherwise Docker or Colima - and says so with links when none is installed. After
+that the app starts the bots' computer whenever it opens (menu *Computers → Bots' computer on
+this Mac* to switch that off, or to start and stop by hand), so a reboot of the Mac changes
+nothing. That computer has its own volumes: sign in to a runtime once under *New bot →
+Sign in*, then create bots as usual. A bots' computer that does not answer - stopped, or a server
+that is down - lands on the connect screen with the reason and a *Try again* button instead of a
+dead interface.
+
+A word on words: "computer" in metor always means the bots' computer, the shared machine your
+bots work on - never your own Mac, phone or PC. Where both could be meant, the interface says
+"the bots' computer" and "this Mac".
 
 ## 11. Managing bots
 
@@ -225,7 +232,7 @@ Bots restart automatically when the box restarts, unless they were paused.
   Code: `docker compose exec box claude auth login`, or `docker exec -it metor-box claude auth login`
   on a local box). Then press **Start** on the bot. The box's supervisor log
   (`docker compose logs box`) shows the reason if it was something else.
-- **The screen says "connecting" or "Waiting for the computer" for a long time.** Reload the page.
+- **The screen says "connecting" or "Waiting for the bot's computer" for a long time.** Reload the page.
   Right after creation the desktop needs a few seconds; after a box restart the desktops come up
   one by one. If it never connects behind your own reverse proxy, check that the WebSocket paths
   pass through as described in INSTALL.md.

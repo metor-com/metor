@@ -53,7 +53,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   only when store presence or background voice demands it (then a push relay, own ADR).
 - **metor on the Mac** - built 2026-09-05: `metor setup` with Apple's `container` (macOS 26,
   Apple silicon) or Docker/Colima through the same wrapper, multi-arch image workflow, formula
-  template, *Local computer* menu in the desktop app (see
+  template, *Bots' computer on this Mac* menu in the desktop app (see
   [knowledge/design/mac-install.md](knowledge/design/mac-install.md)). Remaining: create the tap
   repository `metor-com/homebrew-tap` with the formula and a release sha256; `metor box update`
   (pull + restart); drop the legacy 6011-6049 port range from the Docker command; phone access to

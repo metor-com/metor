@@ -36,10 +36,10 @@
   </div>
   <div class="relative min-h-0 min-w-0 flex-1">
     {#if src}
-      <iframe title="Computer of {bot}" {src} class="absolute inset-0 h-full w-full border-0" class:hidden={mode !== "screen"} allow="clipboard-read; clipboard-write"></iframe>
+      <iframe title="Screen of {bot}" {src} class="absolute inset-0 h-full w-full border-0" class:hidden={mode !== "screen"} allow="clipboard-read; clipboard-write"></iframe>
     {:else if mode === "screen"}
       <p class="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-zinc-400">
-        {error ? `Waiting for the computer… (${error})` : "Loading computer…"}
+        {error ? `Waiting for the bot's computer… (${error})` : "Loading the bot's computer…"}
       </p>
     {/if}
     {#if termOpened}

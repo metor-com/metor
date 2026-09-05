@@ -15,14 +15,17 @@ npm start            # builds frontend/ and copies it to ui/, then runs Electron
 npm run dev          # Electron only (ui/ must exist)
 ```
 
-A computer on this machine: the app carries the `metor` host command (copied to `resources/` by
+The bots' computer on this machine: the app carries the `metor` host command (copied to `resources/` by
 `npm run ui`, the checkout's copy in development; `METOR_CLI` or a Homebrew install override it).
-The connect screen offers *Set up a computer on this machine* – it runs `metor setup` with the
-output shown live and connects with the printed link – and *Start* for a stopped one; the menu
-*Computer → Local computer* has the same plus *Stop* and *Start automatically when the app opens*
+The connect screen offers *Set up the bots' computer on this Mac* – it runs `metor setup` with
+the output shown live and connects with the printed link – and *Start* for a stopped one; the menu
+*Computers → Bots' computer on this Mac* has the same plus *Stop* and *Start automatically when the app opens*
 (on by default: Apple's runtime has no restart policy, so the app brings the computer back).
 
-Useful flags (also for a packaged app): `--local=setup|up|down` (run that host command at start), `--connect=<setup or pairing link>`,
+Useful flags (also for a packaged app): `--connect-screen` (start on the connect screen, like the
+menu *Connect a bots' computer…*; with `--open=connect/local` or `connect/remote` on that step;
+`--also-connect-screen` with `--open2=…` adds a second such window for tests),
+`--local=setup|up|down` (run that host command at start), `--connect=<setup or pairing link>`,
 `--user-data-dir=<dir>` (a separate profile), `--open=<bot>` (start with that bot's chat),
 `--trace-requests` (log every request to a computer and every notification),
 `--snapshot=<file.png>` with `--snapshot-delay=<ms>` (capture the window after loading and quit).

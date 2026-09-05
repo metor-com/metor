@@ -26,14 +26,14 @@ for what is missing and [CHANGELOG.md](CHANGELOG.md) for what is there.
 - **Setup wizard** for a runtime that is not signed in yet: the official Claude Code or Codex login,
   driven from the UI (link plus code, no terminal needed).
 - **Sign-in without passwords**: the first browser gets in with a setup link, further phones and
-  computers are linked by QR code or pairing code, and every signed-in device can be removed again.
+  browsers are linked by QR code or pairing code, and every signed-in device can be removed again.
 - **Bot-to-bot assignments** (Claude bots) and watch links a bot can send when it needs help.
 - **Responsive**: messenger layout on phones, side-by-side chat and screen on desktops.
-- **Desktop app** for macOS, Windows and Linux: the same interface as an app, several computers
-  side by side, native notifications while it runs, a tray icon.
-- **Your own Mac as the computer**: no server needed - the app (or `metor setup`) creates the
-  computer on the Mac itself, under Apple's `container` runtime on Apple silicon with macOS 26,
-  otherwise with Docker; it starts again whenever the app opens.
+- **Desktop app** for macOS, Windows and Linux: the same interface as an app, several bots'
+  computers side by side, native notifications while it runs, a tray icon.
+- **The bots' computer on your own Mac**: no server needed - the app (or `metor setup`) creates
+  the bots' computer on the Mac itself, under Apple's `container` runtime on Apple silicon with
+  macOS 26, otherwise with Docker; it starts again whenever the app opens.
 
 Details for users: [docs/getting-started.md](docs/getting-started.md).
 

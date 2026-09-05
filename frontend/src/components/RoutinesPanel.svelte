@@ -74,7 +74,7 @@
           {/each}
         </ul>
       {/if}
-      <p class="mt-4 text-xs leading-relaxed text-zinc-400">Create, change, pause or delete a routine in the chat – the bot manages them itself. Times are the computer's local time.</p>
+      <p class="mt-4 text-xs leading-relaxed text-zinc-400">Create, change, pause or delete a routine in the chat – the bot manages them itself. Times are local to the bots' computer.</p>
     {/if}
     {#if error}<p class="mt-2 text-[13px] text-red-600">{error}</p>{/if}
   </div>

@@ -17,11 +17,11 @@ Rule: code terms do not change when marketing renames things.
 
 | Term | UI | Code | Prompt | Meaning |
 |---|---|---|---|---|
-| **Computer** | "Your computer", "metor computer" | `box` (`box/`, `METOR_BOX_*`) | "the box", "your own computer" | The one persistent Linux environment per user in which all bots run (Docker container; possibly a VM later) |
+| **Computer** | "the bots' computer" (never "your computer"); inside a bot's view "the bot's computer" | `box` (`box/`, `METOR_BOX_*`) | "the box", "your own computer" | The one persistent Linux environment per user in which all bots run (a container under Docker or Apple's `container`; a VM later). Since it can run on the user's own Mac (2026-09-05), the interface always says whose computer it is – the possessive keeps it apart from the user's device |
 | **Desktop** | Desktop | `display`, `.desktop/` | "your desktop" | Screen + browser window of a bot on the shared computer |
 | **Workspace** | Files | `/workspace` | "the workspace" | Shared working directory of all bots |
 | **Bot directory** | — | `/workspace/bots/<name>/` | — | A bot's home: role file, `bot.json`, `.metor/` (state, histories), files |
-| **Your machine** | "your machine" | `local` | "the user's computer" | The user's real machine – a separate trust zone, reachable only via approvals |
+| **Your machine** | "this Mac", "this machine", "your machine" | `local` | "the user's computer" | The user's real device – a separate trust zone, reachable only via approvals. Never called "computer" in the interface; the bots' computer that runs on it is "the bots' computer on this Mac" |
 | **Harness / Runtime** | "Runtime" | `harness: claude-stream \| codex` | — | The agent runner that drives the model (Claude Code, Codex) – runs as a process inside the computer; registry in `metor-harness.mjs` (ADR-0011), each bot additionally carries `model` |
 | **Connector** | Connector, "Settings → Connectors" | `connector`, `connectors.json`, MCP server key `mcp__<key>__…` | "a tool" | An MCP server configured once in the interface and available to every bot (ADR-0014); the built-in servers `browser` and `routines` are not connectors |
 | **Host process** | — | `metor-agent-host`, `.metor/host.pid` | — | One process per bot that drives its runtime (Agent SDK session or `codex app-server`) and speaks the file IPC (ADR-0009, ADR-0011) |

@@ -91,7 +91,7 @@ Two problems, both outside metor's code:
    `metor-com/homebrew-tap` still has to be created and gets a copy with the release's sha256).
 6. **Desktop app**: the host command travels with the app (`resources/metor`, copied by the build;
    the checkout's copy in development, `METOR_CLI` or a Homebrew install override). The connect
-   screen has a card *A computer on this machine*: runtime found or not (with install links), the
+   screen has a card *The bots' computer on this Mac*: runtime found or not (with install links), the
    state, and one button whose job follows the state – *Set up* (runs `metor setup` with the output
    shown live and connects with the printed link), *Start*, or *Open*. The menu *Computer → Local
    computer* offers the same plus *Stop* and *Start automatically when the app opens* (on by

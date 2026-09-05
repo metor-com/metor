@@ -14,13 +14,21 @@ On a release the section is renamed to the version number and dated. Ideas and o
 ### Added
 
 - **metor on your own Mac**: `metor setup` picks a container runtime (Apple's `container` on an
-  Apple silicon Mac with macOS 26, otherwise Docker or Colima), gets the image, starts the computer
-  and opens the setup link - no server, no Docker Desktop. The desktop app does the same from its
-  connect screen ("Set up a computer on this Mac", with the progress shown live) and starts a
-  stopped local computer whenever the app opens. The published image now comes for amd64 and arm64.
+  Apple silicon Mac with macOS 26, otherwise Docker or Colima), gets the image, starts the bots'
+  computer and opens the setup link - no server, no Docker Desktop. The desktop app does the same
+  from its connect screen ("Set up the bots' computer on this Mac", with the progress shown live)
+  and starts a stopped local bots' computer whenever the app opens. The published image now comes
+  for amd64 and arm64.
+- **Connect in two steps**: the app first asks where the bots' computer should be - on this Mac or
+  on a server, one sentence each - and only then what that needs. On this Mac it acts on its own:
+  none yet → set up, stopped → start, running → open, several → pick. A bots' computer that is
+  already open in a window never gets a second one: the app jumps to that window.
+- **Whose computer**: the interface now always says "the bots' computer" (and "this Mac" for
+  your own device) where the two could be confused - the sign-in page, the connect screen, the
+  app's menus and the error messages.
 
 - **Desktop app for macOS, Windows and Linux** (`client/desktop`, ADR-0015): the same interface as
-  an app of its own - connect with a setup link, a pairing link or a pairing code, several
+  an app of its own - connect with a setup link, a pairing link or a pairing code, several bots'
   computers side by side, native notifications for approvals, finished replies and unexpected
   stops while the app runs, a tray icon, the bot's screen and terminal as before. The app shows
   up under Settings → Devices as "metor app on Mac/Windows/Linux" and can be signed out there.

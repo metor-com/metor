@@ -26,7 +26,7 @@
   <!-- The pane next to the chat: the bot's computer or its routines (one at a time) -->
   <div class="flex shrink-0 gap-1">
     <button type="button" class="flex size-9 items-center justify-center rounded-lg transition-colors {pane === 'computer' ? 'bg-zinc-900 text-white' : 'border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50'}"
-      aria-label={pane === "computer" ? "Hide the computer" : "Show the computer"} aria-pressed={pane === "computer"} title={pane === "computer" ? "Hide the computer" : "Show the computer"} on:click={onToggleComputer}>
+      aria-label={pane === "computer" ? "Hide the bot's computer" : "Show the bot's computer"} aria-pressed={pane === "computer"} title={pane === "computer" ? "Hide the bot's computer" : "Show the bot's computer"} on:click={onToggleComputer}>
       <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>
     </button>
     <button type="button" class="flex size-9 items-center justify-center rounded-lg transition-colors {pane === 'routines' ? 'bg-zinc-900 text-white' : 'border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50'}"
