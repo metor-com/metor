@@ -1,7 +1,7 @@
 <script>
-  // Header of the bot view: name, status, runtime · model, the computer toggle, stop button and the
-  // actions (pause/start, remove) in a ⋮ menu at the far right.
-  import { statusLabel } from "../lib/status.js";
+  // Header of the bot view: name, runtime · model, the computer and routines toggles, Stop while the
+  // bot works or Start while it is stopped, and the actions (pause/start, remove) in a ⋮ menu at the
+  // far right. No status label: "ready" is the default.
   export let agent;                // the selected bot (from the agents list)
   export let pane = null;          // what is shown next to the chat (instead of it on a phone): "computer" | "routines" | null
   export let onToggleComputer;
@@ -23,7 +23,6 @@
   <button type="button" class="shrink-0 rounded-full outline-none ring-zinc-400 hover:ring-2" title="Change the picture" aria-label="Change the picture" on:click={onPicture}><Avatar {agent} size={32} /></button>
   <div class="flex min-w-0 flex-1 items-baseline gap-2">
     <strong class="truncate text-base" title="id: {agent.name}">{agent.title ?? agent.name}</strong>
-    <span class="hidden shrink-0 text-[13px] text-zinc-500 sm:inline">{statusLabel(agent.status)}</span>
     <span class="hidden shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500 md:inline" title="Runtime and model of this bot">{agent.harnessLabel ?? "Claude Code"} · {agent.modelLabel ?? "Default model"}</span>
   </div>
   <!-- The pane next to the chat: the bot's computer or its routines (one at a time) -->
@@ -39,6 +38,8 @@
   </div>
   {#if agent.status === "busy"}
     <button class="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 md:px-3.5" on:click={onInterrupt}>■ Stop</button>
+  {:else if agent.status === "stopped"}
+    <button class="shrink-0 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm text-white hover:bg-zinc-700 md:px-3.5" on:click={() => onAct("start")}>▶ Start</button>
   {/if}
   <!-- Bot actions (pause/start, remove) in the ⋮ menu at the far right, on every width -->
   <div class="relative shrink-0">

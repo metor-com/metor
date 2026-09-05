@@ -1,11 +1,12 @@
 <script>
-  // The bot list, messenger style: avatar with the status dot, title, time of the last message,
-  // its preview and the unread badge (counts and previews come from the gateway's agents list).
-  import StatusDot from "./StatusDot.svelte";
+  // The bot list, messenger style: picture, title, time of the last message, a second line with
+  // what the bot is up to (or its last message) and the unread badge (counts and previews come
+  // from the gateway's agents list). No status dot: a stopped bot is greyed out, a working one
+  // shows three pulsing dots, an error is the last message in red.
+  import Typing from "./Typing.svelte";
   import AgentCreate from "./AgentCreate.svelte";
   import Settings from "./Settings.svelte";
   import { settings } from "../lib/settings.js";
-  import { statusLabel } from "../lib/status.js";
   import { whenLabel } from "../lib/when.js";
   export let agents = [];
   export let selected = null;
@@ -19,14 +20,16 @@
   $: showQuota = !!quota && pct(quota.fiveHour) != null && ($settings.quota === "always"
     || ($settings.quota === "threshold" && Math.max(pct(quota.fiveHour) ?? 0, pct(quota.sevenDay) ?? 0) >= ($settings.quotaThreshold ?? 80)));
   import Avatar from "./Avatar.svelte";
-  // Second line: what the bot is doing right now beats the last message; then the message; then the role
+  // Second line: an open approval beats everything, then the dots while the bot works or starts,
+  // then the last message (an error in red), then the role
+  const working = (a) => a.status === "busy" || a.status === "starting" || a.status === "setting up";
   const preview = (a) => {
-    if (a.status === "busy") return { text: "working…", cls: "text-emerald-700" };
-    if (a.status === "waiting") return { text: "waiting for your approval", cls: "text-amber-700" };
-    if (a.status === "setting up") return { text: "setting up…", cls: "text-zinc-400" };
     const m = a.lastMessage;
-    if (m?.text) return { text: m.who === "you" ? `You: ${m.text}` : m.who === "approval" ? m.text : m.text, cls: a.unread ? "text-zinc-800" : "text-zinc-500" };
-    return { text: a.role || statusLabel(a.status), cls: "text-zinc-400" };
+    if (m?.who === "approval" && m.pending) return { text: "waiting for your approval", cls: "text-amber-700" };
+    if (working(a)) return { typing: true };
+    if (m?.who === "error") return { text: m.text, cls: "text-red-600" };
+    if (m?.text) return { text: m.who === "you" ? `You: ${m.text}` : m.text, cls: a.unread ? "text-zinc-800" : "text-zinc-500" };
+    return { text: a.role || "", cls: "text-zinc-400" };
   };
 </script>
 
@@ -58,21 +61,19 @@
       {@const p = preview(a)}
       <li>
         <button
-          class="flex w-full items-center gap-3 rounded-xl px-3 {$settings.compactList ? 'py-2' : 'py-2.5'} text-left transition-colors {a.name === selected ? 'bg-zinc-100' : 'hover:bg-zinc-50'}"
+          class="flex w-full items-center gap-3 rounded-xl px-3 {$settings.compactList ? 'py-2' : 'py-2.5'} text-left transition-colors {a.name === selected ? 'bg-zinc-100' : 'hover:bg-zinc-50'} {a.status === 'stopped' ? 'opacity-60' : ''}"
           on:click={() => onSelect(a.name)}
         >
-          <span class="relative shrink-0">
-            <Avatar agent={a} size={$settings.compactList ? 32 : 44} />
-            <span class="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-white leading-none {a.name === selected ? 'border-zinc-100' : ''}"><StatusDot status={a.status} /></span>
-          </span>
+          <Avatar agent={a} size={$settings.compactList ? 32 : 44} />
           <span class="min-w-0 flex-1">
             <span class="flex items-baseline justify-between gap-2">
               <strong class="truncate text-[15px] font-semibold">{a.title ?? a.name}</strong>
-              <span class="shrink-0 text-xs {a.unread ? 'font-medium text-zinc-900' : 'text-zinc-400'}">{whenLabel(a.lastMessageAt)}</span>
+              {#if p.typing && $settings.compactList}<Typing cls="text-zinc-400" />   <!-- no second line here: the dots take the time's place -->
+              {:else}<span class="shrink-0 text-xs {a.unread ? 'font-medium text-zinc-900' : 'text-zinc-400'}">{whenLabel(a.lastMessageAt)}</span>{/if}
             </span>
             {#if !$settings.compactList}
               <span class="mt-0.5 flex items-center justify-between gap-2">
-                <span class="truncate text-[13px] {p.cls}">{p.text}</span>
+                {#if p.typing}<Typing />{:else}<span class="truncate text-[13px] {p.cls}">{p.text}</span>{/if}
                 {#if a.unread}<span class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[11px] font-semibold text-white">{a.unread > 99 ? "99+" : a.unread}</span>{/if}
               </span>
             {:else if a.unread}

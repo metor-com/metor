@@ -64,7 +64,7 @@
       <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={paneEl}>
         {#if $isDesktop || !pane}
           <div class="flex min-h-0 min-w-0 flex-col" style={$isDesktop && pane ? `flex: 0 0 ${ratio * 100}%` : "flex: 1 1 0%"}>
-            <ChatView bot={$selected} title={$current.title ?? $selected} entries={$entries} partial={$partial} onLocalEntry={applyEntry} />
+            <ChatView bot={$selected} title={$current.title ?? $selected} entries={$entries} partial={$partial} onLocalEntry={applyEntry} status={$current.status} onStart={() => onAct("start")} />
           </div>
         {/if}
         {#if $isDesktop && pane}

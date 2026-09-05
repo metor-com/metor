@@ -94,7 +94,7 @@ export function createStreamChat({ botsDir } = {}) {
     const s = state(bot);
     const alive = s.pid && (() => { try { process.kill(s.pid, 0); return true; } catch { return false; } })();
     if (!alive) return "stopped";
-    return s.status === "busy" ? "busy" : s.status === "error" ? "waiting" : "idle";
+    return s.status === "busy" ? "busy" : s.status === "starting" ? "starting" : "idle";   // "error" ends the process, so it reads as stopped
   }
 
   // ---------- Messenger view of a chat (bot list): last message, its time, unread count ----------
@@ -102,7 +102,7 @@ export function createStreamChat({ botsDir } = {}) {
   // request of the interface). Only the tail of the history is scanned – 64 KB is hundreds of
   // entries – and grown until it reaches an entry older than the read mark; cached per file state.
   const summaries = new Map();
-  const isMessage = (e) => e && !e.type && (e.role === "user" || (e.role === "assistant" && (e.kind === "text" || e.kind === "permission")));
+  const isMessage = (e) => e && !e.type && (e.role === "user" || (e.role === "assistant" && (e.kind === "text" || e.kind === "permission" || e.kind === "error")));
   const preview = (e) => {
     const text = String(e.text ?? "").replace(/```[\s\S]*?```/g, " ").replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*_`#>|]+/g, "").replace(/\s+/g, " ").trim();
     if (text) return text.slice(0, 160);
@@ -133,8 +133,10 @@ export function createStreamChat({ botsDir } = {}) {
       if (complete) {
         const msgs = entries.filter(isMessage);
         const last = msgs[msgs.length - 1] ?? null;
+        // an approval still waits while no patch has recorded its decision (the patch follows the card, so it is in the tail)
+        const pending = last?.kind === "permission" && !entries.some((e) => e.type === "patch" && e.ref === last.id && e.permission?.status && e.permission.status !== "pending");
         value = { lastMessageAt: last ? Date.parse(last.ts) : null,
-          lastMessage: last ? { who: last.role === "user" ? "you" : last.kind === "permission" ? "approval" : "bot", text: preview(last) } : null,
+          lastMessage: last ? { who: last.role === "user" ? "you" : last.kind === "permission" ? "approval" : last.kind === "error" ? "error" : "bot", text: preview(last), ...(pending ? { pending: true } : {}) } : null,
           unread: msgs.filter((e) => e.role === "assistant" && Date.parse(e.ts) > read).length };
         break;
       }

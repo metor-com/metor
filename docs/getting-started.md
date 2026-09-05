@@ -64,9 +64,12 @@ Click the round **+** at the top right of the bot list.
   and codes are valid for 15 minutes. Runtime logins are per box, not per bot.
 
 **Create** sets up the desktop and the session; that takes up to a minute. The bot appears in the
-sidebar like a chat in a messenger: an avatar with a status dot (green = ready, amber = working,
-red = waiting for approval, grey = stopped), the time of the last message, a one-line preview of
-it and, once the bot has written something you have not looked at yet, a badge with the count.
+sidebar like a chat in a messenger: its picture, the time of the last message, a one-line preview
+of it and, once the bot has written something you have not looked at yet, a badge with the count.
+The second line is what the bot is up to: three pulsing dots while it starts, thinks or writes,
+"waiting for your approval" while an approval card is open, the error in red when it stopped with
+one, otherwise the last message. A stopped bot is greyed out in the list and stays selectable; the
+header then shows a **Start** button.
 
 <!-- screenshot: new bot dialog with the Codex setup wizard -->
 
@@ -83,8 +86,8 @@ a line break.
 - **Approval cards**: when the runtime asks for permission - typically for actions with external
   effect - an amber card titled "Approval" appears with the tool, the reason and the exact input.
   Choose **Allow** or **Deny**. The card stays in the history with the decision. While a card is
-  open the bot's status dot is red, and with notifications turned on (Settings → Devices) your phone
-  gets a push.
+  open the bot list says "waiting for your approval", and with notifications turned on
+  (Settings → Devices) your phone gets a push.
   Approval cards come from Claude Code bots; Codex bots currently run without approval prompts
   inside the box.
 - **Stop**: while the bot is working, a red stop button sits in the header. It interrupts the

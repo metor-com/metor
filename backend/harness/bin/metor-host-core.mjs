@@ -196,6 +196,11 @@ export function createCore(name) {
     extractFiles, emitText, emitTool, patchTool,
     onShutdown(fn) { cleanups.push(fn); },
     ready() { saveState({ status: "idle", error: null }); log(`Host for ${name} started (harness ${bot.harness ?? "claude-stream"}, resume: ${state.sessionId ?? "-"})`); },
-    fail(e) { log("Harness error:", e?.message ?? e); saveState({ status: "error", error: String(e?.message ?? e) }); process.exit(1); },
+    // The error is the bot's last message: the list shows it in red, the chat as a card with a Start button
+    fail(e) {
+      const msg = String(e?.message ?? e); log("Harness error:", msg);
+      try { chat({ v: 2, id: randomUUID(), ts: now(), role: "assistant", kind: "error", text: msg }); } catch {}
+      saveState({ status: "error", error: msg }); process.exit(1);
+    },
   };
 }

@@ -7,6 +7,8 @@
   export let entries = [];
   export let partial = null;
   export let onLocalEntry;
+  export let status = null;   // the bot's status (the error card offers Start while it is stopped)
+  export let onStart = null;
   let text = "";
   let sending = false;
   let listEl, fileInput;
@@ -83,7 +85,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" on:dragover|preventDefault on:drop={onDrop}>
   <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overflow-x-hidden px-3 py-3 md:px-4 md:py-4" bind:this={listEl}>
-    {#each entries as e (e.id)}
+    {#each entries as e, i (e.id)}
       {#if e.kind === "tool"}
         <div class="min-w-0 px-1.5">
           <button class="flex w-full min-w-0 items-baseline gap-2 text-left text-[12.5px] text-zinc-400 hover:text-zinc-600" on:click={() => toggleTool(e.id)}>
@@ -111,6 +113,16 @@
           {:else}
             <div class="mt-2 text-[13px] text-amber-900/70">{e.permission?.status === "allowed" ? "✓ allowed" : "✗ denied"}</div>
           {/if}
+        </div>
+      {:else if e.kind === "error"}
+        <!-- the host stopped with an error: the full text, and Start when this is the last entry of a stopped bot -->
+        <div class="max-w-[42rem] rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-900">
+          <div class="font-semibold">The bot stopped with an error</div>
+          <pre class="mt-1 font-sans text-[13px] break-words whitespace-pre-wrap text-red-800 [overflow-wrap:anywhere]">{e.text}</pre>
+          {#if status === "stopped" && i === entries.length - 1 && onStart}
+            <div class="mt-2.5"><button class="rounded-lg bg-zinc-900 px-3.5 py-1.5 text-sm text-white hover:bg-zinc-700" on:click={onStart}>▶ Start again</button></div>
+          {/if}
+          <div class="mt-1.5 text-[11px] text-red-700/70">{time(e.ts)}</div>
         </div>
       {:else if e.role === "user"}
         <div class="flex min-w-0 justify-end">
