@@ -207,7 +207,8 @@ tab works with touch, but for real intervention a desktop browser is more comfor
 metor is also an app for macOS, Windows and Linux (`client/desktop`, built from the repository or
 taken from a release). It shows the same interface, and adds what a browser tab cannot:
 notifications for approvals, finished replies and unexpected stops while the app runs, a tray
-icon, several bots' computers side by side (menu **Computers**), and screen sharing for the bots.
+icon, several bots' computers side by side (menu **Computers** - the one you are looking at is
+ticked there, and the app opens with it again next time), and screen sharing for the bots.
 
 On first start the app asks one question: should the bots' computer be **on this Mac** or **on a
 server**? On this Mac, the app creates it right there (see below). On a server, paste the **setup

@@ -18,6 +18,9 @@ On a release the section is renamed to the version number and dated. Ideas and o
   open, and when a bot stops with an error the error itself in red - it also stays in the chat as
   a card with the full text and a Start button. A stopped bot is greyed out in the list and gets a
   Start button in the header; the dot on the picture and the "ready" label in the header are gone.
+- **Desktop app: the Computers menu ticks the computer you are looking at** (also in the tray
+  menu) and the app remembers it - the next start opens the computer that was open last, whether
+  it was chosen from the menu, the connect screen or by focusing its window.
 
 ## [0.2.0] - 2026-09-05
 

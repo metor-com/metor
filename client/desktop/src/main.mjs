@@ -110,6 +110,7 @@ function openWindow(id = null) {
     webPreferences: { preload: PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: true },
   });
   windows.set(win, id);
+  if (id) setCurrent(id);
   win.once("ready-to-show", () => win.show());
   win.on("closed", () => windows.delete(win));
   // Links open in the system browser; the window itself only ever shows the interface
@@ -118,7 +119,11 @@ function openWindow(id = null) {
   loadInterface(win, id);
   return win;
 }
-function switchWindow(win, id) { windows.set(win, id); if (id) { load().current = id; save(); } loadInterface(win, id); }
+function switchWindow(win, id) { windows.set(win, id); if (id) setCurrent(id); loadInterface(win, id); }
+// The current computer: the one shown last (opened, switched to or focused) – persisted, so the app
+// opens with it again, and ticked in the menus
+function setCurrent(id) { const d = load(); if (d.current !== id) { d.current = id; save(); } }
+const selectedComputer = () => currentOf(BrowserWindow.getFocusedWindow() ?? null) ?? load().current ?? null;
 // The window that shows a computer's interface right now (one on the connect screen waiting for it does not count)
 const windowShowing = (id, except = null) => [...windows].find(([w, cid]) => w !== except && cid === id && !w.isDestroyed() && unreachable.get(w) !== id)?.[0] ?? null;
 // Bring a computer to the front: a window that shows it already wins – no second window for the same
@@ -217,7 +222,10 @@ const localItems = () => (wrapper() ? [{ label: `Bots' computer on ${MACHINE}`, 
 
 // ---------- Tray and menus ----------
 let tray = null;
-function computerItems() { const list = load().computers; return list.length ? list.map((c) => ({ label: publicInfo(c).name, click: () => focusOrOpen(c.id) })) : [{ label: "No bots' computer connected", enabled: false }]; }
+function computerItems() {
+  const list = load().computers, selected = selectedComputer();
+  return list.length ? list.map((c) => ({ label: publicInfo(c).name, type: "radio", checked: c.id === selected, click: () => focusOrOpen(c.id) })) : [{ label: "No bots' computer connected", enabled: false }];
+}
 function refreshMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
@@ -273,6 +281,7 @@ ipcMain.on("metor:notify", (e, n = {}) => {
 // ---------- App ----------
 protocol.registerSchemesAsPrivileged([{ scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
+app.on("browser-window-focus", (_e, win) => { const id = currentOf(win); if (id) setCurrent(id); refreshMenus(); });
 app.whenReady().then(async () => {
   // The interface from ui/ under app://metor/bots/ – the same paths the gateway serves, SPA fallback included
   protocol.handle("app", (req) => {
@@ -314,6 +323,7 @@ app.whenReady().then(async () => {
   if (argv.snapshot) win.webContents.once("did-finish-load", () => setTimeout(async () => {
     try { writeFileSync(String(argv.snapshot), (await win.webContents.capturePage()).toPNG()); console.log(`snapshot: ${argv.snapshot}`); } catch (e) { console.error("snapshot:", e.message); }
     console.log(`windows: ${BrowserWindow.getAllWindows().map((w) => `${w.id}=${currentOf(w) ?? "connect"}${w.isFocused() ? "*" : ""}`).join(" ")}`);
+    console.log(`menu: ${computerItems().map((i) => `${i.label}${i.checked ? "*" : ""}`).join(" | ")}  current=${load().current ?? "-"}`);
     app.quit();
   }, Number(argv["snapshot-delay"] ?? 4000)));
   app.on("activate", () => { if (!BrowserWindow.getAllWindows().length) openWindow(load().current); });
