@@ -1,7 +1,7 @@
 {
   "name": "metor-desktop",
   "productName": "metor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "metor – the desktop app for macOS, Windows and Linux (ADR-0015)",
   "license": "Apache-2.0",
   "private": true,

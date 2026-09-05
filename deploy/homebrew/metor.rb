@@ -5,7 +5,7 @@
 class Metor < Formula
   desc "Delegable bots with their own computer – host command for the metor computer"
   homepage "https://github.com/metor-com/metor"
-  url "https://github.com/metor-com/metor/archive/refs/tags/v0.1.0.tar.gz"
+  url "https://github.com/metor-com/metor/archive/refs/tags/v0.2.0.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000" # filled in on release
   license "Apache-2.0"
   head "https://github.com/metor-com/metor.git", branch: "main"

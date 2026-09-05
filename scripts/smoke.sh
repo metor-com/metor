@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # metor smoke test – exercises a running computer (box) end to end from the host.
-# Needs only Docker and the metor wrapper; curl and node run inside the container.
+# Needs the metor wrapper and its container runtime (Docker or Apple's container, taken from
+# METOR_RUNTIME or the runtime remembered by the wrapper); curl and node run inside the container.
 #
 #   scripts/smoke.sh [--build] [--restart] [--no-chat] [--codex <bot>] [--keep]
 #
@@ -15,6 +16,10 @@ set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PATH="$HERE/../backend/harness/bin:$PATH"
 export C="${METOR_BOX_CONTAINER:-metor-box}"
+# Container runtime, like the wrapper: METOR_RUNTIME, else the one remembered by `box up`/`setup`, else docker
+RT="${METOR_RUNTIME:-$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/metor/runtime" 2>/dev/null || true)}"
+case "$RT" in docker|container) ;; *) RT=docker ;; esac
+export RT
 export JAR=/tmp/smoke.jar JAR2=/tmp/smoke2.jar
 PROBE="${SMOKE_BOT:-smoke}"
 BUILD=0 RESTART=0 CHAT=1 KEEP=0 CODEX_BOT=""
@@ -31,7 +36,7 @@ ok()   { PASSES=$((PASSES + 1)); echo "ok   - $1"; }
 fail() { FAILS=$((FAILS + 1)); echo "FAIL - $1${2:+ ($2)}"; }
 check() { local desc=$1; shift; if "$@" >/dev/null 2>&1; then ok "$desc"; else fail "$desc"; fi; }
 # Helpers – also usable inside `sub` (bash -c with the functions exported)
-inbox()   { docker exec -i "$C" "$@"; }                       # run inside the container
+inbox()   { "$RT" exec -i "$C" "$@"; }                       # run inside the container
 G=http://127.0.0.1:6010
 api()     { inbox curl -s -b "$JAR" "$G/bots/api$1"; }
 apipost() { inbox curl -s -b "$JAR" -X POST -H "content-type: application/json" -d "$2" "$G/bots/api$1"; }
@@ -57,13 +62,13 @@ if [ $RESTART -eq 1 ]; then
   metor box down >/dev/null 2>&1; metor box up >/dev/null 2>&1 && ok "container restarted" || fail "container restart"
   START_TS=$(date -u +%Y-%m-%dT%H:%M:%S); sleep 5
 fi
-docker inspect -f '{{.State.Running}}' "$C" 2>/dev/null | grep -q true || { fail "container running"; exit 1; }
+"$RT" exec "$C" true 2>/dev/null || { fail "container running"; exit 1; }
 ok "container running ($(inbox metor version))"
 wait_for 60 "gateway answers" sub '[ "$(rawcode $G/bots/api/harnesses)" != 000 ]'
 
 # --- sign-in (ADR-0012): setup link, pairing code, revoke -----------------------------------
 inbox rm -f "$JAR" "$JAR2"
-AUTH_MODE=$(docker exec "$C" sh -c 'echo "${METOR_AUTH:-on}"')
+AUTH_MODE=$("$RT" exec "$C" sh -c 'echo "${METOR_AUTH:-on}"')
 if [ "$AUTH_MODE" != "off" ]; then
   check "unauthenticated API answers 401" sub '[ "$(rawcode $G/bots/api/agents)" = 401 ]'
   check "unauthenticated page is the sign-in page" sub 'inbox curl -s $G/bots/ | grep -q "auth/code"'
@@ -102,8 +107,8 @@ check "reserved name in the API is 404" sub '[ "$(apicode /agents/api/routines)"
 check "rm of a missing bot fails" bash -c "! metor bot rm does-not-exist"
 check "reserved bot name is refused" bash -c "! metor bot create api --role x --no-start"
 check "unknown runtime is refused" bash -c "! metor bot create $PROBE --role x --harness nope --no-start"
-check "unknown model is refused" bash -c "! metor bot create $PROBE --role x --model nope --no-start"
-check "refused creates leave no directory" bash -c "! docker exec $C test -e /workspace/bots/$PROBE"
+check "malformed model id is refused" bash -c "! metor bot create $PROBE --role x --model 'no pe!' --no-start"   # explicit ids are allowed, so only the shape is checked
+check "refused creates leave no directory" bash -c "! $RT exec $C test -e /workspace/bots/$PROBE"
 
 # --- probe bot: create → watch → start → logs → stop → start → rm ------------------------
 metor bot rm "$PROBE" >/dev/null 2>&1 || true
@@ -134,7 +139,7 @@ if metor bot create "$PROBE" --role "Smoke-test bot: answer briefly." --no-start
   else check "start again" bash -c "metor bot start $PROBE | grep -q 'running (stream, session new'"; fi
   if [ $KEEP -eq 0 ]; then
     check "rm" bash -c "metor bot rm $PROBE | grep -q removed"
-    check "rm deleted the directory" bash -c "! docker exec $C test -e /workspace/bots/$PROBE"
+    check "rm deleted the directory" bash -c "! $RT exec $C test -e /workspace/bots/$PROBE"
   fi
 else
   fail "create --no-start"
@@ -153,7 +158,9 @@ if [ $CHAT -eq 1 ]; then
 fi
 
 # --- supervisor and host logs since the start of this run ----------------------------------
-if docker logs --since "$START_TS" "$C" 2>&1 | grep -Eq "TypeError|ReferenceError|SyntaxError|Unhandled"; then
+# docker filters by time; Apple's container has no --since, so the last lines of the log stand in
+box_logs() { case "$RT" in docker) docker logs --since "$START_TS" "$C" 2>&1 ;; *) "$RT" logs -n 2000 "$C" 2>&1 ;; esac; }
+if box_logs | grep -Eq "TypeError|ReferenceError|SyntaxError|Unhandled"; then
   fail "supervisor/gateway log has JavaScript errors"; else ok "no JavaScript errors in the supervisor log"; fi
 if inbox sh -c "grep -l 'already running' /workspace/bots/*/.metor/host.log 2>/dev/null | xargs -r -I{} sh -c 'tail -3 {} | grep -q \"already running\" && echo {}'" | grep -q .; then
   fail "a host exited because of a running twin (see host.log)"; else ok "no double starts"; fi

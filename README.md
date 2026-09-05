@@ -7,7 +7,7 @@ hood each bot is a session of an official coding-agent harness - **Claude Code**
 called "runtimes" in the interface - signed in with your own subscription through the official
 login flows.
 
-**Status:** early, working end-to-end, v0.1.0. Expect rough edges; see [BACKLOG.md](BACKLOG.md)
+**Status:** early, working end-to-end, v0.2.0. Expect rough edges; see [BACKLOG.md](BACKLOG.md)
 for what is missing and [CHANGELOG.md](CHANGELOG.md) for what is there.
 
 ## What you get

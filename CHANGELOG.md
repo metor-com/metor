@@ -11,6 +11,8 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-05
+
 ### Added
 
 - **A picture per bot**: every bot shows a picture in the list and the header. By default it is
@@ -119,17 +121,14 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 - The bundled Caddy configuration no longer carries a login (no user, no password hash, no
   WebSocket exception) - Caddy only terminates TLS; the installer asks for the domain only.
+- Routine limits: up to 30 routines per bot, names up to 60 characters, the last 30 runs are kept.
+  The routine that pauses itself after many unattended runs is now called "auto-pause".
 
 ### Removed
 
 - The old background-session mode (`harness: "claude"`, Claude Code `--bg` with Remote Control and
   the Haiku chat bridge) is gone; every bot now runs through its runtime's host process. Bots that
   were still on the old mode keep their role and files but start a fresh session.
-
-### Changed
-
-- Routine limits: up to 30 routines per bot, names up to 60 characters, the last 30 runs are kept.
-  The routine that pauses itself after many unattended runs is now called "auto-pause".
 
 ### Fixed
 
