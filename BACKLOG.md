@@ -36,8 +36,8 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   `opencode serve`); subscription paths: GitHub Copilot (official partnership, device flow) and
   ChatGPT headless; Anthropic is not permitted there (see
   [ADR-0011](knowledge/decisions/0011-multi-harness.md))
-- Codex polish: quota display (`account/rateLimits/read`), approval cards via app-server approvals,
-  `model/list` instead of a fixed model list in the registry
+- Codex polish: quota display (`account/rateLimits/read`), approval cards via app-server approvals
+  (`model/list` is live since 2026-09-05)
 - **Telegram channel** as a thin additional entrance to the gateway (the one OpenClaw gap that
   matters); related idea: an e-mail address per bot as an entrance (delegate by forwarding)
 - **Server installation** - built 2026-09-01: ghcr workflow, compose (with or without Caddy),

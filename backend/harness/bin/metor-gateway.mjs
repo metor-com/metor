@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { createStreamChat, readHistory } from "./metor-chat-stream.mjs";
 import { readRoutines, readRuns } from "./metor-routines.mjs";
-import { HARNESSES, harnessOf, defaultModel, validModel } from "./metor-harness.mjs";
+import { HARNESSES, harnessOf, defaultModel, validModel, modelsFor, modelLabel } from "./metor-harness.mjs";
 import { setupStart, setupStatus, setupCancel, setupSubmit } from "./metor-setup.mjs";
 import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, isValidTitle as validTitle, idFor, allBots as bots } from "./metor-store.mjs";
 import { AUTH_OFF, sessionOf, claimSession, createClaim, listSessions, revokeSession, setCookieHeader, clearCookieHeader, clientIp, tooManyAttempts, noteFailure, signInPage, qrDataUrl } from "./metor-auth.mjs";
@@ -57,7 +57,7 @@ async function agentList() {
       display: b.display ?? null,
       harness: h, harnessLabel: HARNESSES[h]?.label ?? h,
       model: b.model ?? null,
-      modelLabel: HARNESSES[h]?.models.find((m) => m.id === b.model)?.label ?? (b.model ?? "Default model"),
+      modelLabel: modelLabel(h, b.model) ?? (b.model ?? "Default model"),
       status: streamChat.status(b.name),
       quota: streamChat.state(b.name).quota ?? null };
   });
@@ -72,13 +72,13 @@ function harnessSetupState(id) {
   probeCache.set(id, { ts: Date.now(), probe });
   return probe;
 }
-function harnessInfo() {
-  return Object.values(HARNESSES).map((h) => {
+async function harnessInfo() {
+  return Promise.all(Object.values(HARNESSES).map(async (h) => {
     const probe = harnessSetupState(h.id);
-    return { id: h.id, label: h.label, models: h.models,
+    return { id: h.id, label: h.label, models: await modelsFor(h.id),
       setup: { ok: probe.ok, detail: probe.detail, mode: h.setup.mode,
         ...(h.setup.mode === "terminal" ? { command: h.setup.command } : {}), ...(h.setup.hint ? { hint: h.setup.hint } : {}) } };
-  });
+   }));
 }
 
 // ---------- Command queue: metor bot … strictly serial (parallel creates → freeDisplay race) ----------
@@ -217,7 +217,7 @@ async function api(req, res, url) {
     if (rest.length === 2 && req.method === "PUT") { const r = connectors.update(rest[1], await readBody(req)); return send(r.error ? (r.error.includes("not found") ? 404 : 400) : 200, r); }
     if (rest.length === 2 && req.method === "DELETE") { const r = connectors.remove(rest[1]); return send(r.error ? 404 : 200, r); }
   }
-  if (rest[0] === "harnesses" && rest.length === 1 && req.method === "GET") return send(200, harnessInfo());
+  if (rest[0] === "harnesses" && rest.length === 1 && req.method === "GET") return send(200, await harnessInfo());
   // Setup assistant: start/observe/cancel the runtime's device login
   if (rest[0] === "harnesses" && HARNESSES[rest[1]] && rest[2] === "setup" && rest.length === 4) {
     const id = rest[1];

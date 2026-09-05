@@ -1,7 +1,7 @@
 // metor-harness – the harness registry (ADR-0011): the single source of knowledge about which
 // runtimes exist, which models they run, how a bot directory is laid out and
 // how login/setup work. UI term "Runtime", the code term stays `harness` (GLOSSARY).
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { claudeServers } from "./metor-connectors.mjs";
@@ -15,7 +15,10 @@ export const HARNESSES = {
     label: "Claude Code",
     kind: "ipc-host",                      // seam: future runtimes may be kind "http" (OpenCode)
     adapterModule: "./metor-host-claude.mjs",
+    // Aliases: Claude Code resolves each to the newest model of that family, so the list stays
+    // current with the CLI (verified 2026-09-05: `fable` → claude-fable-5-1 with a subscription)
     models: [
+      { id: "fable", label: "Fable" },
       { id: "opus", label: "Opus" },
       { id: "sonnet", label: "Sonnet", default: true },
       { id: "haiku", label: "Haiku" },
@@ -57,11 +60,31 @@ export const HARNESSES = {
     label: "Codex",
     kind: "ipc-host",
     adapterModule: "./metor-host-codex.mjs",
+    // Fallback only – the live list comes from the app-server (`model/list`, no login needed, ~50 ms;
+    // verified 2026-09-05), so new Codex models show up without a metor release
     models: [
       { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", default: true },
       { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
       { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
     ],
+    listModels() {
+      return new Promise((done) => {
+        const child = spawn("codex", ["app-server"], { stdio: ["pipe", "pipe", "ignore"] });
+        let id = 0, buf = ""; const waiting = new Map();
+        const finish = (v) => { clearTimeout(timer); try { child.kill(); } catch {} done(v); };
+        const timer = setTimeout(() => finish(null), 5000);
+        const send = (method, params) => new Promise((r) => { const i = ++id; waiting.set(i, r); child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: i, method, params }) + "\n"); });
+        child.on("error", () => finish(null));
+        child.stdout.on("data", (d) => { buf += d; let i; while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); try { const m = JSON.parse(line); if (m.id != null && waiting.has(m.id)) { waiting.get(m.id)(m); waiting.delete(m.id); } } catch {} } });
+        (async () => {
+          await send("initialize", { clientInfo: { name: "metor", title: "metor", version: "1.0" } });
+          child.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "initialized", params: {} }) + "\n");
+          const r = await send("model/list", {});
+          const list = (r.result?.data ?? []).filter((m) => m?.id && !m.hidden).map((m) => ({ id: m.id, label: m.displayName ?? m.id, ...(m.isDefault ? { default: true } : {}) }));
+          finish(list.length ? list : null);
+        })().catch(() => finish(null));
+      });
+    },
     roleFile: "AGENTS.md",
     scaffold(dir, bot, templatesDir) {
       const tpl = readFileSync(join(templatesDir, "AGENTS.md"), "utf8")
@@ -86,4 +109,23 @@ export const HARNESSES = {
 export const isIpcHarness = (id) => HARNESSES[id]?.kind === "ipc-host";
 export const harnessOf = (b) => (typeof b === "string" ? b : b?.harness) ?? "claude-stream";
 export const defaultModel = (id) => HARNESSES[id]?.models.find((m) => m.default)?.id ?? null;
-export const validModel = (id, model) => !!HARNESSES[id]?.models.some((m) => m.id === model);
+
+// ---------- Models: the live list where the runtime offers one, else the registry's own ----------
+// Cached for ten minutes per runtime; a failed query falls back to the static list. The gateway asks
+// here for the create dialog and for labels; the CLI and the gateway validate with validModel().
+const modelCache = new Map();   // harness id → { at, list }
+export async function modelsFor(id) {
+  const h = HARNESSES[id]; if (!h) return [];
+  const c = modelCache.get(id);
+  if (c && Date.now() - c.at < 10 * 60_000) return c.list;
+  let list = null;
+  if (h.listModels) { try { list = await h.listModels(); } catch {} }
+  list = list ?? h.models;
+  modelCache.set(id, { at: Date.now(), list });
+  return list;
+}
+export const modelLabel = (id, model) => (modelCache.get(id)?.list ?? HARNESSES[id]?.models ?? []).find((m) => m.id === model)?.label ?? HARNESSES[id]?.models.find((m) => m.id === model)?.label ?? null;
+// Known to the registry or the live list – or an explicit id the runtime may know (a new model,
+// a full id such as claude-fable-5-1): shape-checked here, the runtime says no if it does not exist
+const MODEL_ID = /^[A-Za-z0-9][\w.:[\]-]{0,63}$/;
+export const validModel = (id, model) => !!HARNESSES[id] && (HARNESSES[id].models.some((m) => m.id === model) || !!modelCache.get(id)?.list.some((m) => m.id === model) || MODEL_ID.test(String(model)));

@@ -78,7 +78,8 @@ const VERSION = (() => {
   return "dev";
 })();
 const usage = `metor – CLI (inside the computer; on the host use the metor shell wrapper)
-  bot  create <name> [--id <id>] --role "..." [--harness claude-stream|codex] [--model <id>] [--mode acceptEdits] [--no-start]
+  bot  create <name> [--id <id>] --role "..." [--harness claude-stream|codex] [--model <alias or id>] [--mode acceptEdits] [--no-start]
+       (Claude Code aliases fable|opus|sonnet|haiku mean the newest model of that family; Codex ids as Codex lists them)
        (the name is free text; the id – directory, API path, address between bots – is derived from it: "Mein Bot!" -> mein-bot)
        list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name> [--keep-files]
   auth link [--plain] | sessions | revoke <id>       (sign-in link for a device, signed-in devices)

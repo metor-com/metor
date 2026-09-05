@@ -20,6 +20,7 @@ Context: slice 7 (ADR-0011) runs Codex as a second runtime. All points verified 
 | **Sandbox inside the container** | bubblewrap missing → warning `configWarning` at start (harmless); with sandbox danger-full-access + approvalPolicy never, turns run without approval requests. The box is the boundary (ADR-0004) | S19–S21 |
 | **Quota** | `turn/completed` carried no usage at the expected place in the test; there are `thread/tokenUsage/updated` notifications and `account/rateLimits/read` as a request → a Codex quota display is POSSIBLE, deferred in stage 1 | S21 |
 | **Models** | gpt-5.6-sol / -terra / -luna; selection via thread/start.model (accepted) or `-c model=…`; a `model/list` request exists | research + S19 |
+| **`model/list` shape** | After `initialize` + `initialized`, `model/list` `{}` answers in 35–83 ms **without a login** with `{data: [{id, displayName, isDefault, hidden, defaultReasoningEffort, reasoningEfforts[], …}], nextCursor}`; today gpt-5.6-sol (default), -terra, -luna, gpt-5.5, gpt-5.2. metor's registry asks it (10-minute cache, static fallback) | probe in the box, 2026-09-05 |
 
 Pitfalls:
 - `docker exec` WITHOUT `-i` swallows heredocs (stdin) – always run spike scripts with `-i`.

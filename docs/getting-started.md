@@ -169,6 +169,13 @@ header of a bot shows both as a small badge on desktop widths.
   interface yet. Codex bots can chat, use shell and files, drive their browser, run routines and
   send files; assigning tasks to other bots is not available for Codex bots yet.
 
+**Which models?** For Claude Code the choice is a family - **Fable**, **Opus**, **Sonnet**,
+**Haiku** - and each name always means the newest model of that family that Claude Code offers
+(today Fable 5.1, Opus 5, Sonnet 5, Haiku 4.5), so the list keeps up with Claude Code itself.
+For Codex the interface shows the models Codex offers right now; it asks Codex each time the
+create dialog opens (cached for ten minutes). On the command line, `metor bot create --model`
+also accepts a full model id such as `claude-fable-5-1`; the runtime rejects one it does not know.
+
 Runtime logins live in the box (one per runtime, shared by all bots of that runtime) and survive
 restarts and updates. If a runtime's login expires, only that runtime's bots stop.
 

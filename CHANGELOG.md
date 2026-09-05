@@ -13,6 +13,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **The newest models, always**: Claude Code bots can pick **Fable** next to Opus, Sonnet and
+  Haiku - each name means the newest model of that family (today Fable 5.1, Opus 5, Sonnet 5,
+  Haiku 4.5), so the list keeps up with Claude Code itself. Codex bots see the models Codex
+  offers right now (asked from Codex, not a fixed list). `metor bot create --model` also takes a
+  full model id.
+
 - **metor on your own Mac**: `metor setup` picks a container runtime (Apple's `container` on an
   Apple silicon Mac with macOS 26, otherwise Docker or Colima), gets the image, starts the bots'
   computer and opens the setup link - no server, no Docker Desktop. The desktop app does the same
