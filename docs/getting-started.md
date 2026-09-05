@@ -193,6 +193,17 @@ On first start the app asks for a computer: paste the **setup link** (from the i
 The app then appears under Devices as "metor app on Mac/Windows/Linux"; removing it there signs
 the app out, and the app's connect screen offers the computer again.
 
+**A computer on your own Mac.** You do not need a server: the connect screen has a card *A
+computer on this Mac*. It tells which runtime it found - Apple's `container` on an Apple silicon
+Mac with macOS 26 (install it from Apple's GitHub releases), otherwise Docker or Colima - and one
+button does the rest: **Set up** downloads the image (about 1 GB, a few minutes), starts the
+computer and connects the app with it; its output shows live while it runs. After that the app
+starts the computer whenever it opens (menu *Computer → Local computer* to switch that off, or to
+start and stop by hand), so a reboot of the Mac changes nothing. The computer has its own volumes:
+sign in to a runtime once under *New bot → Sign in*, then create bots as usual. A computer that
+does not answer - stopped, or a server that is down - lands on the connect screen with the reason
+and a *Try again* button instead of a dead interface.
+
 ## 11. Managing bots
 
 With a bot selected, the header (or the more menu on phones) offers:

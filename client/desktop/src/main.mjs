@@ -5,6 +5,7 @@
 // keychain, tray and menus, notifications, screen capture, the metor:// link, the updater.
 import { app, BrowserWindow, Menu, Notification, Tray, desktopCapturer, dialog, ipcMain, nativeImage, net, protocol, safeStorage, session, shell } from "electron";
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -35,7 +36,7 @@ function computerForUrl(u) {
   catch { return null; }
 }
 const deviceLabel = () => `metor app on ${{ darwin: "Mac", win32: "Windows", linux: "Linux" }[process.platform] ?? process.platform}`;
-const nameFor = (origin) => { try { const h = new URL(origin).hostname; return h === "127.0.0.1" || h === "localhost" ? "This machine" : h; } catch { return origin; } };
+const nameFor = (origin) => { try { const u = new URL(origin); return u.hostname === "127.0.0.1" || u.hostname === "localhost" ? `This machine${u.port && u.port !== "6010" ? ` (:${u.port})` : ""}` : u.hostname; } catch { return origin; } };
 
 async function fetchJson(url, init = {}, ms = 8000) {
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
@@ -79,7 +80,25 @@ async function forget(id) {
 
 // ---------- Windows: one computer per window (null = the connect screen) ----------
 const windows = new Map();   // BrowserWindow → computer id
+const unreachable = new Map();   // BrowserWindow → the computer that did not answer when the window loaded
 const currentOf = (win) => windows.get(win) ?? null;
+// Does the computer answer? Checked before its interface is loaded, so a stopped computer lands on the
+// connect screen (with the reason and, for a local one, the Start button) instead of a dead interface
+async function reachable(origin) {
+  try { const r = await fetchJson(`${origin}/bots/api/version`, {}, 3000); return r.ok && r.data?.name === "metor"; } catch { return false; }
+}
+// After a start the gateway needs a few seconds – wait for it before the interface is loaded
+async function waitReachable(origin, ms = 90_000) {
+  const until = Date.now() + ms;
+  while (Date.now() < until) { if (await reachable(origin)) return true; await new Promise((r) => setTimeout(r, 1500)); }
+  return false;
+}
+async function loadInterface(win, id) {
+  const c = computer(id);
+  unreachable.delete(win);
+  if (c && !(await reachable(c.origin))) unreachable.set(win, c.id);
+  if (!win.isDestroyed()) win.loadURL(UI_URL);
+}
 function show(win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
 function openWindow(id = null) {
   const win = new BrowserWindow({
@@ -92,11 +111,96 @@ function openWindow(id = null) {
   // Links open in the system browser; the window itself only ever shows the interface
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: "deny" }; });
   win.webContents.on("will-navigate", (e, url) => { if (!url.startsWith(UI_URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
-  win.loadURL(UI_URL);
+  loadInterface(win, id);
   return win;
 }
 function focusOrOpen(id) { const w = [...windows].find(([, cid]) => cid === id)?.[0]; if (w) show(w); else openWindow(id); }
-function switchWindow(win, id) { windows.set(win, id); if (id) { load().current = id; save(); } win.loadURL(UI_URL); }
+function switchWindow(win, id) { windows.set(win, id); if (id) { load().current = id; save(); } loadInterface(win, id); }
+
+// ---------- A local computer through the host command (metor setup / box up / box down) ----------
+// The `metor` wrapper drives Docker or Apple's `container`; the app only calls it. A packaged app
+// carries its own copy (resources/metor), development uses the checkout; a Homebrew one is a fallback.
+// Apps started from the Finder carry a minimal PATH, so Homebrew's is added for the runtime CLIs.
+const BUNDLED_WRAPPER = app.isPackaged ? join(process.resourcesPath, "metor") : resolve(here, "..", "..", "..", "backend", "harness", "bin", "metor");
+const WRAPPER_CANDIDATES = [process.env.METOR_CLI, BUNDLED_WRAPPER, "/opt/homebrew/bin/metor", "/usr/local/bin/metor", join(app.getPath("home"), ".local", "bin", "metor")].filter(Boolean);
+const wrapper = () => WRAPPER_CANDIDATES.find((p) => existsSync(p)) ?? null;
+const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(origin);
+const localComputer = () => load().computers.find((c) => isLocal(c.origin)) ?? null;
+const LINK_RE = /https?:\/\/\S+\/bots\/auth\/claim\?token=[\w-]+/;
+const broadcast = (channel, data) => { for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send(channel, data); };
+function wrapperEnv() {
+  const env = { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:${process.env.PATH ?? "/usr/bin:/bin"}` };
+  const c = localComputer(); let port = null; try { port = c && new URL(c.origin).port; } catch {}
+  if (port && !env.METOR_PORT) env.METOR_PORT = port;   // the port the local computer was set up with
+  return env;
+}
+// Runs the host command; unless quiet, every output line goes to the windows (the connect screen shows them)
+function runWrapper(args, { quiet = false, ms = 20 * 60_000 } = {}) {
+  return new Promise((done) => {
+    const w = wrapper(); if (!w) return done({ ok: false, out: "The metor command is missing." });
+    let out = "";
+    const child = spawn(w, args, { env: wrapperEnv(), stdio: ["ignore", "pipe", "pipe"] });
+    const timer = setTimeout(() => child.kill(), ms);
+    const onData = (d) => { const t = String(d); out += t; if (!quiet) for (const line of t.split(/\r?\n/)) if (line.trim()) broadcast("metor:local-progress", { line: line.trim() }); };
+    child.stdout.on("data", onData); child.stderr.on("data", onData);
+    child.on("error", (e) => { clearTimeout(timer); done({ ok: false, out: `${out}\n${e.message}`.trim() }); });
+    child.on("close", (code) => { clearTimeout(timer); done({ ok: code === 0, out: out.trim() }); });
+  });
+}
+// What the connect screen needs to know: is a local computer possible, does one exist, is it running
+async function localStatus() {
+  const c = localComputer();
+  if (!wrapper()) return { wrapper: false, runtime: null, state: "unknown", platform: process.platform, computer: publicInfo(c) };
+  const r = await runWrapper(["box", "state"], { quiet: true, ms: 30_000 });
+  const [state, runtime] = (r.ok ? r.out.trim().split("\n").pop() : "unknown").split(/\s+/);
+  return { wrapper: true, runtime: runtime ?? null, state: state === "none" ? "no-runtime" : state, platform: process.platform, computer: publicInfo(c) };
+}
+let localBusy = false;
+async function localAction(action, win = null) {
+  const args = { setup: ["setup", "--no-open"], up: ["box", "up"], down: ["box", "down"] }[action];
+  if (!args) return { ok: false, error: `unknown action ${action}` };
+  if (localBusy) return { ok: false, error: "The local computer is busy – wait for the running step to finish." };
+  localBusy = true; broadcast("metor:local-progress", { start: action, line: `metor ${args.join(" ")}` });
+  const r = await runWrapper(args);
+  localBusy = false;
+  const tail = r.out.split("\n").filter(Boolean).slice(-6).join("\n");
+  const finish = (ok, error = null) => { broadcast("metor:local-progress", { done: action, ok, error }); refreshMenus(); return ok ? { ok, tail } : { ok, error }; };
+  if (!r.ok) return finish(false, tail || `metor ${args.join(" ")} failed`);
+  if (action === "setup") {
+    const link = LINK_RE.exec(r.out)?.[0]; if (!link) return finish(false, "The setup printed no link.");
+    const c = await connect({ claim: link }); if (!c.ok) return finish(false, c.error);
+    const target = win ?? BrowserWindow.getAllWindows()[0] ?? openWindow(null); switchWindow(target, c.id); show(target);
+  } else if (action === "up") {
+    const c = localComputer();   // windows on the connect screen, or waiting for this computer, show it once it answers
+    if (c && secretOf(c.id)) {
+      broadcast("metor:local-progress", { line: "waiting for the interface…" });
+      if (!(await waitReachable(c.origin))) return finish(false, `The computer started, but its interface at ${c.origin} does not answer – see: metor box logs`);
+      for (const [w, cid] of windows) if (cid === null || (cid === c.id && unreachable.get(w) === c.id)) switchWindow(w, c.id);
+    }
+  } else if (action === "down") {
+    const c = localComputer();   // windows on the stopped computer go to the connect screen (which offers Start)
+    if (c) for (const [w, cid] of windows) if (cid === c.id) switchWindow(w, null);
+  }
+  return finish(true);
+}
+async function menuLocal(action) {
+  const r = await localAction(action);
+  if (!r.ok) dialog.showErrorBox("metor", r.error);
+  else if (action !== "setup") new Notification({ title: "metor", body: r.tail.split("\n").pop() || `Local computer: ${action}` }).show();
+}
+// The local computer comes back with the app (Apple's runtime has no restart policy) unless switched off in the menu
+async function autostartLocal() {
+  if (load().autostartLocal === false || !localComputer() || !wrapper()) return;
+  const st = await localStatus(); if (st.state !== "stopped") return;
+  const r = await localAction("up"); if (!r.ok) console.error(`autostart: ${r.error}`);
+}
+const localItems = () => (wrapper() ? [{ label: "Local computer", submenu: [
+  { label: "Set up…", click: () => menuLocal("setup") },
+  { label: "Start", click: () => menuLocal("up") },
+  { label: "Stop", click: () => menuLocal("down") },
+  { type: "separator" },
+  { label: "Start automatically when the app opens", type: "checkbox", checked: load().autostartLocal !== false, click: (item) => { load().autostartLocal = item.checked; save(); } },
+] }, { type: "separator" }] : []);
 
 // ---------- Tray and menus ----------
 let tray = null;
@@ -104,13 +208,13 @@ function computerItems() { const list = load().computers; return list.length ? l
 function refreshMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
-    { label: "Computer", submenu: [{ label: "Connect a computer…", click: () => openWindow(null) }, { type: "separator" }, ...computerItems()] },
+    { label: "Computer", submenu: [{ label: "Connect a computer…", click: () => openWindow(null) }, { type: "separator" }, ...localItems(), ...computerItems()] },
     { role: "editMenu" }, { role: "viewMenu" }, { role: "windowMenu" },
   ]));
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: "Open metor", click: () => focusOrOpen(load().current ?? load().computers[0]?.id ?? null) },
     { type: "separator" }, ...computerItems(), { label: "Connect a computer…", click: () => openWindow(null) },
-    { type: "separator" }, { label: "Quit metor", role: "quit" },
+    { type: "separator" }, ...localItems(), { label: "Quit metor", role: "quit" },
   ]));
 }
 
@@ -123,15 +227,22 @@ async function handleLink(link) {
 }
 const isLink = (a) => /^(metor:|https?:)/.test(a);
 if (!app.requestSingleInstanceLock()) app.quit();
-app.on("second-instance", (_e, args) => { const link = args.find(isLink); if (link) handleLink(link); else { const w = BrowserWindow.getAllWindows()[0]; if (w) show(w); else openWindow(load().current); } });
+// A second launch hands its link to the running app: a metor:// or https link, or `--connect=<link>`
+app.on("second-instance", (_e, args) => { const link = args.find(isLink) ?? args.find((a) => a.startsWith("--connect="))?.slice("--connect=".length); if (link) handleLink(link); else { const w = BrowserWindow.getAllWindows()[0]; if (w) show(w); else openWindow(load().current); } });
 app.on("open-url", (e, link) => { e.preventDefault(); if (app.isReady()) handleLink(link); else app.whenReady().then(() => handleLink(link)); });
 
 // ---------- IPC for the preload API (window.metor) ----------
-ipcMain.on("metor:info", (e) => { const win = BrowserWindow.fromWebContents(e.sender); e.returnValue = { platform: process.platform, version: app.getVersion(), gateway: publicInfo(computer(currentOf(win))) }; });
+ipcMain.on("metor:info", (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender); const c = computer(currentOf(win)); const info = publicInfo(c);
+  if (info && unreachable.get(win) === c.id) info.reachable = false;   // the connect screen says so and offers Try again / Start
+  e.returnValue = { platform: process.platform, version: app.getVersion(), gateway: info };
+});
 ipcMain.handle("metor:gateways", () => load().computers.map(publicInfo));
 ipcMain.handle("metor:connect", async (e, args) => { const r = await connect(args ?? {}); if (r.ok) { switchWindow(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); } return r; });
 ipcMain.handle("metor:use", (e, id) => { if (computer(id)) switchWindow(BrowserWindow.fromWebContents(e.sender), id); });
 ipcMain.handle("metor:forget", async (_e, id) => { await forget(id); for (const [w, cid] of windows) if (cid === id) switchWindow(w, null); refreshMenus(); });
+ipcMain.handle("metor:local-status", () => localStatus());
+ipcMain.handle("metor:local", (e, action) => localAction(String(action), BrowserWindow.fromWebContents(e.sender)));
 ipcMain.on("metor:signed-out", (e) => {
   const win = BrowserWindow.fromWebContents(e.sender); const c = computer(currentOf(win));
   if (c?.secret) { delete c.secret; secrets.set(c.id, null); save(); }
@@ -181,6 +292,8 @@ app.whenReady().then(async () => {
   let id = load().current ?? load().computers[0]?.id ?? null;
   if (argv.connect) { const r = await connect({ claim: String(argv.connect) }); if (r.ok) id = r.id; else console.error(`connect: ${r.error}`); refreshMenus(); }
   const win = openWindow(id);
+  if (argv.local) { const r = await localAction(String(argv.local), win); console.log(`local ${argv.local}: ${r.ok ? "ok" : `failed – ${r.error}`}`); }
+  else autostartLocal().catch((e) => console.error("autostart:", e.message));
   if (argv.open) win.loadURL(`${UI_URL}#/${argv.open}`);   // start with that bot's chat open
   // Development aid: --snapshot=<file.png> captures the window after loading and quits
   if (argv.snapshot) win.webContents.once("did-finish-load", () => setTimeout(async () => {

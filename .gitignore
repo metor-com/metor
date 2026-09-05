@@ -14,3 +14,4 @@ frontend/dist/
 .vscode/
 client/desktop/ui/
 client/desktop/dist/
+client/desktop/resources/

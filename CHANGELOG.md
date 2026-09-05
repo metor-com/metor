@@ -13,6 +13,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **metor on your own Mac**: `metor setup` picks a container runtime (Apple's `container` on an
+  Apple silicon Mac with macOS 26, otherwise Docker or Colima), gets the image, starts the computer
+  and opens the setup link - no server, no Docker Desktop. The desktop app does the same from its
+  connect screen ("Set up a computer on this Mac", with the progress shown live) and starts a
+  stopped local computer whenever the app opens. The published image now comes for amd64 and arm64.
+
 - **Desktop app for macOS, Windows and Linux** (`client/desktop`, ADR-0015): the same interface as
   an app of its own - connect with a setup link, a pairing link or a pairing code, several
   computers side by side, native notifications for approvals, finished replies and unexpected

@@ -29,13 +29,20 @@ for what is missing and [CHANGELOG.md](CHANGELOG.md) for what is there.
   computers are linked by QR code or pairing code, and every signed-in device can be removed again.
 - **Bot-to-bot assignments** (Claude bots) and watch links a bot can send when it needs help.
 - **Responsive**: messenger layout on phones, side-by-side chat and screen on desktops.
+- **Desktop app** for macOS, Windows and Linux: the same interface as an app, several computers
+  side by side, native notifications while it runs, a tray icon.
+- **Your own Mac as the computer**: no server needed - the app (or `metor setup`) creates the
+  computer on the Mac itself, under Apple's `container` runtime on Apple silicon with macOS 26,
+  otherwise with Docker; it starts again whenever the app opens.
 
 Details for users: [docs/getting-started.md](docs/getting-started.md).
 
 ## Quickstart (local development)
 
-Requires Docker (on macOS, Colima works as a drop-in: `brew install colima docker`, then
-`colima start --cpu 4 --memory 8`) and a Claude subscription for the first runtime.
+Requires a container runtime - Docker, on an Apple silicon Mac with macOS 26 Apple's own
+`container` (`brew install container`), otherwise Colima as a drop-in (`brew install colima docker`,
+then `colima start --cpu 4 --memory 8`) - and a Claude subscription for the first runtime. Without a
+checkout, `metor setup` does all of the steps below with the published image (see INSTALL.md, D).
 
 ```sh
 git clone https://github.com/metor-com/metor.git && cd metor

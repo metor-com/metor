@@ -1,28 +1,145 @@
 #!/usr/bin/env bash
-# metor – host wrapper (needs only Docker). Inside the computer, metor.mjs (Node) runs.
+# metor – host wrapper: drives the computer (box) with Docker or with Apple's `container`
+# (macOS 26 on Apple silicon; knowledge/design/mac-install.md). Inside the computer, metor.mjs (Node) runs.
+#   metor setup [--no-open]       pick a runtime, get the image, start the computer, open the setup link
+#   metor box …                   build | up | down | state | status | shell | logs | login | serve
+#   metor bot … | metor auth …    forwarded into the computer
+# Environment: METOR_RUNTIME=docker|container (else detected), METOR_BOX_IMAGE (default: a local
+# metor-box:dev, else the published image), METOR_BOX_CONTAINER, METOR_PORT (host port of the
+# interface, default 6010), METOR_WATCH_BASE, METOR_AUTH, METOR_MEMORY/METOR_CPUS (Apple container only).
 set -euo pipefail
-IMAGE="${METOR_BOX_IMAGE:-metor-box:dev}"; C="${METOR_BOX_CONTAINER:-metor-box}"
+C="${METOR_BOX_CONTAINER:-metor-box}"
+PORT="${METOR_PORT:-6010}"
 CORE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+METOR_VERSION_FALLBACK=dev    # the Homebrew formula writes its version here
+PUBLIC_IMAGE="ghcr.io/metor-com/metor-box:latest"
+STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/metor"
 if [ "${METOR_INSIDE_BOX:-}" = "1" ]; then exec node /usr/local/lib/metor/metor.mjs "$@"; fi
-running() { [ "$(docker inspect -f '{{.State.Running}}' "$C" 2>/dev/null)" = "true" ]; }
+
+has() { command -v "$1" >/dev/null 2>&1; }
+
+# ---------- Runtime: docker or container ----------
+# Order: METOR_RUNTIME; the runtime remembered by the last `box up`/`setup`; the runtime that already
+# holds the computer; Docker where it is installed; else Apple's `container` (macOS 26, Apple silicon).
+# Docker first because a stopped Docker cannot say whether it holds the computer – choosing Apple's
+# silently would create a second, empty one. `METOR_RUNTIME=container metor setup` chooses Apple's once.
+detect_runtime() {
+  case "${METOR_RUNTIME:-}" in docker|container) echo "$METOR_RUNTIME"; return ;; esac
+  local saved=""; [ -f "$STATE_DIR/runtime" ] && saved="$(cat "$STATE_DIR/runtime" 2>/dev/null || true)"
+  case "$saved" in docker|container) if has "$saved"; then echo "$saved"; return; fi ;; esac
+  if has docker && docker inspect "$C" >/dev/null 2>&1; then echo docker; return; fi
+  if has container && container inspect "$C" >/dev/null 2>&1; then echo container; return; fi
+  if has docker; then echo docker; return; fi
+  if has container; then echo container; return; fi
+  echo none
+}
+RT="$(detect_runtime)"
+remember_runtime() { mkdir -p "$STATE_DIR" && echo "$RT" > "$STATE_DIR/runtime"; }
+hints() {
+  cat <<'HINTS'
+metor needs a container runtime:
+  Apple silicon Mac with macOS 26:  brew install container            (Apple's runtime – fastest)
+  any Mac:                          brew install colima docker && colima start --cpu 4 --memory 8
+  Linux:                            https://docs.docker.com/engine/install/
+  Windows:                          Docker Desktop with WSL 2
+Then: metor setup
+HINTS
+}
+need_runtime() {
+  case "$RT" in
+    docker) docker info >/dev/null 2>&1 && return
+            if has colima; then echo "starting Colima (this takes a moment)…"; colima start >/dev/null 2>&1 || true
+            elif [ "$(uname -s)" = Darwin ] && [ -d /Applications/Docker.app ]; then echo "starting Docker Desktop…"; open -a Docker || true
+            else echo "Docker is not running – start it, then try again"; exit 1; fi
+            local i; for i in $(seq 1 90); do docker info >/dev/null 2>&1 && return; sleep 2; done
+            echo "Docker did not come up – start it by hand (Docker Desktop, or: colima start), then try again"; exit 1 ;;
+    container) container system status 2>/dev/null | grep -Eq 'status[[:space:]]+running' || { echo "starting Apple's container service…"; container system start >/dev/null; } ;;
+    *) hints; exit 1 ;;
+  esac
+}
+running() {
+  case "$RT" in
+    docker) [ "$(docker inspect -f '{{.State.Running}}' "$C" 2>/dev/null)" = "true" ] ;;
+    container) container inspect "$C" 2>/dev/null | grep -Eq '"state"[[:space:]]*:[[:space:]]*"running"' ;;
+    *) false ;;
+  esac
+}
+image_present() { "$RT" image inspect "$1" >/dev/null 2>&1; }
+# The image: METOR_BOX_IMAGE; else a locally built metor-box:dev (developers, servers built from a checkout); else the published image
+choose_image() {
+  if [ -n "${METOR_BOX_IMAGE:-}" ]; then IMAGE="$METOR_BOX_IMAGE"
+  elif image_present metor-box:dev; then IMAGE=metor-box:dev
+  else IMAGE="$PUBLIC_IMAGE"; fi
+}
+exec_in() { "$RT" exec "$@"; }
+PROGRESS=""; [ -t 1 ] || PROGRESS="--progress plain"   # Apple's CLI draws progress bars only on a terminal
+VOLS="-v metor-workspace:/workspace -v metor-claude:/home/box/.claude -v metor-codex:/home/box/.codex"
+
+box_up() {
+  need_runtime; choose_image
+  if running; then echo "$C is already running ($RT)"; return; fi
+  # The base URL the gateway prints in setup and watch links: the public one, else this port when it is not the default
+  local base="${METOR_WATCH_BASE:-}"; [ -z "$base" ] && [ "$PORT" != 6010 ] && base="http://127.0.0.1:$PORT"
+  image_present "$IMAGE" || { echo "getting $IMAGE (about 1 GB to download – this takes a few minutes)"; "$RT" image pull $PROGRESS "$IMAGE"; }
+  case "$RT" in
+    docker)
+      docker rm -f "$C" >/dev/null 2>&1 || true
+      # Gateway (6010) and the legacy noVNC ports only on the host's loopback; a TLS proxy in front on servers (metor box serve).
+      # Limit nofile: older Docker engines pass down >1 billion – x11vnc scans all fds on client connect and then "hangs" for almost an hour
+      # shellcheck disable=SC2086
+      docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
+        --ulimit nofile=65536:65536 \
+        -p "127.0.0.1:$PORT:6010" -p 127.0.0.1:6011-6049:6011-6049 \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" \
+        $VOLS "$IMAGE" >/dev/null ;;
+    container)
+      container rm "$C" >/dev/null 2>&1 || true
+      for v in metor-workspace metor-claude metor-codex; do container volume inspect "$v" >/dev/null 2>&1 || container volume create "$v" >/dev/null; done
+      # Apple's runtime hands fresh volumes to the container root-owned (Docker copies the image's
+      # ownership); the box runs as uid 1000 – take ownership of the three mount points once
+      # shellcheck disable=SC2086
+      container run --rm $PROGRESS --user 0:0 --entrypoint /bin/sh $VOLS "$IMAGE" -c 'chown 1000:1000 /workspace /home/box/.claude /home/box/.codex' >/dev/null
+      # No restart policy here: after a reboot, `metor box up` (or the desktop app) starts the computer again
+      # shellcheck disable=SC2086
+      container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${METOR_MEMORY:-4g}" --cpus "${METOR_CPUS:-4}" \
+        -p "127.0.0.1:$PORT:6010" \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" \
+        $VOLS "$IMAGE" >/dev/null ;;
+  esac
+  remember_runtime
+  echo "$C started ($RT, $IMAGE) – interface: http://127.0.0.1:$PORT/bots/"
+}
+wait_for_gateway() {
+  printf "waiting for the interface"
+  local i; for i in $(seq 1 90); do
+    if curl -fs -m 2 "http://127.0.0.1:$PORT/bots/api/version" >/dev/null 2>&1; then echo " – up"; return 0; fi
+    printf .; sleep 1
+  done
+  echo; echo "the interface did not come up – see: metor box logs"; return 1
+}
+
 case "${1:-}" in
+  setup)
+    shift; OPEN=1; for a in "$@"; do case "$a" in --no-open) OPEN=0 ;; *) echo "metor setup [--no-open]"; exit 1 ;; esac; done
+    [ "$RT" = none ] && { hints; exit 1; }
+    echo "metor setup – runtime: $RT"
+    box_up
+    wait_for_gateway
+    LINK="$(exec_in "$C" metor auth link --plain | grep -o 'http[^ ]*claim?token=[A-Za-z0-9_-]*' | head -1)"
+    [ -n "$LINK" ] || { echo "could not mint a setup link – see: metor box logs"; exit 1; }
+    echo; echo "Setup link (valid 24 h, single use):"; echo "  $LINK"; echo
+    echo "Open it in a browser or paste it into the metor app, then sign in to a runtime under \"New bot → Sign in\" and create a bot."
+    if [ "$OPEN" = 1 ]; then if has open; then open "$LINK"; elif has xdg-open; then xdg-open "$LINK" >/dev/null 2>&1 || true; fi; fi ;;
   box) case "${2:-}" in
-    build)  exec docker build -t "$IMAGE" -f "$CORE/box/Dockerfile" "$CORE/.." ;;  # context = repo root (backend/ + frontend/)
-    up)     if running; then echo "$C is already running"; else docker rm -f "$C" >/dev/null 2>&1 || true
-              # Gateway (6010) and noVNC ports only on the host's loopback; a TLS proxy in front on servers (metor box serve)
-              # Limit nofile: older Docker engines pass down >1 billion – x11vnc scans all fds on
-              # client connect and then "hangs" for almost an hour per connection
-              docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
-                --ulimit nofile=65536:65536 \
-                -p 127.0.0.1:6010:6010 -p 127.0.0.1:6011-6049:6011-6049 \
-                -e "METOR_WATCH_BASE=${METOR_WATCH_BASE:-}" -e "METOR_AUTH=${METOR_AUTH:-}" \
-                -v metor-workspace:/workspace -v metor-claude:/home/box/.claude -v metor-codex:/home/box/.codex "$IMAGE" >/dev/null
-              echo "$C started. Next: metor auth link (sign your browser in), then sign in to a runtime in the interface"; fi ;;
-    down)   exec docker stop "$C" ;;
-    status) running || { echo "$C: stopped"; exit 0; }
-            docker exec "$C" bash -lc 'claude auth status 2>&1 | head -5; echo; metor bot list' ;;
-    shell)  exec docker exec -it "$C" bash ;;
-    logs)   exec docker logs --tail "${3:-50}" "$C" ;;
+    build)  [ -f "$CORE/box/Dockerfile" ] || { echo "metor box build needs a checkout of the repository (this metor was installed without one)"; exit 1; }
+            need_runtime; exec "$RT" build -t "${METOR_BOX_IMAGE:-metor-box:dev}" -f "$CORE/box/Dockerfile" "$CORE/.." ;;  # context = repo root (backend/ + frontend/)
+    up)     box_up ;;
+    down)   exec "$RT" stop "$C" ;;
+    state)  [ "$RT" = none ] && { echo none; exit 0; }; running && echo "running $RT" || echo "stopped $RT" ;;
+    status) running || { echo "$C: stopped ($RT)"; exit 0; }
+            exec_in "$C" bash -lc 'claude auth status 2>&1 | head -5; echo; metor bot list' ;;
+    shell)  exec "$RT" exec -it "$C" bash ;;
+    logs)   "$RT" logs "$C" 2>&1 | tail -n "${3:-50}" ;;
     serve)  # Caddy block for a shared server: /bots/* → gateway (the gateway does the sign-in itself, ADR-0012)
             cat <<'CADDY'
 	# metor – UI + bot screens (gateway inside the computer, port 6010; sign-in by the gateway)
@@ -35,10 +152,10 @@ case "${1:-}" in
 CADDY
             echo; echo "Insert into the domain block of the Caddyfile, then: sudo systemctl reload caddy"
             echo "Then: METOR_WATCH_BASE=https://<domain> metor box up; metor auth link  –  dedicated server: see INSTALL.md (compose)" ;;
-    login)  echo "Sign in from the interface (\"New bot\" → Sign in) or interactively in a terminal:"; echo; echo "  docker exec -it $C claude auth login"; echo; echo 'Then: metor bot create <name> --role "..."' ;;
-    *) echo "metor box build|up|down|status|shell|logs|login|serve"; exit 1 ;;
+    login)  echo "Sign in from the interface (\"New bot\" → Sign in) or interactively in a terminal:"; echo; echo "  $RT exec -it $C claude auth login"; echo; echo 'Then: metor bot create <name> --role "..."' ;;
+    *) echo "metor box build|up|down|state|status|shell|logs|login|serve"; exit 1 ;;
   esac ;;
-  version|--version) echo "metor $(cat "$(cd "$(dirname "$0")/../../.." && pwd)/VERSION" 2>/dev/null || echo dev)" ;;
-  bot|auth) running || { echo "$C is not running – metor box up"; exit 1; }; c="$1"; shift; exec docker exec "$C" metor "$c" "$@" ;;
-  *) echo 'metor – CLI'; echo '  box  build | up | down | status | shell | logs | login | serve'; echo '  bot  create <name> --role "..." | list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name>'; echo '  auth link | sessions | revoke <id>      (sign-in link for a device, signed-in devices)'; echo '  Environment: METOR_WATCH_BASE=https://bots.example.com (public base URL of the interface)'; [ -n "${1:-}" ] && exit 1 || exit 0 ;;
+  version|--version) echo "metor $(cat "$CORE/../VERSION" 2>/dev/null || echo "$METOR_VERSION_FALLBACK")" ;;
+  bot|auth) running || { echo "$C is not running – metor box up"; exit 1; }; c="$1"; shift; exec_in "$C" metor "$c" "$@" ;;
+  *) echo 'metor – CLI'; echo '  setup                       (runtime, image, start, setup link)'; echo '  box  build | up | down | state | status | shell | logs | login | serve'; echo '  bot  create <name> --role "..." | list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name>'; echo '  auth link | sessions | revoke <id>      (sign-in link for a device, signed-in devices)'; echo "  Runtime: $RT (METOR_RUNTIME=docker|container)  Environment: METOR_WATCH_BASE=https://bots.example.com (public base URL of the interface)"; [ -n "${1:-}" ] && exit 1 || exit 0 ;;
 esac

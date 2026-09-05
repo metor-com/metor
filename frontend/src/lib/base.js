@@ -3,7 +3,7 @@
 // own origin; the preload API `window.metor` names the computer, and the app itself adds the
 // session token to every request that goes there (the renderer never sees it).
 export const app = globalThis.metor ?? null;                       // desktop app API, null in a browser
-export const origin = app?.gateway?.signedIn ? app.gateway.origin : "";
+export const origin = app?.gateway?.signedIn && app.gateway.reachable !== false ? app.gateway.origin : "";
 export const url = (path) => origin + path;
 // The session is gone (401): a browser gets the gateway's sign-in page, the app its connect screen
 export function signedOut() { if (app) app.signedOut(); else location.href = "/bots/"; }

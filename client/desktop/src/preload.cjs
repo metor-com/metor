@@ -13,4 +13,10 @@ contextBridge.exposeInMainWorld("metor", {
   signedOut: () => ipcRenderer.send("metor:signed-out"),
   notify: (n) => ipcRenderer.send("metor:notify", { title: n?.title, body: n?.body, bot: n?.bot }),
   onOpenBot: (cb) => ipcRenderer.on("metor:open-bot", (_e, bot) => cb(bot)),
+  // A computer on this machine through the bundled host command (Docker or Apple's container runtime)
+  local: {
+    status: () => ipcRenderer.invoke("metor:local-status"),         // { wrapper, runtime, state, platform, computer }
+    run: (action) => ipcRenderer.invoke("metor:local", action),     // setup | up | down → { ok, error? }
+    onProgress: (cb) => ipcRenderer.on("metor:local-progress", (_e, p) => cb(p)),
+  },
 });

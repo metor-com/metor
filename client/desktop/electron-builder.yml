@@ -12,6 +12,9 @@ files:
   - ui/**
   - package.json
 asar: true
+extraResources:
+  - from: resources/metor
+    to: metor
 protocols:
   - name: metor
     schemes: [metor]

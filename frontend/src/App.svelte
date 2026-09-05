@@ -37,7 +37,7 @@
     try { await (action === "rm" ? remove() : act(action)); } catch (e) { alert(e.message); }
   }
   // Desktop app (ADR-0015) without a computer, or signed out of it: the connect screen instead of the shell
-  const needsConnect = !!app && !app.gateway?.signedIn;
+  const needsConnect = !!app && (!app.gateway?.signedIn || app.gateway.reachable === false);
   onMount(() => { if (needsConnect) return; initPush(); return connect(); });
 </script>
 

@@ -1,13 +1,17 @@
 // One JSON endpoint per method; events arrive separately via the SSE stream (events.js).
-import { url, signedOut } from "./base.js";
+import { app, origin, url, signedOut } from "./base.js";
 const base = url("/bots/api");
 
+const unreachable = () => new Error(app ? `The computer at ${origin} does not answer – is it running?` : "The computer does not answer – check the connection.");
 async function req(method, path, body) {
-  const r = await fetch(base + path, {
-    method,
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let r;
+  try {
+    r = await fetch(base + path, {
+      method,
+      headers: body ? { "content-type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch { throw unreachable(); }
   const data = await r.json().catch(() => null);
   if (r.status === 401) signedOut();   // session gone → the gateway's sign-in page, or the app's connect screen
   if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
@@ -38,7 +42,9 @@ export const agentAction = (name, action) => req("POST", `/agents/${name}/${acti
 export const watchUrl = (name) => req("GET", `/agents/${name}/watch-url`);
 export const chatSend = (name, text, sendId, attachments) => req("POST", `/agents/${name}/chat/send`, { text, sendId, ...(attachments?.length ? { attachments } : {}) });
 export async function uploadFile(name, file) {
-  const r = await fetch(`${base}/agents/${name}/chat/upload?filename=${encodeURIComponent(file.name || "image.png")}`, { method: "POST", body: file });
+  let r;
+  try { r = await fetch(`${base}/agents/${name}/chat/upload?filename=${encodeURIComponent(file.name || "image.png")}`, { method: "POST", body: file }); }
+  catch { throw unreachable(); }
   const data = await r.json().catch(() => null);
   if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
   return data;

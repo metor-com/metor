@@ -51,13 +51,13 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   a screen-sharing button in the interface (the app already answers `getDisplayMedia`), a
   monochrome template tray icon for macOS. Phones stay the PWA; Capacitor in `client/mobile/`
   only when store presence or background voice demands it (then a push relay, own ADR).
-- **metor on the Mac** - `brew install metor-com/tap/metor && metor setup` with Apple's
-  `container` runtime (macOS 26, Apple silicon) or Colima/Docker Desktop as fallback. Spike done
-  2026-09-03: the whole box runs under Apple `container`, bots start in 2 s; two blockers noted in
-  [knowledge/design/mac-install.md](knowledge/design/mac-install.md) (volume ownership → entrypoint
-  fix in the image; localhost port publishing broken upstream, container IP works). Steps:
-  multi-arch image, entrypoint, second wrapper backend, `metor setup`, Homebrew tap; later the
-  menu-bar item of the Electron desktop app (ADR-0015)
+- **metor on the Mac** - built 2026-09-05: `metor setup` with Apple's `container` (macOS 26,
+  Apple silicon) or Docker/Colima through the same wrapper, multi-arch image workflow, formula
+  template, *Local computer* menu in the desktop app (see
+  [knowledge/design/mac-install.md](knowledge/design/mac-install.md)). Remaining: create the tap
+  repository `metor-com/homebrew-tap` with the formula and a release sha256; `metor box update`
+  (pull + restart); drop the legacy 6011-6049 port range from the Docker command; phone access to
+  a local computer (Cloudflare Tunnel or Tailscale)
 - **Host names without a domain: `<ip-with-dashes>.ip.metor.com`** - our own sslip.io: a tiny
   DNS server (the open-source sslip.io binary or CoreDNS) answering every `<a>-<b>-<c>-<d>.ip.metor.com`
   with the embedded address, the zone delegated from metor.com; the installer then defaults to that

@@ -34,9 +34,14 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
 
 ## Environments
 
-- **Development:** local, any Docker; on macOS **Colima** instead of Docker Desktop (verified
+- **Development:** local, any Docker or Apple's `container` (macOS 26, Apple silicon; the wrapper
+  detects the runtime - Docker first where it is installed - `METOR_RUNTIME=docker|container`
+  overrides, `~/.config/metor/runtime` remembers the last one; a stopped Colima/Docker Desktop is
+  started by the wrapper); on macOS with Docker use **Colima** instead of Docker Desktop (verified
   drop-in: `brew install colima docker`, then `colima start --cpu 4 --memory 8`; after a reboot
-  `colima start` again, the container comes back by itself thanks to `--restart unless-stopped`).
+  `colima start` again, the container comes back by itself thanks to `--restart unless-stopped`;
+  under Apple `container` it is `metor box up` again). `metor setup` does the whole first start
+  (knowledge/design/mac-install.md).
   `export PATH=$PWD/backend/harness/bin:$PATH`, `metor box build`, `metor box up`,
   `metor auth link` (open the link once in the browser), in the UI sign in to a runtime ("New bot" →
   Sign in; or `docker exec -it metor-box claude auth login`), then create bots in the UI at

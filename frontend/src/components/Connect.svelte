@@ -4,9 +4,38 @@
   // (ADR-0012). Known computers can be reopened or forgotten; the app keeps their sessions.
   import { app } from "../lib/base.js";
   const signedOut = !!app?.gateway && !app.gateway.signedIn;
+  const unreachable = !!app?.gateway?.signedIn && app.gateway.reachable === false;   // known computer, no answer
   let address = app?.gateway?.origin ?? "", claim = "", busy = false, error = null, list = [];
   async function load() { try { list = (await app.gateways()) ?? []; } catch {} }
   load();
+
+  // A computer on this machine (ADR-0015, mac-install): the app carries the host command and drives
+  // Docker or Apple's container runtime. The button's job follows the state: set up, start, or
+  // connect again; the command's output shows live while it runs.
+  let local = null, localBusy = false, localError = null, progress = [];
+  const RUNTIME = { container: "Apple's container runtime", docker: "Docker" };
+  const machine = app?.platform === "darwin" ? "this Mac" : "this machine";
+  async function loadLocal() { if (!app?.local) return; try { local = await app.local.status(); } catch (e) { local = { wrapper: false, state: "unknown", error: e.message }; } }
+  loadLocal();
+  app?.local?.onProgress((p) => {
+    if (p.start) { localBusy = true; localError = null; progress = []; }
+    if (p.line) progress = [...progress.slice(-7), p.line];
+    if (p.done) { localBusy = false; if (!p.ok) localError = p.error ?? "failed"; loadLocal(); load(); }
+  });
+  // What the button should do: no known local computer or signed out → setup (mints a link, starts if needed);
+  // known and signed in → start when stopped, open when running
+  $: localAction = !local ? null
+    : local.state === "no-runtime" || !local.wrapper ? null
+    : !local.computer?.signedIn ? "setup"
+    : local.state === "stopped" ? "up"
+    : local.state === "running" ? "open" : "setup";
+  $: localLabel = { setup: local?.state === "running" ? `Connect to the computer on ${machine}` : `Set up a computer on ${machine}`, up: `Start the computer on ${machine}`, open: `Open the computer on ${machine}` }[localAction] ?? "";
+  async function runLocal() {
+    localError = null;
+    if (localAction === "open") { await app.use(local.computer.id); return; }
+    try { const r = await app.local.run(localAction); if (!r?.ok) localError = r?.error ?? "failed"; } catch (e) { localError = e.message; }
+  }
+
   async function submit() {
     busy = true; error = null;
     try {
@@ -26,6 +55,12 @@
     <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">
       {signedOut ? "This device was signed out of the computer. Link it again with a pairing code or a setup link." : "Connect this app to your computer."}
     </p>
+    {#if unreachable}
+      <div class="mt-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
+        <div><strong>{app.gateway.name}</strong> does not answer at <code class="font-mono">{app.gateway.origin}</code>. It is stopped, or this machine cannot reach it right now.</div>
+        <button type="button" class="self-start rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={() => app.use(app.gateway.id)}>Try again</button>
+      </div>
+    {/if}
     <form class="mt-5 flex flex-col gap-3" on:submit|preventDefault={submit}>
       <label class="flex flex-col gap-1 text-[13px]">
         <span class="text-zinc-600">Address of the computer</span>
@@ -42,6 +77,30 @@
       <li><strong>Setup link</strong>: shown by the installer and by <code class="rounded bg-zinc-100 px-1">metor auth link</code> inside the box. Paste it – the address comes with it.</li>
       <li><strong>Pairing code</strong>: on a device that is signed in, open <em>Settings → Devices → Link a device</em>, then enter the address and the code here.</li>
     </ol>
+    {#if app?.local && local && local.wrapper}
+      <div class="mt-6 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4">
+        <div class="text-sm font-medium">A computer on {machine}</div>
+        {#if local.state === "no-runtime"}
+          <p class="text-[13px] leading-relaxed text-zinc-500">
+            Needs a container runtime. On an Apple silicon Mac with macOS 26: <a class="underline" href="https://github.com/apple/container/releases" target="_blank" rel="noreferrer">Apple's container runtime</a>;
+            otherwise <a class="underline" href="https://docs.docker.com/get-docker/" target="_blank" rel="noreferrer">Docker</a> or Colima. Install one, then check again.
+          </p>
+          <button type="button" class="self-start rounded-lg border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-100" on:click={loadLocal}>Check again</button>
+        {:else}
+          <p class="text-[13px] leading-relaxed text-zinc-500">
+            {RUNTIME[local.runtime] ?? local.runtime ?? "A container runtime"} on {machine}
+            {#if local.state === "running"}– the computer is running.{:else if local.computer}– the computer is stopped.{:else}– no computer yet. The first setup downloads the image (about 1 GB) and takes a few minutes.{/if}
+          </p>
+          {#if localAction}
+            <button type="button" class="self-start rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 disabled:opacity-50" disabled={localBusy} on:click={runLocal}>{localBusy ? "Working…" : localLabel}</button>
+          {/if}
+        {/if}
+        {#if progress.length}
+          <pre class="max-h-40 overflow-auto rounded-lg bg-zinc-900 px-3 py-2 font-mono text-[11px] leading-relaxed text-zinc-200">{progress.join("\n")}</pre>
+        {/if}
+        {#if localError}<p class="text-[13px] text-red-600">{localError}</p>{/if}
+      </div>
+    {/if}
     {#if list.length}
       <div class="mt-6 flex flex-col gap-2">
         <div class="text-sm font-medium">Known computers</div>

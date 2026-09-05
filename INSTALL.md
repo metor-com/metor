@@ -143,13 +143,33 @@ location /bots {
 
 Then `docker compose exec box metor auth link` for the first device.
 
-## D) Development (local, macOS with Colima or any Docker)
+## D) Your own Mac (no server)
+
+On an Apple silicon Mac with macOS 26 the computer runs under Apple's own `container` runtime, no
+Docker needed; on other Macs Colima or Docker Desktop do the same job through the same command.
+
+```sh
+brew install container            # Apple silicon, macOS 26 – otherwise: brew install colima docker && colima start --cpu 4 --memory 8
+brew install metor-com/tap/metor  # the host command (until the tap exists: clone the repository, see the README)
+metor setup                       # picks the runtime, gets the image, starts the computer, opens the setup link
+```
+
+`metor setup` prints the setup link (24 h, single use) and opens it in the browser; paste it into
+the desktop app instead if you use that. After a reboot, `metor box up` (or the app's menu
+*Local computer → Start*) starts the computer again; `metor box down` stops it. The interface
+listens on `http://127.0.0.1:6010/bots/` (`METOR_PORT` for another port), the three volumes are
+the same as on a server. Where both Docker and Apple's runtime are installed, Docker stays the
+default; `METOR_RUNTIME=container metor setup` chooses Apple's once, after that the choice is
+remembered in `~/.config/metor/runtime`. A stopped Docker (Colima or Docker Desktop) is started
+by the command itself.
+
+## E) Development (local, any Docker or Apple `container`)
 
 See the [README](README.md): clone the repository, `export PATH="$PWD/backend/harness/bin:$PATH"`,
 `metor box build && metor box up`, then sign in from the interface at http://127.0.0.1:6010/bots/
-(or `docker exec -it metor-box claude auth login`). The image is built
-locally (arm64 on Apple silicon); the ghcr image is amd64 for servers. `metor version` prints the
-version of the checkout (`docker compose exec box metor version` prints the version inside the box).
+(or `docker exec -it metor-box claude auth login`). The image is built locally for the machine's
+architecture; the ghcr image carries amd64 and arm64. `metor version` prints the version of the
+checkout (`docker compose exec box metor version` prints the version inside the box).
 
 ## Runtimes
 
