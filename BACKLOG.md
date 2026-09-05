@@ -24,10 +24,12 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 
 ## Roadmap
 
-- **Bot-to-bot bridge for all runtimes** (next) - Codex bots cannot message other bots yet
-  (only Claude to Claude via SendMessage). Design draft:
-  [knowledge/design/crew-messaging-groups.md](knowledge/design/crew-messaging-groups.md)
-  (neutral `metor` MCP server, `send_to_bot` with target bot|group, durable via inbox)
+- **Bot collaboration** (next) - Codex and Gemini bots cannot message other bots yet (only
+  Claude to Claude via SendMessage). Concept:
+  [knowledge/design/bot-collaboration.md](knowledge/design/bot-collaboration.md) - a neutral
+  `metor` MCP server for every runtime (stage 1: `list_bots`, `send_to_bot`), then
+  assignments with results and files, a ledger and `create_bot` for helper bots (stage 2),
+  groups (stage 3, [crew-messaging-groups.md](knowledge/design/crew-messaging-groups.md))
 - **Groups ("Teams") + shared memory scopes** - a group is a directory with its own chat.jsonl,
   an orchestrator with hard caps (members/rounds/contributions, see the design draft above),
   Claude and Codex bots in the same chat; memory scopes (user / project / bot) as shared

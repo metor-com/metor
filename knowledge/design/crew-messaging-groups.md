@@ -1,6 +1,8 @@
 # Design sketch: bot-to-bot messaging (all runtimes) and group chats
 
-Status: **draft, not decided** (2026-09-01) · becomes an ADR when started · related:
+Status: **draft, not decided** (2026-09-01) · superseded for messaging, assignments and helper
+bots by [bot-collaboration.md](bot-collaboration.md) (2026-09-05); stage B below stays the
+reference for groups · becomes an ADR when started · related:
 ADR-0011 (multi-harness), ADR-0003 (build order, "Groups").
 
 ## Starting point

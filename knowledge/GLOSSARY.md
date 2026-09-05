@@ -30,7 +30,8 @@ Rule: code terms do not change when marketing renames things.
 
 ## 3. Collaboration
 
-Bot-to-bot messaging and groups are roadmap items (design draft in
+Bot-to-bot messaging and groups are roadmap items (concept in
+[design/bot-collaboration.md](design/bot-collaboration.md), groups in
 [design/crew-messaging-groups.md](design/crew-messaging-groups.md)); the terms are fixed here so
 that code and UI use them consistently once built.
 
