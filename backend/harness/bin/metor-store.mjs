@@ -44,6 +44,16 @@ export function readBot(name) {
   b.title ??= b.name;   // bots created before titles existed
   return b;
 }
+// The bot's look when it has no uploaded picture: one to three characters on a colour (bot.json → avatar)
+export function normalizeAvatar(a) {
+  if (!a || typeof a !== "object") return null;
+  const initials = String(a.initials ?? "").trim();
+  const color = String(a.color ?? "").trim().toLowerCase();
+  const okInitials = initials && [...initials].length <= 3 && !/[\p{Cc}\s]/u.test(initials);
+  const okColor = /^#[0-9a-f]{6}$/.test(color);
+  if (!okInitials && !okColor) return null;
+  return { ...(okInitials ? { initials } : {}), ...(okColor ? { color } : {}) };
+}
 export function writeBot(bot) { writeFileSync(join(botDir(bot.name), "bot.json"), JSON.stringify(bot, null, 2) + "\n"); }
 // Tolerant: a half-written or broken bot.json must not take down list, supervisor or gateway
 export function allBots() {

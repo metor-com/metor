@@ -23,7 +23,8 @@ const bot = {
   create(flags) {
     const title = flags[0]; if (!title) die("metor bot create <name> [--id <id>] --role \"...\" [--harness <id>] [--model <id>]");
     const name = arg(flags, "id") ?? idFor(title);   // the name is free text, the id follows the directory rules
-    const b = createAgent({ name, title, role: arg(flags, "role"), harness: arg(flags, "harness"), model: arg(flags, "model"), permissionMode: arg(flags, "mode") });
+    const b = createAgent({ name, title, role: arg(flags, "role"), harness: arg(flags, "harness"), model: arg(flags, "model"), permissionMode: arg(flags, "mode"),
+      avatar: { initials: arg(flags, "initials"), color: arg(flags, "color") } });
     console.log(`Bot "${b.title}" created as ${name} in ${botDir(name)} (${HARNESSES[harnessOf(b)].label}${b.model ? ` · ${b.model}` : ""})`);
     if (!has(flags, "no-start")) startAgent(b);
   },
@@ -78,7 +79,7 @@ const VERSION = (() => {
   return "dev";
 })();
 const usage = `metor – CLI (inside the computer; on the host use the metor shell wrapper)
-  bot  create <name> [--id <id>] --role "..." [--harness claude-stream|codex] [--model <alias or id>] [--mode acceptEdits] [--no-start]
+  bot  create <name> [--id <id>] --role "..." [--harness claude-stream|codex|gemini] [--model <alias or id>] [--initials <1-3 chars>] [--color #rrggbb] [--mode acceptEdits] [--no-start]
        (Claude Code aliases fable|opus|sonnet|haiku mean the newest model of that family; Codex ids as Codex lists them)
        (the name is free text; the id – directory, API path, address between bots – is derived from it: "Mein Bot!" -> mein-bot)
        list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name> [--keep-files]

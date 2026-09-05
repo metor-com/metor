@@ -13,6 +13,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **A picture per bot**: every bot shows a picture in the list and the header. By default it is
+  one to three initials on a colour - the create dialog fills the initials in from the name as
+  you type and picks a colour, both can be changed there - or an image of your own (PNG, JPEG,
+  WebP or GIF up to 2 MB) chosen right in the dialog. A click on the picture in the header
+  changes all of it later.
+
 - **Gemini CLI as a third runtime** (ADR-0016): bots on Google's Gemini, signed in from the
   create dialog with a Gemini API key from Google AI Studio - the free tier needs no
   subscription; the key is checked once and stays inside the bots' computer. Gemini bots chat,

@@ -18,7 +18,7 @@
   // Quota bar (Settings → Appearance): always, never, or once a window reaches the chosen usage
   $: showQuota = !!quota && pct(quota.fiveHour) != null && ($settings.quota === "always"
     || ($settings.quota === "threshold" && Math.max(pct(quota.fiveHour) ?? 0, pct(quota.sevenDay) ?? 0) >= ($settings.quotaThreshold ?? 80)));
-  const initial = (a) => (a.title ?? a.name ?? "?").trim().charAt(0).toUpperCase() || "?";
+  import Avatar from "./Avatar.svelte";
   // Second line: what the bot is doing right now beats the last message; then the message; then the role
   const preview = (a) => {
     if (a.status === "busy") return { text: "working…", cls: "text-emerald-700" };
@@ -62,7 +62,7 @@
           on:click={() => onSelect(a.name)}
         >
           <span class="relative shrink-0">
-            <span class="flex {$settings.compactList ? 'size-8 text-sm' : 'size-11 text-base'} items-center justify-center rounded-full bg-zinc-200 font-semibold text-zinc-700">{initial(a)}</span>
+            <Avatar agent={a} size={$settings.compactList ? 32 : 44} />
             <span class="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-white leading-none {a.name === selected ? 'border-zinc-100' : ''}"><StatusDot status={a.status} /></span>
           </span>
           <span class="min-w-0 flex-1">

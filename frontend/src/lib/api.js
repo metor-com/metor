@@ -32,7 +32,7 @@ export const pushTest = () => req("POST", "/push/test");
 
 export const listAgents = () => req("GET", "/agents");
 // title = what people see; the gateway derives the id from it unless `name` (an explicit id) is given
-export const createAgent = (title, role, harness, model, name) => req("POST", "/agents", { title, role, ...(name ? { name } : {}), ...(harness ? { harness } : {}), ...(model ? { model } : {}) });
+export const createAgent = (title, role, harness, model, name, avatar) => req("POST", "/agents", { title, role, ...(name ? { name } : {}), ...(harness ? { harness } : {}), ...(model ? { model } : {}), ...(avatar ? { avatar } : {}) });
 export const listHarnesses = () => req("GET", "/harnesses");
 export const setupStart = (id) => req("POST", `/harnesses/${id}/setup/start`);
 export const setupStatus = (id) => req("GET", `/harnesses/${id}/setup/status`);
@@ -49,6 +49,15 @@ export async function uploadFile(name, file) {
   if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
   return data;
 }
+// The bot's picture: initials and colour (PUT), an uploaded image (POST) or back to initials (DELETE)
+export const setAvatar = (name, avatar) => req("PUT", `/agents/${name}/avatar`, avatar);
+export async function uploadAvatar(name, file) {
+  let r; try { r = await fetch(`${base}/agents/${name}/avatar`, { method: "POST", headers: { "content-type": file.type }, body: file }); } catch { throw unreachable(); }
+  const data = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
+  return data;
+}
+export const resetAvatar = (name) => req("DELETE", `/agents/${name}/avatar`);
 export const fileUrl = (name, path) => `${base}/agents/${name}/chat/file?path=${encodeURIComponent(path)}`;
 export const listFiles = (name, path = "") => req("GET", `/agents/${name}/files?path=${encodeURIComponent(path)}`);
 export const chatPermission = (name, ref, decision) => req("POST", `/agents/${name}/chat/permission`, { ref, decision });

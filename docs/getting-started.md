@@ -232,6 +232,11 @@ bots work on - never your own Mac, phone or PC. Where both could be meant, the i
 
 ## 11. Managing bots
 
+Every bot has a picture - in the list and in the header. When you create a bot, the dialog
+fills in one to three initials from the name as you type and picks a colour; keep them, change
+the letters, pick another colour, or upload an image of yours (PNG, JPEG, WebP or GIF, up to
+2 MB). Later, a click on the picture in the bot's header opens the same choices.
+
 With a bot selected, the header (or the more menu on phones) offers:
 
 - **Pause** - stops the bot's runtime session and desktop. The bot keeps everything: directory,

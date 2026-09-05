@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } 
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HARNESSES, harnessOf, defaultModel, validModel } from "./metor-harness.mjs";
-import { TEMPLATES, botDir, writeBot } from "./metor-store.mjs";
+import { TEMPLATES, botDir, writeBot, normalizeAvatar } from "./metor-store.mjs";
 import { desktopAlive, desktopCoreDead, desktopStart, desktopStop, isProcess, pidAlive, waitFor, watchUrl } from "./metor-desktop.mjs";
 
 const HOST_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "metor-agent-host.mjs");
@@ -37,7 +37,7 @@ function trustDir(dir) {
 }
 
 // ---------- Create / start / stop / remove ----------
-export function createAgent({ name, title, role = "General assistant for the user.", harness = "claude-stream", model, permissionMode = "acceptEdits" }) {
+export function createAgent({ name, title, role = "General assistant for the user.", harness = "claude-stream", model, permissionMode = "acceptEdits", avatar = null }) {
   const dir = botDir(name); if (existsSync(join(dir, "bot.json"))) throw new Error(`Bot ${name} already exists`);
   title = String(title ?? name).trim().replace(/\s+/g, " ") || name;
   const desc = HARNESSES[harness];
@@ -46,7 +46,8 @@ export function createAgent({ name, title, role = "General assistant for the use
   if (model && !validModel(harness, model)) throw new Error(`unknown model "${model}" for ${desc.label} (available: ${desc.models.map((m) => m.id).join(", ")})`);
   mkdirSync(dir, { recursive: true });
   desc.scaffold(dir, { name, title, role }, TEMPLATES);
-  const bot = { name, title, role, harness, ...(model ? { model } : {}), permissionMode, autostart: true, sessionId: null, createdAt: new Date().toISOString() };
+  const look = normalizeAvatar(avatar);
+  const bot = { name, title, role, harness, ...(model ? { model } : {}), ...(look ? { avatar: look } : {}), permissionMode, autostart: true, sessionId: null, createdAt: new Date().toISOString() };
   writeBot(bot);
   return bot;
 }

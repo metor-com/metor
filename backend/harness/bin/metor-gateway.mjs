@@ -6,7 +6,7 @@
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
 import http from "node:http";
 import net from "node:net";
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
@@ -14,7 +14,7 @@ import { createStreamChat, readHistory } from "./metor-chat-stream.mjs";
 import { readRoutines, readRuns } from "./metor-routines.mjs";
 import { HARNESSES, harnessOf, defaultModel, validModel, modelsFor, modelLabel } from "./metor-harness.mjs";
 import { setupStart, setupStatus, setupCancel, setupSubmit } from "./metor-setup.mjs";
-import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, isValidTitle as validTitle, idFor, allBots as bots } from "./metor-store.mjs";
+import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, isValidTitle as validTitle, idFor, allBots as bots, readBot, writeBot, normalizeAvatar } from "./metor-store.mjs";
 import { AUTH_OFF, sessionOf, claimSession, createClaim, listSessions, revokeSession, setCookieHeader, clearCookieHeader, clientIp, tooManyAttempts, noteFailure, signInPage, qrDataUrl } from "./metor-auth.mjs";
 import * as push from "./metor-push.mjs";
 import * as connectors from "./metor-connectors.mjs";
@@ -47,6 +47,30 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 // path= forces noVNC onto the gateway path; without it, it connects to ws://…/websockify at the root (no bot there).
 function watchPath(b) { return `/bots/${b.name}/vnc.html?autoconnect=1&resize=scale&path=bots/${b.name}/websockify&password=${b.watchToken}`; }
 
+// ---------- The bot's picture (ADR-0006: metor's own runtime marks by default, an upload replaces them) ----------
+// The upload lives under <bot>/.metor/avatar.<ext> – a dot path, so the generic file route never serves it
+const AVATAR_TYPES = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" };
+function avatarOf(name) {
+  for (const ext of Object.values(AVATAR_TYPES)) { const f = join(BOTS_DIR, name, ".metor", `avatar.${ext}`); if (existsSync(f)) return { file: f, ext, at: statSync(f).mtimeMs }; }
+  return null;
+}
+function uploadAvatar(req, res, name, send) {
+  const type = String(req.headers["content-type"] ?? "").split(";")[0].trim();
+  const ext = AVATAR_TYPES[type]; if (!ext) return send(415, { error: "png, jpeg, webp or gif please" });
+  const size = Number(req.headers["content-length"] ?? 0); if (!size || size > 2 * 1024 * 1024) return send(413, { error: "at most 2 MB" });
+  const chunks = []; let got = 0;
+  req.on("data", (d) => { got += d.length; if (got > 2 * 1024 * 1024) { req.destroy(); return; } chunks.push(d); });
+  req.on("end", () => {
+    if (got > 2 * 1024 * 1024) return;
+    const dir = join(BOTS_DIR, name, ".metor"); mkdirSync(dir, { recursive: true });
+    for (const e of Object.values(AVATAR_TYPES)) { try { rmSync(join(dir, `avatar.${e}`), { force: true }); } catch {} }
+    writeFileSync(join(dir, `avatar.${ext}`), Buffer.concat(chunks));
+    pushAgents().catch(() => {});
+    send(200, { ok: true, avatarAt: avatarOf(name)?.at ?? null });
+  });
+  req.on("error", () => send(500, { error: "upload failed" }));
+}
+
 // ---------- Status: from each bot's harness.json (written by its host process) ----------
 async function agentList() {
   return bots().map((b) => {
@@ -55,6 +79,8 @@ async function agentList() {
     return { name: b.name, title: b.title ?? b.name, role: b.role ?? "", createdAt: b.createdAt ?? null,
       lastActivityAt: sum.lastMessageAt ?? (Date.parse(b.createdAt ?? "") || 0), lastMessageAt: sum.lastMessageAt, lastMessage: sum.lastMessage, unread: sum.unread,
       display: b.display ?? null,
+      avatar: b.avatar ?? null,                 // initials and colour, when chosen (else the interface derives them from the title)
+      avatarAt: avatarOf(b.name)?.at ?? null,   // an uploaded picture (the interface builds the URL, the stamp busts the cache)
       harness: h, harnessLabel: HARNESSES[h]?.label ?? h,
       model: b.model ?? null,
       modelLabel: modelLabel(h, b.model) ?? (b.model ?? "Default model"),
@@ -250,7 +276,9 @@ async function api(req, res, url) {
       const model = body?.model ?? defaultModel(harness);
       if (model && !validModel(harness, model)) return send(400, { error: `unknown model "${model}" for ${HARNESSES[harness].label}` });
       if (!harnessSetupState(harness).ok) return send(409, { error: `${HARNESSES[harness].label} is not set up yet`, needsSetup: true, harness });
-      enqueue(["bot", "create", title, "--id", name, "--role", role, "--harness", harness, ...(model ? ["--model", model] : [])]);
+      const look = normalizeAvatar(body?.avatar);
+      enqueue(["bot", "create", title, "--id", name, "--role", role, "--harness", harness, ...(model ? ["--model", model] : []),
+        ...(look?.initials ? ["--initials", look.initials] : []), ...(look?.color ? ["--color", look.color] : [])]);
       return send(202, { accepted: true, name, title });
     }
   }
@@ -262,6 +290,24 @@ async function api(req, res, url) {
       if (action !== "start" && streamChat.status(name) !== "stopped") expectedStops.add(name);   // no "stopped" push for a stop the user asked for
       enqueue(["bot", action, name]);
       return send(202, { accepted: true });
+    }
+    // The bot's picture: upload (raw body), fetch, back to the runtime's mark
+    if (action === "avatar" && rest.length === 3) {
+      if (req.method === "POST") return uploadAvatar(req, res, name, send);
+      if (req.method === "PUT") {   // initials and colour (the look without an uploaded picture)
+        const look = normalizeAvatar(await readBody(req));
+        if (!look) return send(400, { error: "one to three characters and a colour like #ff6b4a" });
+        const bot = readBot(name); bot.avatar = { ...(bot.avatar ?? {}), ...look }; writeBot(bot);
+        pushAgents().catch(() => {});
+        return send(200, { avatar: bot.avatar });
+      }
+      const a = avatarOf(name);
+      if (req.method === "DELETE") { if (a) rmSync(a.file, { force: true }); pushAgents().catch(() => {}); return send(200, { ok: true }); }
+      if (req.method === "GET") {
+        if (!a) return send(404, { error: "no picture uploaded" });
+        res.writeHead(200, { "content-type": Object.keys(AVATAR_TYPES).find((t) => AVATAR_TYPES[t] === a.ext), "content-length": statSync(a.file).size, "cache-control": "public, max-age=31536000, immutable" });
+        return createReadStream(a.file).pipe(res);
+      }
     }
     if (req.method === "GET" && action === "routines" && rest.length === 3) {
       return send(200, { routines: readRoutines(BOTS_DIR, name), runs: readRuns(BOTS_DIR, name) });

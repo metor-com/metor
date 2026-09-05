@@ -9,7 +9,8 @@
   import ComputerPanel from "./components/ComputerPanel.svelte";
   import Connect from "./components/Connect.svelte";
   import { app } from "./lib/base.js";
-  import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect } from "./lib/session.js";
+  import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect, refresh } from "./lib/session.js";
+  import AvatarDialog from "./components/AvatarDialog.svelte";
   import { isDesktop } from "./lib/viewport.js";
   import { initPush } from "./lib/push.js";
   import { settings, ZOOM, update as updateSettings } from "./lib/settings.js";
@@ -32,6 +33,7 @@
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", stop);
   }
 
+  let pictureOpen = false;   // the picture dialog for the selected bot (a click on the picture in the header)
   async function onAct(action) {
     if (action === "rm" && !confirm(`Really remove bot "${$current?.title ?? $selected}"? Its directory and history will be deleted.`)) return;
     try { await (action === "rm" ? remove() : act(action)); } catch (e) { alert(e.message); }
@@ -58,7 +60,7 @@
     {#if $current}
       <Header agent={$current} {pane}
         onToggleComputer={() => toggle("computer")} onToggleRoutines={() => toggle("routines")} onBack={() => select(null)}
-        {onAct} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
+        {onAct} onPicture={() => (pictureOpen = true)} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
       <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={paneEl}>
         {#if $isDesktop || !pane}
           <div class="flex min-h-0 min-w-0 flex-col" style={$isDesktop && pane ? `flex: 0 0 ${ratio * 100}%` : "flex: 1 1 0%"}>
@@ -81,4 +83,7 @@
     {/if}
   </main>
 </div>
+{#if pictureOpen && $current}
+  <AvatarDialog agent={$current} onDone={() => { pictureOpen = false; refresh(); }} />
+{/if}
 {/if}

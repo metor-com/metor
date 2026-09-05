@@ -8,6 +8,8 @@
   export let onBack;               // mobile: back to the bot list
   export let onToggleRoutines;
   export let onAct;                // ("start" | "stop" | "rm") => void
+  export let onPicture;            // () => void – opens the picture dialog (initials, colour, image)
+  import Avatar from "./Avatar.svelte";
   export let onInterrupt;          // stop the running turn
 
   let menuOpen = false;
@@ -18,6 +20,7 @@
 <header class="flex shrink-0 items-center gap-x-2 border-b border-zinc-200 bg-white px-2.5 py-2.5 md:flex-wrap md:gap-x-4 md:gap-y-2 md:px-4">
   <button class="-my-1 shrink-0 rounded-lg px-2 py-1 text-xl text-zinc-500 hover:text-zinc-900 md:hidden"
     on:click={onBack} aria-label="Back to bots">←</button>
+  <button type="button" class="shrink-0 rounded-full outline-none ring-zinc-400 hover:ring-2" title="Change the picture" aria-label="Change the picture" on:click={onPicture}><Avatar {agent} size={32} /></button>
   <div class="flex min-w-0 flex-1 items-baseline gap-2">
     <strong class="truncate text-base" title="id: {agent.name}">{agent.title ?? agent.name}</strong>
     <span class="hidden shrink-0 text-[13px] text-zinc-500 sm:inline">{statusLabel(agent.status)}</span>
