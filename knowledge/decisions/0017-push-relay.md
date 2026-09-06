@@ -137,5 +137,10 @@ deployment at `push.metor.com` (waits for the Apple key and the Firebase project
   the service decrypts and shows the gateway's title and text. All visible messages go out at
   high priority – a normal-priority FCM data message is held back while the app is in the
   background, which is when it matters.
-- Not yet: notification actions (approve/deny), badge counts, a device-level "notifications off"
-  switch in the app's settings, and unsubscribing the relay endpoint when the app is deleted.
+- **Actions** (built the same evening): an approval push carries the permission's `ref` and the
+  computer's id (`?c=` on the subscription's endpoint, passed on by the relay); Approve / Deny
+  answer `…/chat/permission` from the notification, after the unlock, without opening the app.
+  Verified on Android with a synthetic approval through the relay (202, notification gone); on iOS
+  the extension marks the category, the tap waits for a real device.
+- Not yet: badge counts, a "notifications off" switch in the app's settings, unsubscribing the
+  relay endpoint when the app is deleted.

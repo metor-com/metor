@@ -39,6 +39,9 @@
             </intent-filter>
         </service>
 
+        <!-- Approve / Deny from a notification (ADR-0017) -->
+        <receiver android:name=".MetorActionReceiver" android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -25,13 +25,13 @@ public class MetorMessagingService extends FirebaseMessagingService {
     public void onMessageReceived(RemoteMessage message) {
         String body = message.getData().get("body");
         if (body == null) return;
-        String title = "metor", text = "New activity", bot = null, kind = null;
+        String title = "metor", text = "New activity", bot = null, kind = null, ref = null, computer = message.getData().get("c");
         try {
             WebPushCrypto.Keys keys = WebPushCrypto.load(this);
             if (keys != null) {
                 JSONObject json = new JSONObject(new String(WebPushCrypto.decrypt(Base64.decode(body, Base64.DEFAULT), keys), "UTF-8"));
                 title = json.optString("title", title); text = json.optString("body", "");
-                bot = json.optString("bot", null); kind = json.optString("kind", null);
+                bot = json.optString("bot", null); kind = json.optString("kind", null); ref = json.optString("ref", null);
             }
         } catch (Exception e) { Log.w("metor", "push: " + e.getMessage()); }   // the placeholder shows; nothing readable was in transit
         NotificationManager nm = getSystemService(NotificationManager.class);
@@ -40,12 +40,24 @@ public class MetorMessagingService extends FirebaseMessagingService {
         if (bot != null && !bot.isEmpty()) open.putExtra(MetorPushPlugin.EXTRA_BOT, bot);
         int id = bot != null ? bot.hashCode() : (int) System.currentTimeMillis();
         PendingIntent tap = PendingIntent.getActivity(this, id, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        Notification n = new NotificationCompat.Builder(this, CHANNEL)
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.mipmap.ic_launcher).setContentTitle(title).setContentText(text)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
             .setPriority("approval".equals(kind) ? NotificationCompat.PRIORITY_MAX : NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true).setContentIntent(tap).build();
-        nm.notify(id, n);
+            .setAutoCancel(true).setContentIntent(tap);
+        // An approval can be answered from the notification when the permission's ref and the computer are known;
+        // both actions ask for the unlock first (setAuthenticationRequired, Android 12+)
+        if ("approval".equals(kind) && ref != null && !ref.isEmpty() && bot != null && computer != null) {
+            b.addAction(action(id, "Approve", "allow", computer, bot, ref)).addAction(action(id, "Deny", "deny", computer, bot, ref));
+        }
+        nm.notify(id, b.build());
+    }
+
+    private NotificationCompat.Action action(int notificationId, String label, String decision, String computer, String bot, String ref) {
+        Intent i = new Intent(this, MetorActionReceiver.class).setAction("com.metor.mobile.APPROVAL_" + decision.toUpperCase())
+            .putExtra("computer", computer).putExtra("bot", bot).putExtra("ref", ref).putExtra("decision", decision).putExtra("notification", notificationId);
+        PendingIntent pi = PendingIntent.getBroadcast(this, (ref + decision).hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        return new NotificationCompat.Action.Builder(0, label, pi).setAuthenticationRequired(true).build();
     }
 
     @Override

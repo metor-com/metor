@@ -91,6 +91,7 @@ async function forget(id) {
   if (c.secret && c.pushEndpoint) { try { await fetchJson(`${c.origin}/bots/api/push/unsubscribe`, { method: "POST", headers: { authorization: `Bearer ${c.secret}`, "content-type": "application/json" }, body: JSON.stringify({ endpoint: c.pushEndpoint }) }, 4000); } catch {} }
   if (c.secret) { try { await fetchJson(`${c.origin}/bots/api/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${c.secret}` } }, 4000); } catch {} }
   await clearSessionCookie(c);
+  try { await MetorPush.clearComputer({ id }); } catch {}
   db.computers = db.computers.filter((x) => x.id !== id);
   const wasCurrent = db.current === id; if (wasCurrent) db.current = null;
   await save(); if (wasCurrent) reload();
@@ -98,7 +99,7 @@ async function forget(id) {
 // The computer answered 401: the session is gone (revoked there) – keep the entry, drop the secret
 async function signedOut() {
   const c = current(); if (!c?.secret) return;
-  c.secret = null; await clearSessionCookie(c); await save(); reload();
+  c.secret = null; await clearSessionCookie(c); try { await MetorPush.clearComputer({ id: c.id }); } catch {} await save(); reload();
 }
 
 // ---------- The session token on every request to the connected computer (the interface is unchanged) ----------
@@ -184,10 +185,15 @@ async function registerPush(c) {
   let r; try { r = await MetorPush.register(); } catch (e) { console.warn("metor: push", e?.message ?? e); return; }
   if (!r?.token || !r.p256dh || !r.auth) { console.log("metor: push not available", r?.reason ?? ""); return; }
   const route = r.platform === "android" ? "fcm" : r.sandbox ? "apns-sandbox" : "apns";
-  const endpoint = `${PUSH_RELAY}/v1/${route}/${r.token}`;
+  const endpoint = `${PUSH_RELAY}/v1/${route}/${r.token}?c=${c.id}`;   // ?c: which computer sent a push (the relay passes it on)
   try {
     const res = await fetchJson(`${c.origin}/bots/api/push/subscribe`, { method: "POST", headers: { authorization: `Bearer ${c.secret}`, "content-type": "application/json" }, body: JSON.stringify({ subscription: { endpoint, keys: { p256dh: r.p256dh, auth: r.auth } } }) });
-    if (res.ok) { pushEndpoint = endpoint; if (c.pushEndpoint !== endpoint) { c.pushEndpoint = endpoint; await save(); } console.log("metor: push registered", route); }
+    if (res.ok) {
+      pushEndpoint = endpoint; if (c.pushEndpoint !== endpoint) { c.pushEndpoint = endpoint; await save(); }
+      // The native side answers approvals from the notification itself (Approve / Deny) – it needs the computer's address and session
+      try { await MetorPush.setComputer({ id: c.id, origin: c.origin, token: c.secret }); } catch (e) { console.warn("metor: push computer", e?.message ?? e); }
+      console.log("metor: push registered", route);
+    }
     else console.warn("metor: push subscribe", res.status, res.data?.error ?? "");
   } catch (e) { console.warn("metor: push subscribe", e?.message ?? e); }
 }

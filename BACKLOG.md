@@ -43,6 +43,10 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   [ADR-0011](knowledge/decisions/0011-multi-harness.md))
 - Codex polish: quota display (`account/rateLimits/read`), approval cards via app-server approvals
   (`model/list` is live since 2026-09-05)
+- **Claude bots never ask for approval** - observed 2026-09-06: with `permissionMode` `default`
+  and `Bash` removed from the allow list, a Claude bot still ran shell commands without a
+  permission card (`canUseTool` was not called). Approval cards therefore come only from "ask
+  first" connectors (ADR-0014) today; check whether the SDK wiring matches ADR-0004's intent.
 - **Telegram channel** as a thin additional entrance to the gateway (the one OpenClaw gap that
   matters); related idea: an e-mail address per bot as an entrance (delegate by forwarding)
 - **Server installation** - built 2026-09-01: ghcr workflow, compose (with or without Caddy),
@@ -64,8 +68,8 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   Remaining: inline pictures and attachment links (bearer-fetched blobs or a per-session ticket
   on the picture routes, see client/mobile/README.md "Open"), a QR scanner and Face ID on the
   connect screen, icons and splash
-  screens, TestFlight / internal Play track, notification actions (approve/deny) and a notifications switch
-  in the app ([ADR-0017](knowledge/decisions/0017-push-relay.md): relay at push.metor.com, push verified on both platforms in simulator and emulator), the demo computer for Apple's review. Until the relay
+  screens, TestFlight / internal Play track, a notifications switch in the app
+  ([ADR-0017](knowledge/decisions/0017-push-relay.md): relay at push.metor.com, push and the Approve/Deny actions verified in simulator and emulator), the demo computer for Apple's review. Until the relay
   exists the PWA remains the phone client with push.
 - **metor on the Mac** - built 2026-09-05: `metor setup` with Apple's `container` (macOS 26,
   Apple silicon) or Docker/Colima through the same wrapper, multi-arch image workflow, formula

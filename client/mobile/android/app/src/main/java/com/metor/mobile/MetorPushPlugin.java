@@ -35,6 +35,16 @@ public class MetorPushPlugin extends Plugin {
         notifyListeners("opened", data, true);
     }
 
+    // The bridge names the computer a push may come from; approvals are answered there straight from the notification
+    @PluginMethod
+    public void setComputer(PluginCall call) {
+        String id = call.getString("id"), origin = call.getString("origin"), token = call.getString("token");
+        if (id == null || origin == null || token == null) { call.reject("id, origin and token"); return; }
+        try { WebPushCrypto.setComputer(getContext(), id, origin, token); call.resolve(); } catch (Exception e) { call.reject("store: " + e.getMessage()); }
+    }
+    @PluginMethod
+    public void clearComputer(PluginCall call) { String id = call.getString("id"); if (id != null) WebPushCrypto.clearComputer(getContext(), id); call.resolve(); }
+
     @PluginMethod
     public void register(PluginCall call) {
         if (Build.VERSION.SDK_INT >= 33 && getPermissionState("notifications") != PermissionState.GRANTED) {

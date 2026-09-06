@@ -9,7 +9,12 @@ import UserNotifications
 public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "MetorPushPlugin"
     public let jsName = "MetorPush"
-    public let pluginMethods: [CAPPluginMethod] = [CAPPluginMethod(name: "register", returnType: CAPPluginReturnPromise)]
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "register", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setComputer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearComputer", returnType: CAPPluginReturnPromise),
+    ]
+    static let approvalCategory = "metor.approval"   // notification actions Approve / Deny (registered in AppDelegate)
     static let opened = Notification.Name("metor.push.opened")
     static var pendingBot: String?   // a tap that arrived before the interface was listening
     private var pending: CAPPluginCall?
@@ -29,6 +34,13 @@ public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
             DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() }
         }
     }
+    // The bridge names the computer a push may come from; approvals are answered there straight from the notification
+    @objc func setComputer(_ call: CAPPluginCall) {
+        guard let id = call.getString("id"), let origin = call.getString("origin"), let token = call.getString("token") else { call.reject("id, origin and token"); return }
+        do { try PushComputers.set(id, .init(origin: origin, token: token)); call.resolve() } catch { call.reject("keychain: \(error)") }
+    }
+    @objc func clearComputer(_ call: CAPPluginCall) { if let id = call.getString("id") { PushComputers.remove(id) }; call.resolve() }
+
     @objc func gotToken(_ n: Notification) {
         guard let token = n.object as? Data, let call = pending else { return }
         pending = nil

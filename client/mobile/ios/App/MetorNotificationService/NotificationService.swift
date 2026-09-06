@@ -22,6 +22,12 @@ class NotificationService: UNNotificationServiceExtension {
             content.body = json["body"] as? String ?? ""
             if let bot = json["bot"] as? String, !bot.isEmpty { content.userInfo["metor_bot"] = bot; content.threadIdentifier = "bot:\(bot)" }
             if let kind = json["kind"] as? String { content.userInfo["metor_kind"] = kind }
+            if let c = metor["c"] as? String { content.userInfo["metor_c"] = c }   // which computer sent it (from the subscription's endpoint)
+            // An approval gets the Approve / Deny actions when it can be answered: the permission's ref and the computer are known
+            if json["kind"] as? String == "approval", let ref = json["ref"] as? String, metor["c"] is String {
+                content.userInfo["metor_ref"] = ref
+                content.categoryIdentifier = "metor.approval"
+            }
             NSLog("metor push: decrypted for bot %@", (json["bot"] as? String) ?? "-")
         } catch {
             NSLog("metor push: placeholder shown – %@", String(describing: error))   // no content is logged, only the step that failed

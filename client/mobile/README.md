@@ -85,6 +85,18 @@ access group both app and extension share (`$(AppIdentifierPrefix)com.metor.mobi
 Android in preferences wrapped with a keystore key. While native push is registered the bridge
 shows no local notifications of its own. A tap opens the bot.
 
+**Approve / Deny from the notification.** An approval push carries the permission card's `ref`
+(gateway) and the id of the computer it came from (`?c=<id>` on the subscription's endpoint, passed
+on by the relay). The bridge hands the native side the computer's address and session after each
+registration (`MetorPush.setComputer`, keychain / wrapped preferences), so the actions answer
+`POST /bots/api/agents/<bot>/chat/permission { ref, decision }` without opening the app – iOS in
+`AppDelegate` (category `metor.approval`, both actions require the unlock), Android in
+`MetorActionReceiver` (`setAuthenticationRequired`). Verified 2026-09-06 with a synthetic approval
+push through the relay: Android shows the two buttons, Approve reaches the gateway (202) and the
+notification disappears; iOS decrypts and marks the category (the simulator's notification center
+does not let the tool tap, so the action itself waits for a real iPhone). Real approval cards come
+from connectors marked "ask first" (ADR-0014); the box's own tools do not ask (ADR-0004).
+
 Verified 2026-09-06 in the iPhone 17 simulator against push.metor.com: registration (real APNs
 sandbox token – the simulator on Apple silicon registers with APNs), subscription at a local
 computer, gateway → relay → APNs 201, extension decrypts ("Gemini: stopped" with the gateway's

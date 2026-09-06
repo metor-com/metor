@@ -44,6 +44,45 @@ struct WebPushKeys {
     }
 }
 
+/// The computers whose approvals the native side may answer from a notification: address and session per id
+/// (handed over by the bridge after the push registration), in the same keychain group as the keys.
+enum PushComputers {
+    struct Computer: Codable { let origin: String; let token: String }
+    private static let service = "com.metor.mobile.push.computers"
+    static func set(_ id: String, _ computer: Computer) throws {
+        let data = try JSONEncoder().encode(computer)
+        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: id]
+        SecItemDelete(q as CFDictionary)
+        var add = q; add[kSecValueData as String] = data; add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        let status = SecItemAdd(add as CFDictionary, nil)
+        guard status == errSecSuccess else { throw WebPushError.keychain(status) }
+    }
+    static func remove(_ id: String) {
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: id] as CFDictionary)
+    }
+    static func get(_ id: String) -> Computer? {
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: id]
+        q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
+        return try? JSONDecoder().decode(Computer.self, from: data)
+    }
+    /// Answers a permission card at the computer: POST /bots/api/agents/<bot>/chat/permission { ref, decision }
+    static func answer(computer id: String, bot: String, ref: String, decision: String, done: @escaping (Bool) -> Void) {
+        guard let c = get(id), let url = URL(string: "\(c.origin)/bots/api/agents/\(bot)/chat/permission") else { return done(false) }
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(c.token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["ref": ref, "decision": decision])
+        URLSession.shared.dataTask(with: req) { _, response, _ in
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            NSLog("metor push: %@ for %@ → %d", decision, bot, code)
+            done(code >= 200 && code < 300)
+        }.resume()
+    }
+}
+
 enum WebPushCrypto {
     /// Decrypts an aes128gcm message: header (salt 16 | rs 4 | idlen 1 | sender public key 65), then records.
     static func decrypt(_ message: Data, keys: WebPushKeys) throws -> Data {

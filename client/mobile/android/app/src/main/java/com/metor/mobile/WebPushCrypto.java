@@ -133,6 +133,24 @@ public final class WebPushCrypto {
     static byte[] concat(byte[]... parts) { int n = 0; for (byte[] p : parts) n += p.length; byte[] out = new byte[n]; int pos = 0; for (byte[] p : parts) { System.arraycopy(p, 0, out, pos, p.length); pos += p.length; } return out; }
     public static String base64url(byte[] b) { return Base64.encodeToString(b, Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING); }
 
+    // The computers whose approvals may be answered from a notification: address and session per id,
+    // handed over by the bridge after the push registration
+    public static final class Computer { public final String origin, token; Computer(String o, String t) { origin = o; token = t; } }
+    public static void setComputer(Context ctx, String id, String origin, String token) throws Exception {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("computer." + id, wrap((origin + "\n" + token).getBytes("UTF-8"))).apply();
+    }
+    public static void clearComputer(Context ctx, String id) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("computer." + id).apply();
+    }
+    public static Computer getComputer(Context ctx, String id) {
+        try {
+            String v = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("computer." + id, null);
+            if (v == null) return null;
+            String[] parts = new String(unwrap(v), "UTF-8").split("\n", 2);
+            return parts.length == 2 ? new Computer(parts[0], parts[1]) : null;
+        } catch (Exception e) { return null; }
+    }
+
     // Wrapping with an AES-GCM key that never leaves the Android keystore
     private static SecretKey wrapKey() throws Exception {
         KeyStore ks = KeyStore.getInstance("AndroidKeyStore"); ks.load(null);
