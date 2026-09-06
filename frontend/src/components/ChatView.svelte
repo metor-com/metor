@@ -1,6 +1,7 @@
 <script>
   import { chatSend, chatPermission, uploadFile, fileUrl } from "../lib/api.js";
   import { picture, openFile } from "../lib/media.js";   // pictures and files inside the phone app (session by fetch, system viewer)
+  import RuntimeSignIn from "./RuntimeSignIn.svelte";
   import Ticks from "./Ticks.svelte";
   import { renderMarkdown } from "../lib/markdown.js";
   export let bot;
@@ -10,6 +11,13 @@
   export let onLocalEntry;
   export let status = null;   // the bot's status (the error card offers Start while it is stopped)
   export let onStart = null;
+  export let harness = null, harnessLabel = null;   // the bot's runtime – an expired sign-in is repaired right in the error card
+  // The runtime's sign-in is gone. Claude Code answers such a message as if it were a reply ("Not logged in · Please
+  // run /login", "Failed to authenticate: OAuth session expired and could not be refreshed"), Gemini refuses an
+  // invalid key, Codex answers 401 – short texts, so a bot talking about authentication does not trigger this.
+  // The chat then offers the runtime's sign-in right there (RuntimeSignIn), below the reply or in the error card.
+  const signInLost = (t) => { const x = String(t ?? "").trim(); return x.length <= 240 && /failed to authenticate|not logged in|please run \/login|oauth session|authentication (failed|error)|invalid api key|api key not valid|unauthori[sz]ed|\b401\b/i.test(x); };
+  let signedInFor = null;   // the entry whose sign-in went through – the hint replaces the box until the next reply
   let text = "";
   let sending = false;
   let listEl, fileInput;
@@ -120,7 +128,9 @@
         <div class="max-w-[42rem] rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-900">
           <div class="font-semibold">The bot stopped with an error</div>
           <pre class="mt-1 font-sans text-[13px] break-words whitespace-pre-wrap text-red-800 [overflow-wrap:anywhere]">{e.text}</pre>
-          {#if status === "stopped" && i === entries.length - 1 && onStart}
+          {#if status === "stopped" && i === entries.length - 1 && onStart && harness && signInLost(e.text)}
+            <div class="mt-2.5 text-zinc-900"><RuntimeSignIn {harness} label={harnessLabel} intro={`The sign-in of ${harnessLabel ?? harness} has expired – sign in again, the bot then starts by itself.`} onDone={onStart} /></div>
+          {:else if status === "stopped" && i === entries.length - 1 && onStart}
             <div class="mt-2.5"><button class="rounded-lg bg-zinc-900 px-3.5 py-1.5 text-sm text-white hover:bg-zinc-700" on:click={onStart}>▶ Start again</button></div>
           {/if}
           <div class="mt-1.5 text-[11px] text-red-700/70">{time(e.ts)}</div>
@@ -153,6 +163,13 @@
         <div class="flex min-w-0">
           <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[42rem]">
             {#if e.text}<div class="chat-md">{@html renderMarkdown(e.text)}</div>{/if}
+            {#if harness && i === entries.length - 1 && !partial && signInLost(e.text)}
+              {#if signedInFor === e.id}
+                <p class="mt-2 text-[13px] text-emerald-700">Signed in again – send your message once more.</p>
+              {:else}
+                <div class="mt-2.5"><RuntimeSignIn {harness} label={harnessLabel} intro={`The sign-in of ${harnessLabel ?? harness} has expired – sign in again, then send your message once more.`} onDone={() => (signedInFor = e.id)} /></div>
+              {/if}
+            {/if}
             {#if e.attachments?.length}
               <div class="flex flex-wrap gap-1.5 {e.text ? 'mt-2' : ''}">
                 {#each e.attachments as a}

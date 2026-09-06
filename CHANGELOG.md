@@ -34,6 +34,10 @@ On a release the section is renamed to the version number and dated. Ideas and o
   `METOR_WATCH_BASE` puts the Mac's address into the pairing links.
 - **Releases carry the installer**: a version tag becomes a GitHub Release with `install.sh` as
   its asset, and `www.metor.com/install.sh` always points at the latest release.
+- **An expired runtime sign-in is repaired in the chat**: when Claude Code answers "Not logged in"
+  or "OAuth session expired", or a key is refused, the reply carries the runtime's sign-in right
+  there - the same steps as in the create dialog - and a bot that stopped on such an error offers
+  it instead of Start.
 
 ### Changed
 
