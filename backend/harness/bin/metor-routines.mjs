@@ -24,12 +24,15 @@ export function addRoutine(botsDir, bot, { name, cron, prompt }) {
   if (routines.length >= MAX_ROUTINES) return { error: `At most ${MAX_ROUTINES} routines per bot` };
   const parsed = parseCron(cron);
   if (!parsed) return { error: `Invalid cron expression: ${cron} (expected 5 fields, e.g. "0 7 * * *")` };
+  const next = nextRun(parsed, new Date());
+  if (!next) return { error: NEVER_MATCHES(cron) };
   if (typeof prompt !== "string" || !prompt.trim()) return { error: "prompt missing" };
   const r = { id: randomUUID().slice(0, 8), name: String(name ?? "").slice(0, 60) || "Routine", cron, prompt: prompt.trim(),
-    enabled: true, createdAt: new Date().toISOString(), lastRunAt: null, nextRunAt: nextRun(parsed, new Date()).toISOString() };
+    enabled: true, createdAt: new Date().toISOString(), lastRunAt: null, nextRunAt: next.toISOString() };
   writeRoutines(botsDir, bot, [...routines, r]);
   return { routine: r };
 }
+const NEVER_MATCHES = (cron) => `The cron expression ${cron} never matches a date (a day that month does not have?)`;
 export function updateRoutine(botsDir, bot, { id, name, cron, prompt, enabled } = {}) {
   const routines = readRoutines(botsDir, bot);
   const r = routines.find((x) => x.id === id);
@@ -37,7 +40,9 @@ export function updateRoutine(botsDir, bot, { id, name, cron, prompt, enabled } 
   if (cron !== undefined) {
     const parsed = parseCron(cron);
     if (!parsed) return { error: `Invalid cron expression: ${cron} (expected 5 fields, e.g. "0 7 * * *")` };
-    r.cron = cron; r.nextRunAt = nextRun(parsed, new Date()).toISOString();
+    const next = nextRun(parsed, new Date());
+    if (!next) return { error: NEVER_MATCHES(cron) };
+    r.cron = cron; r.nextRunAt = next.toISOString();
   }
   if (name !== undefined) r.name = String(name).slice(0, 60) || r.name;
   if (prompt !== undefined) {
@@ -49,7 +54,9 @@ export function updateRoutine(botsDir, bot, { id, name, cron, prompt, enabled } 
     if (r.enabled) {
       // Resuming counts from now: no catching up of the pause time, auto-pause counter reset
       const parsed = parseCron(r.cron);
-      if (parsed) r.nextRunAt = nextRun(parsed, new Date()).toISOString();
+      const next = parsed && nextRun(parsed, new Date());
+      if (!next) return { error: NEVER_MATCHES(r.cron) };
+      r.nextRunAt = next.toISOString();
       delete r.pausedReason; r.unattendedRuns = 0;
     }
   }
@@ -77,34 +84,37 @@ export function readRuns(botsDir, bot, { limit = RUNS_KEEP } = {}) {
 // past → one fire, then recalculation from now (no batch re-firing).
 // Auto-pause: if a routine runs GUARD times without a user message in between
 // (injectTurn stamps last-user.json), it is paused instead of burning more quota.
-// Returns { due, paused }: due gets fired, paused is reported by the supervisor into the chat.
+// Returns { due, paused }: due was fired through `fire(routine)` BEFORE the file was advanced (a
+// supervisor that dies in between fires again rather than losing the run), paused is reported by
+// the supervisor into the chat. A routine whose schedule has no next date pauses with a reason.
 // empty/unset = default 20; explicit 0 = auto-pause off (Number("") would otherwise silently be 0)
 const guardEnv = (process.env.METOR_ROUTINE_GUARD ?? "").trim();
 const GUARD = guardEnv === "" ? 20 : Number(guardEnv) || 0;
-export function dueRoutines(botsDir, bot, now = new Date()) {
+export function dueRoutines(botsDir, bot, now = new Date(), fire = () => {}) {
   const routines = readRoutines(botsDir, bot);
   let lastUser = null;
   try { lastUser = JSON.parse(readFileSync(join(botsDir, bot, ".metor", "last-user.json"), "utf8")).ts ?? null; } catch {}
   const due = [], paused = [];
   let changed = false;
+  const pause = (r, reason) => { r.enabled = false; r.pausedReason = reason; paused.push({ ...r }); changed = true; };
   for (const r of routines) {
     if (!r.enabled) continue;
     const parsed = parseCron(r.cron);
-    if (!parsed) continue;
-    if (!r.nextRunAt) { r.nextRunAt = nextRun(parsed, now).toISOString(); changed = true; continue; }
+    if (!parsed) { pause(r, `the schedule "${r.cron}" is not a valid cron expression`); continue; }
+    if (!r.nextRunAt) {
+      const next = nextRun(parsed, now);
+      if (next) { r.nextRunAt = next.toISOString(); changed = true; } else pause(r, `the schedule "${r.cron}" never matches a date`);
+      continue;
+    }
     if (new Date(r.nextRunAt) <= now) {
       const userSincePrev = !r.lastRunAt || (lastUser && new Date(lastUser) >= new Date(r.lastRunAt));
       r.unattendedRuns = userSincePrev ? 1 : (r.unattendedRuns ?? 0) + 1;
-      if (GUARD > 0 && r.unattendedRuns > GUARD) {
-        r.enabled = false;
-        r.pausedReason = `${GUARD} runs without user activity (auto-pause)`;
-        paused.push({ ...r });
-        changed = true;
-        continue;
-      }
+      if (GUARD > 0 && r.unattendedRuns > GUARD) { pause(r, `${GUARD} runs without user activity (auto-pause)`); continue; }
+      fire({ ...r });
       due.push({ ...r });
       r.lastRunAt = now.toISOString();
-      r.nextRunAt = nextRun(parsed, now).toISOString();
+      const next = nextRun(parsed, now);
+      if (next) r.nextRunAt = next.toISOString(); else pause(r, `the schedule "${r.cron}" has no further date`);
       changed = true;
     }
   }
@@ -139,16 +149,24 @@ export function parseCron(expr) {
   if (dow.has(7)) dow.add(0); // 7 = Sunday
   return { minute, hour, dom, month, dow, domAny: f[2] === "*", dowAny: f[4] === "*" };
 }
+// The next date after `from`, or null when the expression never matches (31 February) – never a
+// made-up date. The search skips whole days and hours that cannot match, and looks four years
+// ahead, far enough for a 29 February. Local time of the box: a time that does not exist on the
+// day the clocks go forward is skipped, a time that exists twice on the day they go back fires
+// on the first of the two.
 export function nextRun(parsed, from) {
   const d = new Date(from.getTime());
   d.setSeconds(0, 0); d.setMinutes(d.getMinutes() + 1);
-  for (let i = 0; i < 366 * 24 * 60; i += 1) {           // max. 1 year lookahead
+  const end = from.getTime() + (4 * 366 + 1) * 86400_000;
+  while (d.getTime() <= end) {
     const okDay = parsed.domAny && parsed.dowAny ? true
       : parsed.domAny ? parsed.dow.has(d.getDay())
       : parsed.dowAny ? parsed.dom.has(d.getDate())
       : parsed.dom.has(d.getDate()) || parsed.dow.has(d.getDay()); // standard cron: dom OR dow
-    if (parsed.month.has(d.getMonth() + 1) && okDay && parsed.hour.has(d.getHours()) && parsed.minute.has(d.getMinutes())) return d;
+    if (!(parsed.month.has(d.getMonth() + 1) && okDay)) { d.setDate(d.getDate() + 1); d.setHours(0, 0, 0, 0); continue; }
+    if (!parsed.hour.has(d.getHours())) { d.setHours(d.getHours() + 1, 0, 0, 0); continue; }
+    if (parsed.minute.has(d.getMinutes())) return d;
     d.setMinutes(d.getMinutes() + 1);
   }
-  return d;
+  return null;
 }

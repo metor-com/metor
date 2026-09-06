@@ -6,16 +6,16 @@
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
 import http from "node:http";
 import net from "node:net";
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
-import { createStreamChat, readHistory } from "./metor-chat-stream.mjs";
-import { readRoutines, readRuns } from "./metor-routines.mjs";
+import { createStreamChat, injectTurn, readHistory } from "./metor-chat-stream.mjs";
+import { readRoutines, readRuns, recordRun, updateRoutine } from "./metor-routines.mjs";
 import { HARNESSES, harnessOf, defaultModel, validModel, modelsFor, modelLabel } from "./metor-harness.mjs";
 import { setupStart, setupStatus, setupCancel, setupSubmit } from "./metor-setup.mjs";
 import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, isValidTitle as validTitle, idFor, allBots as bots, readBot, writeBot, normalizeAvatar } from "./metor-store.mjs";
-import { AUTH_OFF, sessionOf, claimSession, createClaim, listSessions, revokeSession, setCookieHeader, clearCookieHeader, clientIp, tooManyAttempts, noteFailure, signInPage, qrDataUrl } from "./metor-auth.mjs";
+import { AUTH_OFF, sessionOf, sessionAlive, claimSession, createClaim, listSessions, revokeSession, setCookieHeader, clearCookieHeader, clientIp, tooManyAttempts, noteFailure, signInPage, qrDataUrl, appChoicePage, claimOpen } from "./metor-auth.mjs";
 import * as push from "./metor-push.mjs";
 import * as connectors from "./metor-connectors.mjs";
 
@@ -43,6 +43,20 @@ function cors(req, res) {
   res.setHeader("access-control-allow-headers", "authorization, content-type");
   res.setHeader("access-control-max-age", "600");
   res.setHeader("vary", "origin");
+  return true;
+}
+
+// Cross-site writes with the cookie (CSRF): a browser names the page's origin on every POST, PUT, DELETE
+// and WebSocket handshake – it has to be this computer's own (the Host the request came in on, or the
+// configured public address) or a known app origin. Requests without Origin (curl, the CLI) and native
+// clients with a bearer token are not affected; SameSite=Lax on the cookie covers the rest.
+function foreignOrigin(req) {
+  const origin = req.headers.origin;
+  if (!origin || req.headers.authorization || APP_ORIGINS.has(origin)) return false;
+  let host; try { host = new URL(origin).host; } catch { return true; }
+  if (host === req.headers.host) return false;
+  try { if (BASE && host === new URL(BASE).host) return false; } catch {}
+  console.log(`refused a cross-site ${req.method} from ${origin}`);
   return true;
 }
 
@@ -135,6 +149,24 @@ function sseEmit(channel, type, data) {
   for (const c of sseClients) if (c.topics.has(channel)) { try { c.res.write(payload); } catch {} }
 }
 setInterval(() => { for (const c of sseClients) { try { c.res.write(": keepalive\n\n"); } catch {} } }, 20_000);
+// Long-lived connections are checked once when they open. So that a revoked device (or an expired
+// session) loses them too: sockets of the screen and terminal proxies by session, and a sweep every
+// minute for revocations made elsewhere (the CLI) and for sessions that ran out
+const wsBySession = new Map();   // session id → Set of upgraded sockets
+function trackSocket(sessionId, socket) {
+  if (!sessionId) return;
+  const set = wsBySession.get(sessionId) ?? new Set(); set.add(socket); wsBySession.set(sessionId, set);
+  socket.on("close", () => { set.delete(socket); if (!set.size) wsBySession.delete(sessionId); });
+}
+function dropConnections(sessionId) {
+  for (const c of sseClients) if (c.sessionId === sessionId) { sseClients.delete(c); try { c.res.end(); } catch {} }
+  for (const s of wsBySession.get(sessionId) ?? []) { try { s.destroy(); } catch {} }
+  wsBySession.delete(sessionId);
+}
+if (!AUTH_OFF) setInterval(() => {
+  const ids = new Set([...wsBySession.keys(), ...[...sseClients].map((c) => c.sessionId).filter(Boolean)]);
+  for (const id of ids) if (!sessionAlive(id)) { console.log(`auth: session ${id} is gone – closing its connections`); dropConnections(id); }
+}, 60_000);
 let lastAgentsJson = "";
 async function pushAgents() {
   const list = await agentList();
@@ -221,8 +253,8 @@ async function api(req, res, url) {
     const session = sessionOf(req);
     if (rest[1] === "me" && req.method === "GET") return send(200, { id: session.id, name: session.name, authOff: AUTH_OFF });
     if (rest[1] === "sessions" && rest.length === 2 && req.method === "GET") return send(200, listSessions().map((s) => ({ ...s, current: s.id === session.id })));
-    if (rest[1] === "sessions" && rest.length === 3 && req.method === "DELETE") { const ok = revokeSession(rest[2]); if (ok) push.dropSession(rest[2]); return send(ok ? 200 : 404, { ok: true }); }
-    if (rest[1] === "logout" && req.method === "POST") { revokeSession(session.id); push.dropSession(session.id); res.writeHead(200, { "content-type": "application/json", "set-cookie": clearCookieHeader() }); return res.end("{}"); }
+    if (rest[1] === "sessions" && rest.length === 3 && req.method === "DELETE") { const ok = revokeSession(rest[2]); if (ok) { push.dropSession(rest[2]); dropConnections(rest[2]); } return send(ok ? 200 : 404, { ok: true }); }
+    if (rest[1] === "logout" && req.method === "POST") { revokeSession(session.id); push.dropSession(session.id); res.writeHead(200, { "content-type": "application/json", "set-cookie": clearCookieHeader() }); res.end("{}"); return dropConnections(session.id); }
     if (rest[1] === "pair" && req.method === "POST") {
       const c = createClaim("pair", { createdBy: session.id });
       let qr = null; try { qr = await qrDataUrl(c.url); } catch (e) { console.error("qr:", e.message); }
@@ -318,6 +350,22 @@ async function api(req, res, url) {
     if (req.method === "GET" && action === "routines" && rest.length === 3) {
       return send(200, { routines: readRoutines(BOTS_DIR, name), runs: readRuns(BOTS_DIR, name) });
     }
+    // Pause, resume and run a routine from the panel – without the bot, so that a paused routine can be
+    // switched back on when exactly the quota that paused it is used up (creating and editing stays in the chat)
+    if (action === "routines" && rest.length === 4 && req.method === "PUT") {
+      const body = await readBody(req);
+      if (typeof body?.enabled !== "boolean") return send(400, { error: "enabled (true/false) expected" });
+      const r = updateRoutine(BOTS_DIR, name, { id: rest[3], enabled: body.enabled });
+      return send(r.error ? 404 : 200, r);
+    }
+    if (action === "routines" && rest.length === 5 && rest[4] === "run" && req.method === "POST") {
+      const r = readRoutines(BOTS_DIR, name).find((x) => x.id === rest[3]);
+      if (!r) return send(404, { error: `Routine ${rest[3]} not found` });
+      // Like the supervisor's tick, only that a run the user asks for counts as user activity (no origin)
+      injectTurn(BOTS_DIR, name, `[Routine "${r.name}"] ${r.prompt}`);
+      recordRun(BOTS_DIR, name, r);
+      return send(202, { ok: true });
+    }
     if (req.method === "GET" && action === "watch-url" && rest.length === 3) {
       if (!b.display || !b.watchToken) return send(404, { error: "no desktop" });
       return send(200, { path: watchPath(b) });
@@ -337,10 +385,16 @@ async function api(req, res, url) {
       const file = safeBotPath(name, rel);
       if (!file || !existsSync(file) || !statSync(file).isFile()) return send(404, { error: "file not found" });
       const st = statSync(file);
-      res.writeHead(200, { "content-type": MIME[file.split(".").pop()?.toLowerCase()] ?? "application/octet-stream",
-        "content-length": st.size,
-        // uploads/ carry a timestamp in the name (immutable), bot files can change
-        "cache-control": rel.startsWith("uploads/") ? "public, max-age=31536000, immutable" : "no-store" });
+      const ext = file.split(".").pop()?.toLowerCase();
+      const headers = { "content-type": MIME[ext] ?? "application/octet-stream", "content-length": st.size,
+        "x-content-type-options": "nosniff",
+        // uploads/ carry a timestamp in the name (immutable), bot files can change; private: they sit behind the sign-in
+        "cache-control": rel.startsWith("uploads/") ? "private, max-age=31536000, immutable" : "no-store" };
+      // A page or SVG written by a bot must not run with the rights of this interface: sandboxed it gets an
+      // opaque origin, so its scripts reach neither the session cookie nor the API (a bot's HTML report may
+      // still use scripts for its charts). Pictures, PDFs and downloads are not affected.
+      if (ext === "html" || ext === "svg") headers["content-security-policy"] = "sandbox allow-scripts";
+      res.writeHead(200, headers);
       if (req.method === "HEAD") return res.end();
       return createReadStream(file).pipe(res);
     }
@@ -350,7 +404,7 @@ async function api(req, res, url) {
       const dirPath = rel ? safeBotPath(name, rel) : join(BOTS_DIR, name);
       if (!dirPath || !existsSync(dirPath) || !statSync(dirPath).isDirectory()) return send(404, { error: "directory not found" });
       const entries = readdirSync(dirPath, { withFileTypes: true })
-        .filter((e) => !e.name.startsWith("."))
+        .filter((e) => !e.name.startsWith(".") && !(dirPath === join(BOTS_DIR, name) && HIDDEN_FILES.has(e.name)))
         .map((e) => { let s = null; try { s = statSync(join(dirPath, e.name)); } catch {}
           return { name: e.name, type: e.isDirectory() ? "dir" : "file", size: s?.size ?? 0, mtime: s?.mtime?.toISOString() ?? null }; })
         .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "dir" ? -1 : 1));
@@ -375,12 +429,24 @@ async function api(req, res, url) {
   return send(404, { error: "unknown API route" });
 }
 
-// Path below the bot directory, without dot segments; null on an escape attempt
+// Files in the bot directory that are configuration, not results: the runtime's connector file carries
+// the connectors' keys and tokens in the clear (metor-connectors.mjs writes it for Claude Code)
+const HIDDEN_FILES = new Set(["mcp.json"]);
+// Path below the bot directory, without dot segments; null on an escape attempt. The check runs on the
+// real path as well: a symbolic link a bot leaves in its directory must not lead outside it or into
+// its dot paths (a link to a missing target counts as missing – the caller answers 404)
 function safeBotPath(bot, rel) {
   if (rel.startsWith("/") || rel.split("/").some((s) => s.startsWith(".") || !s)) return null;
+  if (HIDDEN_FILES.has(rel)) return null;
   const base = join(BOTS_DIR, bot);
   const full = resolve(base, rel);
-  return full.startsWith(base + sep) ? full : null;
+  if (!full.startsWith(base + sep)) return null;
+  let real, realBase;
+  try { real = realpathSync(full); realBase = realpathSync(base); } catch { return null; }
+  if (!real.startsWith(realBase + sep)) return null;
+  const inside = real.slice(realBase.length + 1).split(sep);
+  if (inside.some((s) => s.startsWith(".")) || HIDDEN_FILES.has(inside[0])) return null;
+  return real;
 }
 
 const UPLOAD_MAX = 25 * 1024 * 1024;
@@ -390,10 +456,17 @@ function uploadFile(req, res, bot, u, send) {
   if (Number(req.headers["content-length"] ?? 0) > UPLOAD_MAX) { req.resume(); return send(413, { error: "file too large (max. 25 MB)" }); }
   const dir = join(BOTS_DIR, bot, "uploads");
   mkdirSync(dir, { recursive: true });
+  // The directory itself must be a directory here – not a link a bot planted to receive the user's files elsewhere
+  try { if (lstatSync(dir).isSymbolicLink()) return send(500, { error: "uploads/ is a link – remove it in the bot's directory" }); } catch {}
   const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
-  const name = `${stamp}-${safeFileName(u.searchParams.get("filename"))}`;
-  const file = join(dir, name);
-  const out = createWriteStream(file);
+  const safe = safeFileName(u.searchParams.get("filename"));
+  // Created exclusively: two uploads in the same second (or a file a bot put there first) get -2, -3, … instead of overwriting
+  let name, file, fd = null;
+  for (let i = 1; fd === null; i += 1) {
+    name = `${stamp}-${i > 1 ? `${i}-` : ""}${safe}`; file = join(dir, name);
+    try { fd = openSync(file, "wx"); } catch (e) { if (e.code !== "EEXIST" || i >= 50) { req.resume(); return send(500, { error: `upload failed: ${e.message}` }); } }
+  }
+  const out = createWriteStream(file, { fd });
   let size = 0, failed = false;
   const fail = (code, msg) => { if (failed) return; failed = true; out.destroy(); try { rmSync(file, { force: true }); } catch {} send(code, { error: msg }); };
   req.on("data", (d) => { size += d.length; if (size > UPLOAD_MAX) fail(413, "file too large (max. 25 MB)"); });
@@ -500,6 +573,12 @@ function redeemAndRedirect(req, res, claim) {
   const ip = clientIp(req);
   const page = (code, error) => { res.writeHead(code, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); res.end(signInPage({ error })); };
   if (tooManyAttempts(ip)) return page(429, "Too many attempts – please wait ten minutes.");
+  // A phone with a setup link: the app or the browser? Asked before the one-time token is spent (web=1 = the browser)
+  if (claim.token && !claim.web && claimOpen(claim.token) && /iPhone|iPad|iPod|Android/i.test(String(req.headers["user-agent"] ?? ""))) {
+    const base = BASE || `${req.headers["x-forwarded-proto"] === "https" ? "https" : "http"}://${req.headers.host}`;
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+    return res.end(appChoicePage({ appLink: `metor://connect?url=${encodeURIComponent(base)}&token=${encodeURIComponent(claim.token)}`, webLink: `/bots/auth/claim?token=${encodeURIComponent(claim.token)}&web=1` }));
+  }
   const r = claimSession(claim, { userAgent: req.headers["user-agent"], ip });
   if (!r) { noteFailure(ip); return page(401, "This link or code is invalid or has expired."); }
   console.log(`auth: new session ${r.session.id} (${r.session.name}, via ${r.session.via})`);
@@ -514,13 +593,14 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }   // CORS preflight – carries no credentials by design
     if (path === "/bots/api/version" && req.method === "GET") { res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" }); return res.end(JSON.stringify(await versionInfo())); }
     if (path === "/bots/api/auth/redeem" && req.method === "POST") return await redeemJson(req, res);
-    if (path === "/bots/auth/claim" && req.method === "GET") return redeemAndRedirect(req, res, { token: new URL(url, "http://gateway").searchParams.get("token") });
+    if (path === "/bots/auth/claim" && req.method === "GET") { const q = new URL(url, "http://gateway").searchParams; return redeemAndRedirect(req, res, { token: q.get("token"), web: q.get("web") === "1" }); }
     if (path === "/bots/auth/code" && req.method === "POST") return redeemAndRedirect(req, res, { code: (await readForm(req)).code });
     if ((req.method === "GET" || req.method === "HEAD") && PUBLIC_FILES.test(path) && serveStatic(url, res, { spa: false })) return;
     if (!AUTH_OFF && !sessionOf(req)) {
       if (path === "/bots/api" || path.startsWith("/bots/api/")) { res.writeHead(401, { "content-type": "application/json", "cache-control": "no-store" }); return res.end(JSON.stringify({ error: "not signed in" })); }
       res.writeHead(401, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return res.end(signInPage());
     }
+    if (!(req.method === "GET" || req.method === "HEAD") && foreignOrigin(req)) { res.writeHead(403, { "content-type": "application/json", "cache-control": "no-store" }); return res.end(JSON.stringify({ error: "cross-site request refused" })); }
     if (url === "/bots/api" || url.startsWith("/bots/api/")) return await api(req, res, url);
     const t = target(url);
     if (t) {
@@ -556,11 +636,14 @@ const server = http.createServer(async (req, res) => {
 // HTTP proxy above remains the gate, as it was before ADR-0012.
 server.on("upgrade", (req, socket, head) => {
   const t = target(req.url ?? "/");
-  if (!t) return socket.destroy();
+  if (!t || foreignOrigin(req)) return socket.destroy();
   if (AUTH_OFF) {
     const cookies = String(req.headers.cookie ?? "").split(/;\s*/);
     if (!t.bot.watchToken || !cookies.includes(`metor_watch_${t.bot.name}=${t.bot.watchToken}`)) return socket.destroy();
-  } else if (!sessionOf(req)) return socket.destroy();
+  } else {
+    const s = sessionOf(req); if (!s) return socket.destroy();
+    trackSocket(s.id, socket);
+  }
   const up = net.connect(t.port, "127.0.0.1", () => {
     const lines = [`${req.method} ${t.path} HTTP/1.1`, ...Object.entries(req.headers).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`), "", ""];
     up.write(lines.join("\r\n")); if (head.length) up.write(head);

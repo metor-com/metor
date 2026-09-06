@@ -56,39 +56,48 @@ export function createCore(name) {
   let wake = null;
   const queue = [];
   function enqueueTurn(t) { queue.push(t); if (wake) { const w = wake; wake = null; w(); } }
-  // Adapters consume turns through this; the yield marks the turn as delivered and the bot as busy
+  // Adapters consume turns through this; the yield marks the turn as delivered and the bot as busy.
+  // Only now does the inbox cursor move past the turn: what is still queued when the host dies is
+  // read again by the next host instead of vanishing (it is in the chat, so it must be worked)
   async function* turns() {
     for (;;) {
       while (!queue.length) await new Promise((r) => (wake = r));
       const t = queue.shift();
       if (t.id) chat({ v: 1, type: "status", ref: t.id, status: "delivered", ts: now() });
+      if (t.offset) commitCursor(t.offset);
       saveState({ status: "busy" });
       yield t;
     }
   }
 
-  // Inbox tail (byte offset + cursor file)
-  let inboxOffset = 0, inboxRest = "";
+  // Inbox tail (byte offset + cursor file). The cursor names the byte after the last delivered turn;
+  // the read position runs ahead of it in memory only
+  let inboxOffset = 0, inboxRest = "", inboxFresh = true;
   try { inboxOffset = JSON.parse(readFileSync(cursorFile, "utf8")).offset ?? 0; } catch {}
+  const commitCursor = (offset) => { try { writeFileSync(cursorFile, JSON.stringify({ offset }) + "\n"); } catch {} };
   const pendingPerms = new Map();
   let onInterrupt = null;
   function inboxTick() {
+    const fresh = inboxFresh; inboxFresh = false;   // the first look at the inbox: whatever is there predates this host
     let size; try { size = statSync(inboxFile).size; } catch { return; }
     if (size < inboxOffset) { inboxOffset = 0; inboxRest = ""; }
     if (size === inboxOffset) return;
     const fd = openSync(inboxFile, "r");
     const buf = Buffer.alloc(size - inboxOffset);
     readSync(fd, buf, 0, buf.length, inboxOffset); closeSync(fd);
+    let at = inboxOffset - Buffer.byteLength(inboxRest);   // where the first (maybe half-read) line begins
     inboxOffset = size;
     const lines = (inboxRest + buf.toString("utf8")).split("\n"); inboxRest = lines.pop() ?? "";
     for (const line of lines) {
+      at += Buffer.byteLength(line) + 1;   // the byte after this line: the cursor once its turn is delivered
       if (!line.trim()) continue;
       let m; try { m = JSON.parse(line); } catch { continue; }
-      if (m.kind === "user" && typeof m.text === "string") enqueueTurn({ id: m.id, text: m.text });
+      if (m.kind === "user" && typeof m.text === "string") enqueueTurn({ id: m.id, text: m.text, offset: at });
+      else if (fresh) continue;   // answers and interrupts from before this host started belong to a host that is gone
       else if (m.kind === "permission-answer" && pendingPerms.has(m.ref)) pendingPerms.get(m.ref)(m.decision === "allow" ? "allow" : "deny");
       else if (m.kind === "interrupt") { log("Interrupt from the UI"); Promise.resolve(onInterrupt?.()).catch((e) => log("Interrupt failed:", e.message)); }
     }
-    try { writeFileSync(cursorFile, JSON.stringify({ offset: inboxOffset - Buffer.byteLength(inboxRest) }) + "\n"); } catch {}
+    if (!queue.length) commitCursor(at);   // nothing waiting: the cursor may skip the control lines just read
   }
   const inboxTimer = setInterval(inboxTick, 300);
 

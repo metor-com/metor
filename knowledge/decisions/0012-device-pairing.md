@@ -19,7 +19,9 @@ device by scanning a code shown on a device that is already in.
 
 1. **The gateway signs devices in itself.** Every browser that redeems a one-time claim receives a
    session: a random 256-bit secret in an `HttpOnly`, `SameSite=Lax` (and, behind HTTPS, `Secure`)
-   cookie scoped to `/bots`, valid for a year until revoked. Every request – JSON API, static files,
+   cookie scoped to `/bots`, valid for a year until revoked (since 2026-09-06 the year is checked
+   on the server as well, not only by the cookie's Max-Age, and a revocation closes the device's
+   open event streams and screen/terminal sockets). Every request – JSON API, static files,
    SSE and the WebSocket upgrades for screen and terminal – requires it; without it the API answers
    401 and pages get a plain sign-in page.
 2. **Claims are one-time tokens.** The *setup link* (`metor auth link`, also printed by the
@@ -51,3 +53,10 @@ device by scanning a code shown on a device that is already in.
   phishing-resistant – not a replacement for the pairing model.
 - Local development needs one claim per fresh workspace volume (`metor auth link` after
   `metor box up`); sessions live in the `metor-workspace` volume and survive image updates.
+
+**Addendum (2026-09-06, phone app):** a setup or pairing link opened on a phone (iPhone or
+Android user agent) no longer redeems on sight. The gateway first shows a choice – *Open in the
+metor app* (`metor://connect?url=<base>&token=<token>`, the scheme the app registers) or
+*Continue in the browser* (the same claim with `web=1`) – because the token is one-time and
+Safari would otherwise spend it on the web app. Desktop browsers keep the one-click sign-in.
+The base of the app link is `METOR_WATCH_BASE`, else the request's host.

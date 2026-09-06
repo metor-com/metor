@@ -95,12 +95,12 @@ export function supervise() {
     // otherwise nextRunAt stays in the past and the run is caught up on boot.
     for (const b of bots) if (hostAlive(b)) {
       try {
-        const { due, paused } = dueRoutines(BOTS_DIR, b.name);
-        for (const r of due) {
+        // The turn goes into the inbox before the routine's file moves on (fire-then-advance)
+        const { paused } = dueRoutines(BOTS_DIR, b.name, new Date(), (r) => {
           console.log(`supervise: routine "${r.name}" (${r.id}) for ${b.name}`);
           injectTurn(BOTS_DIR, b.name, `[Routine "${r.name}"] ${r.prompt}`, { origin: "routine" });
           recordRun(BOTS_DIR, b.name, r);
-        }
+        });
         // The auto-pause has struck: notice directly into the history (NO turn – that would cost exactly
         // the quota the guard protects); the bot switches it back on when asked via update_task
         for (const r of paused) {

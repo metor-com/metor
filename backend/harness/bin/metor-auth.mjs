@@ -12,6 +12,7 @@ const FILE = join(STORE_DIR, "auth.json");
 export const AUTH_OFF = process.env.METOR_AUTH === "off";   // only behind your own login or for local experiments
 export const COOKIE = "metor_session";
 const SESSION_DAYS = 365;
+const SESSION_TTL = SESSION_DAYS * 86400_000;
 const TTL = { setup: 24 * 60 * 60 * 1000, pair: 2 * 60 * 1000 };
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // no 0/O/1/I – the code is typed on a phone
 
@@ -23,9 +24,14 @@ export const baseUrl = () => (process.env.METOR_WATCH_BASE ?? "").replace(/\/$/,
 function load() {
   try { return { sessions: [], claims: [], ...JSON.parse(readFileSync(FILE, "utf8")) }; } catch { return { sessions: [], claims: [] }; }
 }
+// A session ends after a year, and the server checks – the cookie's Max-Age alone would leave a
+// copied bearer token valid forever (sessions from before this rule count from their creation)
+const expiresAt = (s) => s.expiresAt ?? (s.createdAt ?? 0) + SESSION_TTL;
+const expired = (s) => expiresAt(s) <= now();
 function save(db) {
   mkdirSync(STORE_DIR, { recursive: true });
   db.claims = db.claims.filter((c) => c.expiresAt > now());
+  db.sessions = db.sessions.filter((s) => !expired(s));
   const tmp = `${FILE}.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(db, null, 2) + "\n", { mode: 0o600 });
   renameSync(tmp, FILE);
@@ -57,9 +63,15 @@ export function claimSession({ token, code } = {}, { userAgent, ip, name = null 
   const secret = randomBytes(32).toString("base64url");
   // A native app names itself (the desktop app, ADR-0015); browsers are named from the user agent
   const label = typeof name === "string" && name.trim() && !/\p{Cc}/u.test(name) ? name.trim().slice(0, 60) : deviceName(userAgent);
-  const session = { id: randomBytes(6).toString("hex"), hash: sha(secret), name: label, createdAt: now(), lastSeenAt: now(), ip: ip ?? null, via: claim.kind };
+  const session = { id: randomBytes(6).toString("hex"), hash: sha(secret), name: label, createdAt: now(), expiresAt: now() + SESSION_TTL, lastSeenAt: now(), ip: ip ?? null, via: claim.kind };
   db.sessions.push(session); save(db);
   return { secret, session };
+}
+
+// Is there an unspent claim for this token? (the phone's app-or-browser page asks before it offers the choice)
+export function claimOpen(token) {
+  if (!token) return false;
+  const t = sha(token); return load().claims.some((cl) => cl.expiresAt > now() && same(cl.hash, t));
 }
 
 // ---------- Sessions ----------
@@ -79,10 +91,14 @@ export function sessionOf(req) {
   const raw = sessionSecret(req); if (!raw) return null;
   const h = sha(raw); const db = load();
   const s = db.sessions.find((x) => same(x.hash, h)); if (!s) return null;
+  if (expired(s)) { save(db); return null; }   // save() drops it
   if (now() - s.lastSeenAt > 60_000) { s.lastSeenAt = now(); save(db); }   // one write per minute at most
   return s;
 }
-export const listSessions = () => load().sessions.map(({ hash, ...s }) => s);
+// Is this session still valid? For connections that were checked once when they opened (event
+// streams, terminal and screen sockets) and must end when the device is revoked or the year is over
+export const sessionAlive = (id) => load().sessions.some((s) => s.id === id && !expired(s));
+export const listSessions = () => load().sessions.filter((s) => !expired(s)).map(({ hash, ...s }) => s);
 export function revokeSession(id) { const db = load(); const n = db.sessions.length; db.sessions = db.sessions.filter((s) => s.id !== id); if (db.sessions.length === n) return false; save(db); return true; }
 export function setCookieHeader(secret, req) {
   const secure = req.headers["x-forwarded-proto"] === "https";   // the real scheme of THIS request (Caddy sets the header); a plain-http local call must not get a Secure cookie
@@ -108,6 +124,27 @@ export async function qrTerminal(text) { const { default: QRCode } = await impor
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // The page every device without a session gets (plain HTML, no scripts, no assets)
+// A phone opening a setup or pairing link may want the metor app rather than the browser (the
+// link's token is one-time, so the choice comes before it is redeemed): the app link is the custom
+// scheme the app registers (client/mobile), the browser link is the same claim with web=1
+export function appChoicePage({ appLink, webLink }) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>metor – sign in</title>
+<style>
+ body{font:16px/1.5 -apple-system,system-ui,sans-serif;margin:0;background:#f4f4f5;color:#18181b;display:flex;min-height:100vh;align-items:center;justify-content:center}
+ main{background:#fff;border:1px solid #e4e4e7;border-radius:16px;padding:28px 28px 24px;max-width:26rem;margin:16px}
+ h1{margin:0 0 6px;font-size:20px} p{margin:8px 0;color:#52525b}
+ a.b{display:block;margin-top:14px;padding:12px 16px;border-radius:10px;background:#18181b;color:#fff;text-align:center;text-decoration:none;font-weight:600}
+ a.w{background:#f4f4f5;color:#18181b;font-weight:400}
+</style></head><body><main>
+<h1>metor</h1>
+<p>Sign this phone in to the bots' computer – in the metor app, or here in the browser.</p>
+<a class="b" href="${esc(appLink)}">Open in the metor app</a>
+<a class="b w" href="${esc(webLink)}">Continue in the browser</a>
+<p style="font-size:14px">No app yet? The browser works the same way, and the app can be connected later from <em>Settings → Devices</em>.</p>
+</main></body></html>`;
+}
+
 export function signInPage({ error = null } = {}) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>metor – sign in</title>

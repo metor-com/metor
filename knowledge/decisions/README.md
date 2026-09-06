@@ -20,4 +20,7 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0014 | [Connectors: MCP servers configured once, for every bot](0014-connectors.md) | accepted (2026-09-04, implemented) |
 | 0015 | [Native clients: Electron on the desktop, PWA on phones, one `client/` directory](0015-native-clients.md) | accepted (2026-09-04, desktop app implemented) |
 | 0016 | [Gemini CLI as the third runtime, signed in over its agent protocol](0016-gemini-runtime.md) | accepted (2026-09-05, implemented; turn shapes to verify) |
-| 0017 | [Push relay: native push for the phone app through a forwarder that sees only ciphertext](0017-push-relay.md) | accepted (2026-09-06, not built yet) |
+| 0017 | [Push relay: native push for the phone app through a forwarder that sees only ciphertext](0017-push-relay.md) | accepted (2026-09-06, built the same day) |
+| 0018 | [The management plane runs apart from the bots](0018-management-plane.md) | proposed (2026-09-06, planned for 0.3; the quick wins are built) |
+| 0019 | [Boundary approvals are connector approvals: for every runtime, chosen per bot](0019-boundary-approvals.md) | proposed (2026-09-06; documentation aligned) |
+| 0020 | [Push relay: the sender's key is bound to the device endpoint](0020-relay-sender-binding.md) | proposed (2026-09-06; before outside testers) |

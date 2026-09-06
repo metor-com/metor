@@ -170,8 +170,11 @@ notify events while the app is open), `@aparajita/capacitor-secure-storage` (ses
 The simulator shares the Mac's network, a real iPhone does not: the box publishes its port on
 `127.0.0.1` only by default. For the phone in the same Wi-Fi start the computer with
 `METOR_BIND=0.0.0.0 METOR_WATCH_BASE=http://<the Mac's address>:6010 metor box up` – the pairing
-link from `metor auth link` then carries the Mac's address (scan its QR code with the phone's
-camera), and iOS asks once for local-network access. Away from home it is Tailscale or a server.
+link from `metor auth link` then carries the Mac's address. Scan its QR code with the phone's
+camera: the gateway sees a phone and asks *Open in the metor app* or *Continue in the browser*
+before the one-time token is spent (the app link is `metor://connect?url=…&token=…`, the
+browser link the same claim with `web=1`; a desktop browser is signed in straight away as
+before). iOS asks once for local-network access. Away from home it is Tailscale or a server.
 
 ## Icons and splash screens
 

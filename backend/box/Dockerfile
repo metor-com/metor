@@ -89,6 +89,8 @@ COPY backend/harness/bin/metor-routines.mjs /usr/local/lib/metor/metor-routines.
 COPY backend/harness/bin/metor-routines-mcp.mjs /usr/local/lib/metor/metor-routines-mcp.mjs
 COPY backend/harness/templates /usr/local/lib/metor/templates
 COPY backend/harness/hooks /usr/local/lib/metor/hooks
+# The compose file that belongs to this image – the installer takes it from here, so image and compose never drift
+COPY deploy/compose.yml /usr/local/lib/metor/compose.yml
 COPY --from=frontend /fe/dist /usr/local/lib/metor/frontend
 
 # noVNC ports of the bot desktops (display 11..49 → port 6011..6049), publish only on the host's loopback

@@ -13,13 +13,18 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Pause, Resume and Run now on every routine card** - they work without the bot, so a routine
+  the quota guard paused can be switched back on when exactly that quota is used up. Creating and
+  editing routines stays in the chat.
+
 - **Native phone app for iPhone and Android** (`client/mobile/`,
   [ADR-0017](knowledge/decisions/0017-push-relay.md)): the same interface in a store-ready shell,
   connected to a computer by its setup link, with push notifications through metor's relay -
   Approve / Deny right in the notification, a switch per device, and a badge on the app icon that
   counts unread replies across bots and clears as you read. Bot pictures and picture attachments
   show in the app, and a tap on an attachment or a file in the file browser opens it with the
-  phone's viewer (Quick Look on iPhone). Not in the stores yet.
+  phone's viewer (Quick Look on iPhone). A setup or pairing link opened on a phone asks whether
+  to sign in the app or the browser. Not in the stores yet.
 
 ### Changed
 
@@ -31,6 +36,31 @@ On a release the section is renamed to the version number and dated. Ideas and o
 - **Desktop app: the Computers menu ticks the computer you are looking at** (also in the tray
   menu) and the app remembers it - the next start opens the computer that was open last, whether
   it was chosen from the menu, the connect screen or by focusing its window.
+
+### Security
+
+- **A bot's HTML or SVG file opens sandboxed**: its scripts no longer run with your session and
+  cannot call the interface's API. Files the bots write are also served with their real path only
+  - a link a bot leaves in its directory cannot lead outside it - and the connector file with its
+  keys is no longer listed in the file browser.
+- **Sessions end after a year on the server too**, not only in the browser's cookie, and removing
+  a device now closes its open screens, terminals and live updates at once. Changes with the
+  session cookie must come from the interface's own address (cross-site requests are refused).
+- **Desktop app**: microphone, camera, screen sharing and the clipboard are granted to the
+  interface itself only; screen sharing needs a click. Desktop and phone app refuse a computer
+  address with plain `http://` outside this machine and the local network - the session would
+  travel unencrypted.
+- The server compose file caps the box at 8 GB (`METOR_MEMORY`) and 4096 processes.
+
+### Fixed
+
+- **Messages sent while the bot was busy survive a restart of its host**: they were lost when the
+  host process died before it got to them, although they stood in the chat.
+- A routine with a schedule that never matches a date (the 31st of February) is refused instead of
+  being given a made-up time; one that runs out of dates pauses with a note.
+- Two uploads in the same second no longer overwrite each other.
+- The installer's compose file now comes out of the image, so it always carries the volumes the
+  image needs (the Gemini login volume was missing from the installer's copy).
 
 ## [0.2.0] - 2026-09-05
 
