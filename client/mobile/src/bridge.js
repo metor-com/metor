@@ -224,9 +224,12 @@ async function enablePush() {
 MetorPush.addListener("opened", (e) => openBot(e?.bot)).catch(() => {});   // no native plugin in a browser
 
 // ---------- Links: metor://connect?url=…&token=… (also …&code=…) from a pairing link or QR code; metor://open?bot=… ----------
+const handledLinks = new Set();   // Android hands the launch link to appUrlOpen as well, at the same moment – redeem it once
 async function handleLink(link) {
   let u; try { u = new URL(link); } catch { return false; }
   if (u.protocol !== "metor:") return false;
+  if (handledLinks.has(link)) return false;
+  handledLinks.add(link);
   if (u.searchParams.get("bot")) { openBot(u.searchParams.get("bot")); return false; }
   if (!u.searchParams.get("token") && !u.searchParams.get("code")) return false;
   const r = await connect({ claim: link });
