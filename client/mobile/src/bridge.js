@@ -279,22 +279,24 @@ async function enablePush() {
 MetorPush.addListener("opened", (e) => openBot(e?.bot)).catch(() => {});   // no native plugin in a browser
 
 // ---------- Links: metor://connect?url=…&token=… (also …&code=…) from a pairing link or QR code; metor://open?bot=… ----------
-const handledLinks = new Set();   // Android hands the launch link to appUrlOpen as well, at the same moment – redeem it once
+// A connect link is redeemed once: Android hands the launch link to appUrlOpen as well, at the same
+// moment (the Set); iOS delivers a cold-start link to appUrlOpen too, and after the reload that follows
+// the connect getLaunchUrl still returns it (sessionStorage, verified on an iPhone 2026-09-06 – the
+// second redeem showed "invalid or expired" although the first had connected)
+const handledLinks = new Set();
 async function handleLink(link) {
   let u; try { u = new URL(link); } catch { return false; }
   if (u.protocol !== "metor:") return false;
-  if (handledLinks.has(link)) return false;
-  handledLinks.add(link);
   if (u.searchParams.get("bot")) { openBot(u.searchParams.get("bot")); return false; }
   if (!u.searchParams.get("token") && !u.searchParams.get("code")) return false;
+  if (handledLinks.has(link) || sessionStorage.getItem("metor:launch") === link) return false;
+  handledLinks.add(link); sessionStorage.setItem("metor:launch", link);
   const r = await connect({ claim: link });
   console.log("metor: link", r.ok ? "connected" : r.error);
   if (!r.ok) { alert(r.error); return false; }
   return true;   // connected – the caller reloads
 }
-// Android fires appUrlOpen for the launch intent as well – the launch link is handled once, below
 App.addListener("appUrlOpen", async ({ url }) => {
-  if (url === sessionStorage.getItem("metor:launch")) return;
   try { if (await handleLink(url)) reload(); } catch (e) { alert(`metor: ${e?.message ?? e}`); }
 });
 // Nothing here may fail silently – on a phone there is no console to look at
@@ -303,11 +305,10 @@ window.addEventListener("error", (e) => alert(`metor app: ${e.message}`));
 
 // ---------- Start: the store, the launch link, the current computer, then the interface ----------
 await load();
-// The launch link stays the launch link for the whole process – after the reload that follows a
-// successful connect it must not be redeemed a second time (the claim is gone: "invalid or expired")
+// The launch link stays the launch link for the whole process – handleLink redeems it once (see there)
 try {
   const l = await App.getLaunchUrl();
-  if (l?.url && sessionStorage.getItem("metor:launch") !== l.url) { sessionStorage.setItem("metor:launch", l.url); if (await handleLink(l.url)) reload(); }
+  if (l?.url && await handleLink(l.url)) reload();
 } catch (e) { console.warn("metor: launch link", e?.message ?? e); }
 const c = current();
 if (c?.secret) await setSessionCookie(c);
