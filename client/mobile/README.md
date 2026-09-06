@@ -92,6 +92,17 @@ in the app it drives the native registration through `window.metor.push` (`state
 A device that re-registers with a new token or query is one subscription at the gateway, not two
 (the gateway matches subscriptions by the endpoint's path).
 
+**When the app is deleted.** No app can run code at its own removal, so the subscription is
+cleaned up by the platforms' feedback: the next push to a removed app makes FCM answer
+`UNREGISTERED` and APNs `Unregistered` / `BadDeviceToken`, the relay turns both into 410, and the
+gateway drops the subscription on the spot (as it does for a browser whose push service says the
+same). Verified 2026-09-06 on Android in the emulator: app deleted, next push → relay `410
+UNREGISTERED` → the gateway logs "1 dropped" and the entry is gone. The iOS simulator never tells
+APNs about a removed app (its tokens keep answering 200); on a real iPhone APNs reports the
+removal once the device has been online. Sign-out and "forget" unsubscribe explicitly, and a
+revoked session takes its subscriptions with it (ADR-0012/0013). Note for iOS: keychain items
+survive an app deletion, so a reinstalled app is still signed in and registers again by itself.
+
 **Approve / Deny from the notification.** An approval push carries the permission card's `ref`
 (gateway) and the id of the computer it came from (`?c=<id>` on the subscription's endpoint, passed
 on by the relay). The bridge hands the native side the computer's address and session after each

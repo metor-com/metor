@@ -146,4 +146,8 @@ deployment at `push.metor.com` (waits for the Apple key and the Firebase project
   too, through the bridge – off removes the subscription and stops registering at start, on
   registers again, test sends a test push. The gateway keeps one subscription per device
   (endpoint path), so a re-registration with a new token or query replaces the old entry.
-- Not yet: badge counts, unsubscribing the relay endpoint when the app is deleted.
+- **A deleted app** cannot unsubscribe itself; the platforms' feedback does it: the next push makes
+  FCM answer `UNREGISTERED` and APNs `Unregistered`, the relay answers 410, the gateway drops the
+  subscription (verified on Android in the emulator; the iOS simulator does not report removals to
+  APNs, real devices do). Sign-out, "forget" and a revoked session unsubscribe explicitly.
+- Not yet: badge counts.
