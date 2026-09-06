@@ -6,7 +6,8 @@
 #   metor bot … | metor auth …    forwarded into the computer
 # Environment: METOR_RUNTIME=docker|container (else detected), METOR_BOX_IMAGE (default: a local
 # metor-box:dev, else the published image), METOR_BOX_CONTAINER, METOR_PORT (host port of the
-# interface, default 6010), METOR_WATCH_BASE, METOR_AUTH, METOR_APP_ORIGINS, METOR_MEMORY/METOR_CPUS (Apple container only).
+# interface, default 6010), METOR_BIND (address the interface is published on, default 127.0.0.1; 0.0.0.0 for the
+# phone on the same Wi-Fi), METOR_WATCH_BASE, METOR_AUTH, METOR_APP_ORIGINS, METOR_MEMORY/METOR_CPUS (Apple container only).
 set -euo pipefail
 C="${METOR_BOX_CONTAINER:-metor-box}"
 PORT="${METOR_PORT:-6010}"
@@ -80,6 +81,9 @@ box_up() {
   if running; then echo "$C is already running ($RT)"; return; fi
   # The base URL the gateway prints in setup and watch links: the public one, else this port when it is not the default
   local base="${METOR_WATCH_BASE:-}"; [ -z "$base" ] && [ "$PORT" != 6010 ] && base="http://127.0.0.1:$PORT"
+  # The interface listens on this machine only, unless METOR_BIND says otherwise (0.0.0.0: the phone
+  # on the same Wi-Fi reaches it – sign-in by pairing still guards it; the desktop ports stay local)
+  local BIND="${METOR_BIND:-127.0.0.1}"
   image_present "$IMAGE" || { echo "getting $IMAGE (about 1 GB to download – this takes a few minutes)"; "$RT" image pull $PROGRESS "$IMAGE"; }
   case "$RT" in
     docker)
@@ -89,7 +93,7 @@ box_up() {
       # shellcheck disable=SC2086
       docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
         --ulimit nofile=65536:65536 \
-        -p "127.0.0.1:$PORT:6010" -p 127.0.0.1:6011-6049:6011-6049 \
+        -p "$BIND:$PORT:6010" -p 127.0.0.1:6011-6049:6011-6049 \
         -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" \
         $VOLS "$IMAGE" >/dev/null ;;
     container)
@@ -102,7 +106,7 @@ box_up() {
       # No restart policy here: after a reboot, `metor box up` (or the desktop app) starts the computer again
       # shellcheck disable=SC2086
       container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${METOR_MEMORY:-4g}" --cpus "${METOR_CPUS:-4}" \
-        -p "127.0.0.1:$PORT:6010" \
+        -p "$BIND:$PORT:6010" \
         -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" \
         $VOLS "$IMAGE" >/dev/null ;;
   esac
@@ -157,5 +161,5 @@ CADDY
   esac ;;
   version|--version) echo "metor $(cat "$CORE/../VERSION" 2>/dev/null || echo "$METOR_VERSION_FALLBACK")" ;;
   bot|auth) running || { echo "$C is not running – metor box up"; exit 1; }; c="$1"; shift; exec_in "$C" metor "$c" "$@" ;;
-  *) echo 'metor – CLI'; echo '  setup                       (runtime, image, start, setup link)'; echo '  box  build | up | down | state | status | shell | logs | login | serve'; echo '  bot  create <name> --role "..." | list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name>'; echo '  auth link | sessions | revoke <id>      (sign-in link for a device, signed-in devices)'; echo "  Runtime: $RT (METOR_RUNTIME=docker|container)  Environment: METOR_WATCH_BASE=https://bots.example.com (public base URL of the interface)"; [ -n "${1:-}" ] && exit 1 || exit 0 ;;
+  *) echo 'metor – CLI'; echo '  setup                       (runtime, image, start, setup link)'; echo '  box  build | up | down | state | status | shell | logs | login | serve'; echo '  bot  create <name> --role "..." | list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name>'; echo '  auth link | sessions | revoke <id>      (sign-in link for a device, signed-in devices)'; echo "  Runtime: $RT (METOR_RUNTIME=docker|container)  Environment: METOR_WATCH_BASE=https://bots.example.com (public base URL of the interface), METOR_BIND=0.0.0.0 (reachable on the LAN, e.g. for the phone)"; [ -n "${1:-}" ] && exit 1 || exit 0 ;;
 esac

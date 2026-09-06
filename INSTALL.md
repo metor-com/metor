@@ -215,7 +215,12 @@ start the bots.
 ## Options (.env, see `deploy/.env.example`)
 
 - `METOR_IMAGE` - a different box image (for example a version tag instead of `latest`).
-- `METOR_WATCH_BASE` - public base URL of the interface; ends up in the watch links that bots send.
+- `METOR_WATCH_BASE` - public base URL of the interface; ends up in the watch links that bots send
+  and in the pairing links (`metor auth link`).
+- `METOR_BIND` - the address the wrapper publishes the interface on, default `127.0.0.1` (this
+  machine only). `0.0.0.0` makes a computer on a Mac reachable in the same Wi-Fi, for the phone
+  app: `METOR_BIND=0.0.0.0 METOR_WATCH_BASE=http://<the Mac's address>:6010 metor box up`. Sign-in
+  by pairing still guards it; the desktops' own ports stay local.
 - `METOR_DOMAIN` - only with the caddy profile: domain for TLS.
 - `METOR_AUTH` - `off` switches the gateway's own sign-in off; only behind your own login layer or
   for local experiments (see "Security first").

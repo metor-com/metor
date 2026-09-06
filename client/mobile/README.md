@@ -165,6 +165,14 @@ notify events while the app is open), `@aparajita/capacitor-secure-storage` (ses
 `@capacitor/inappbrowser` (the screen and terminal web view), `@capacitor/filesystem` and
 `@capacitor-community/file-opener` with `@capacitor/share` (attachments, see *Pictures and files*).
 
+## A real phone and a computer on the Mac
+
+The simulator shares the Mac's network, a real iPhone does not: the box publishes its port on
+`127.0.0.1` only by default. For the phone in the same Wi-Fi start the computer with
+`METOR_BIND=0.0.0.0 METOR_WATCH_BASE=http://<the Mac's address>:6010 metor box up` – the pairing
+link from `metor auth link` then carries the Mac's address (scan its QR code with the phone's
+camera), and iOS asks once for local-network access. Away from home it is Tailscale or a server.
+
 ## Icons and splash screens
 
 The sources are `assets/logo.svg` (the metor mark, the same as `frontend/public/icons/icon.svg`)
