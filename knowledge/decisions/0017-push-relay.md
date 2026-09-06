@@ -142,5 +142,8 @@ deployment at `push.metor.com` (waits for the Apple key and the Firebase project
   answer `…/chat/permission` from the notification, after the unlock, without opening the app.
   Verified on Android with a synthetic approval through the relay (202, notification gone); on iOS
   the extension marks the category, the tap waits for a real device.
-- Not yet: badge counts, a "notifications off" switch in the app's settings, unsubscribing the
-  relay endpoint when the app is deleted.
+- **The switch** (same evening): the PWA's card "Notifications on this device" works in the app
+  too, through the bridge – off removes the subscription and stops registering at start, on
+  registers again, test sends a test push. The gateway keeps one subscription per device
+  (endpoint path), so a re-registration with a new token or query replaces the old entry.
+- Not yet: badge counts, unsubscribing the relay endpoint when the app is deleted.

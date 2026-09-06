@@ -52,13 +52,19 @@ export const countForSession = (sessionId) => load().subscriptions.filter((s) =>
 const validSub = (s) => typeof s?.endpoint === "string" && /^https:\/\/\S+$/.test(s.endpoint) && s.endpoint.length < 2048
   && typeof s.keys?.p256dh === "string" && s.keys.p256dh.length < 200 && typeof s.keys?.auth === "string" && s.keys.auth.length < 100;
 
-// Register (or refresh) the subscription of a device; the endpoint is the identity
+// Register (or refresh) the subscription of a device; the endpoint is the identity – its path, to be exact:
+// the phone app appends ?c=<computer> to the relay endpoint (ADR-0017), and a device that re-registers
+// with a different query is still the same device, not a second one
+const sameDevice = (a, b) => a.split("?")[0] === b.split("?")[0];
 export function subscribe(sessionId, sub, userAgent) {
   if (!validSub(sub)) return { error: "invalid subscription" };
   const d = load();
   const keys = { p256dh: sub.keys.p256dh, auth: sub.keys.auth };
-  const existing = d.subscriptions.find((s) => s.endpoint === sub.endpoint);
-  if (existing) Object.assign(existing, { sessionId, keys, seenAt: Date.now(), failures: 0 });
+  const existing = d.subscriptions.find((s) => sameDevice(s.endpoint, sub.endpoint));
+  if (existing) {
+    Object.assign(existing, { sessionId, endpoint: sub.endpoint, keys, seenAt: Date.now(), failures: 0 });
+    d.subscriptions = d.subscriptions.filter((s) => s === existing || !sameDevice(s.endpoint, sub.endpoint));   // one entry per device
+  }
   else {
     const mine = d.subscriptions.filter((s) => s.sessionId === sessionId).sort((a, b) => a.createdAt - b.createdAt);
     while (mine.length >= MAX_PER_SESSION) { const old = mine.shift(); d.subscriptions = d.subscriptions.filter((s) => s !== old); }
@@ -70,7 +76,7 @@ export function subscribe(sessionId, sub, userAgent) {
 }
 export function unsubscribe(endpoint) {
   const d = load(); const n = d.subscriptions.length;
-  d.subscriptions = d.subscriptions.filter((s) => s.endpoint !== endpoint);
+  d.subscriptions = d.subscriptions.filter((s) => !sameDevice(s.endpoint, endpoint));
   if (d.subscriptions.length !== n) save();
   return { ok: true };
 }

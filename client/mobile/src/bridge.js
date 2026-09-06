@@ -151,6 +151,8 @@ window.EventSource = function EventSource(url, init) {
 let openBotCallback = null, pendingBot = null, notifyId = 1;
 const openBot = (bot) => { if (!bot) return; if (openBotCallback) openBotCallback(bot); else pendingBot = bot; };
 let pushEndpoint = null;   // the subscription registered with the current computer, null without native push
+let pushState = { state: "off", error: null };   // what the settings card shows: on | off | denied | unavailable
+let pushInFlight = null;                          // the registration running at start – the card waits for it
 async function notify(n) {
   if (pushEndpoint) return;   // the gateway pushes to this device natively; a local copy would double it
   try {
@@ -180,22 +182,43 @@ async function openComputer(url) {
 // ---------- Native push: register with APNs/FCM, then hand the gateway a Web Push subscription whose endpoint is the relay ----------
 // The gateway treats it like any browser subscription (metor-push.mjs): it encrypts for the device's key pair and
 // posts to the endpoint; the relay forwards to Apple or Google; the app decrypts (notification extension / messaging service).
-async function registerPush(c) {
-  if (!c?.secret || platform === "web") return;
-  let r; try { r = await MetorPush.register(); } catch (e) { console.warn("metor: push", e?.message ?? e); return; }
-  if (!r?.token || !r.p256dh || !r.auth) { console.log("metor: push not available", r?.reason ?? ""); return; }
+function registerPush(c) { pushInFlight = doRegisterPush(c).finally(() => { pushInFlight = null; }); return pushInFlight; }
+async function doRegisterPush(c) {
+  if (!c?.secret || platform === "web") return (pushState = { state: "unavailable", error: null });
+  let r; try { r = await MetorPush.register(); } catch (e) { console.warn("metor: push", e?.message ?? e); return (pushState = { state: "unavailable", error: e?.message ?? String(e) }); }
+  if (!r?.token || !r.p256dh || !r.auth) {
+    console.log("metor: push not available", r?.reason ?? "");
+    return (pushState = r?.reason === "denied" ? { state: "denied", error: null } : { state: "unavailable", error: r?.reason ?? "no token" });
+  }
   const route = r.platform === "android" ? "fcm" : r.sandbox ? "apns-sandbox" : "apns";
   const endpoint = `${PUSH_RELAY}/v1/${route}/${r.token}?c=${c.id}`;   // ?c: which computer sent a push (the relay passes it on)
   try {
+    // A token that changed (reinstall, new FCM token): drop the previous subscription so the computer does not push twice
+    if (c.pushEndpoint && c.pushEndpoint !== endpoint) { try { await fetchJson(`${c.origin}/bots/api/push/unsubscribe`, { method: "POST", headers: { authorization: `Bearer ${c.secret}`, "content-type": "application/json" }, body: JSON.stringify({ endpoint: c.pushEndpoint }) }, 6000); } catch {} }
     const res = await fetchJson(`${c.origin}/bots/api/push/subscribe`, { method: "POST", headers: { authorization: `Bearer ${c.secret}`, "content-type": "application/json" }, body: JSON.stringify({ subscription: { endpoint, keys: { p256dh: r.p256dh, auth: r.auth } } }) });
     if (res.ok) {
       pushEndpoint = endpoint; if (c.pushEndpoint !== endpoint) { c.pushEndpoint = endpoint; await save(); }
       // The native side answers approvals from the notification itself (Approve / Deny) – it needs the computer's address and session
       try { await MetorPush.setComputer({ id: c.id, origin: c.origin, token: c.secret }); } catch (e) { console.warn("metor: push computer", e?.message ?? e); }
       console.log("metor: push registered", route);
+      return (pushState = { state: "on", error: null });
     }
-    else console.warn("metor: push subscribe", res.status, res.data?.error ?? "");
-  } catch (e) { console.warn("metor: push subscribe", e?.message ?? e); }
+    console.warn("metor: push subscribe", res.status, res.data?.error ?? "");
+    return (pushState = { state: res.status === 404 ? "unavailable" : "off", error: res.data?.error ?? `HTTP ${res.status}` });
+  } catch (e) { console.warn("metor: push subscribe", e?.message ?? e); return (pushState = { state: "off", error: e?.message ?? String(e) }); }
+}
+// The switch in Settings → Devices ("Notifications on this device", the same card the PWA has): off means
+// no subscription at the computer and no registration at the next start; the preference is per device
+async function disablePush() {
+  const c = current();
+  if (c?.secret && pushEndpoint) { try { await fetchJson(`${c.origin}/bots/api/push/unsubscribe`, { method: "POST", headers: { authorization: `Bearer ${c.secret}`, "content-type": "application/json" }, body: JSON.stringify({ endpoint: pushEndpoint }) }, 6000); } catch {} }
+  if (c) { try { await MetorPush.clearComputer({ id: c.id }); } catch {} c.pushEndpoint = null; }
+  pushEndpoint = null; db.pushEnabled = false; await save();
+  return (pushState = { state: "off", error: null });
+}
+async function enablePush() {
+  db.pushEnabled = true; await save();
+  return registerPush(current());
 }
 // A tap on a push notification carries the bot (payload of metor-push.mjs); the extension/service put it into the notification
 MetorPush.addListener("opened", (e) => openBot(e?.bot)).catch(() => {});   // no native plugin in a browser
@@ -241,9 +264,10 @@ window.metor = {
   signedOut: () => { signedOut(); },
   notify,
   openComputer,
+  push: { state: async () => { if (pushInFlight) await pushInFlight; return pushState; }, enable: enablePush, disable: disablePush },
   onOpenBot: (cb) => { openBotCallback = cb; if (pendingBot) { const b = pendingBot; pendingBot = null; cb(b); } },
 };
 // Now the interface: base.js reads window.metor when its module is evaluated
 const entry = document.querySelector("script[data-entry]")?.dataset.entry;
 if (entry) { const s = document.createElement("script"); s.type = "module"; s.src = entry; document.head.appendChild(s); }
-if (c?.secret && reach) registerPush(c);   // in the background; the interface does not wait for it
+if (c?.secret && reach && db.pushEnabled !== false) registerPush(c);   // in the background; the interface does not wait for it

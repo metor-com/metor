@@ -85,6 +85,13 @@ access group both app and extension share (`$(AppIdentifierPrefix)com.metor.mobi
 Android in preferences wrapped with a keystore key. While native push is registered the bridge
 shows no local notifications of its own. A tap opens the bot.
 
+**The switch.** Settings → Devices shows the same "Notifications on this device" card as the PWA;
+in the app it drives the native registration through `window.metor.push` (`state`, `enable`,
+`disable`): *Turn off* removes the subscription at the computer and stops registering at start,
+*Turn on* registers again, *Test* asks the gateway for a test push. The preference is per device.
+A device that re-registers with a new token or query is one subscription at the gateway, not two
+(the gateway matches subscriptions by the endpoint's path).
+
 **Approve / Deny from the notification.** An approval push carries the permission card's `ref`
 (gateway) and the id of the computer it came from (`?c=<id>` on the subscription's endpoint, passed
 on by the relay). The bridge hands the native side the computer's address and session after each

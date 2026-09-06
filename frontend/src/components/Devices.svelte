@@ -14,7 +14,7 @@
     unsupported: "This browser cannot receive push notifications.",
     unavailable: "Push is not available in this box (the image lacks web-push).",
     "needs-install": "On iPhone and iPad push works only from the Home Screen app: Share → Add to Home Screen, open metor from there, sign in with a pairing code, then turn notifications on.",
-    denied: "Notifications are blocked for metor – allow them in the browser or system settings, then reload.",
+    denied: "Notifications are blocked for metor – allow them in the browser or system settings, then try again.",
     off: "Get notified when a bot needs an approval, finishes a reply or stops unexpectedly.",
     on: "Approvals, finished replies and unexpected stops reach this device – unless you are looking at that chat.",
   };

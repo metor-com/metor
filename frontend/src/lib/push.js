@@ -12,10 +12,13 @@ import { app } from "./base.js";
 
 export const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 export const standalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-// The desktop app has no service worker: it keeps a stream to the gateway and notifies natively (ADR-0015)
+// The desktop app has no service worker: it keeps a stream to the gateway and notifies natively (ADR-0015).
+// The phone app registers natively (APNs/FCM through the relay, ADR-0017) and offers the same switch
+// through window.metor.push – the card below is the same, only the mechanism behind it differs.
 const supported = () => !app && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const native = () => !!app?.push;
 
-export const pushState = writable({ state: supported() ? "off" : "unsupported", devices: 0, error: null });
+export const pushState = writable({ state: supported() || native() ? "off" : "unsupported", devices: 0, error: null });
 // Android/desktop Chrome: the browser offers the install once – we keep the event for an "Install app" button
 export const installPrompt = writable(null);
 window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installPrompt.set(e); });
@@ -27,6 +30,7 @@ const bytesToB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).re
 const set = (state, patch = {}) => pushState.update((s) => ({ ...s, error: null, ...patch, state }));
 
 export async function initPush() {
+  if (native()) return syncNative();
   if (!supported()) return;
   try { reg = await navigator.serviceWorker.register("/bots/sw.js", { scope: "/bots/" }); }
   catch (e) { set("unsupported", { error: e.message }); return; }
@@ -35,6 +39,15 @@ export async function initPush() {
     if (e.data?.type === "open" && e.data.url) { try { location.hash = new URL(e.data.url, location.href).hash; } catch {} }
   });
   await syncState();
+}
+
+// Phone app: the box must have push, the rest (permission, token, subscription) is the bridge's state
+async function syncNative(result = null) {
+  let info;
+  try { info = await pushKey(); } catch (e) { set("unavailable", { error: e.message }); return; }
+  if (!info.enabled) { set("unavailable"); return; }
+  const s = result ?? await app.push.state();
+  set(s.state, { devices: info.subscribed, error: s.error ?? null });
 }
 
 async function syncState() {
@@ -58,6 +71,7 @@ async function syncState() {
 
 // Runs inside the tap on the button – Safari and iOS grant permission only from a user gesture
 export async function enablePush() {
+  if (native()) { try { await syncNative(await app.push.enable()); } catch (e) { pushState.update((s) => ({ ...s, error: e.message })); } return; }
   if (!reg || !serverKey) { pushState.update((s) => ({ ...s, error: "push is not ready yet – try again in a moment" })); return; }
   try {
     const perm = await Notification.requestPermission();
@@ -68,6 +82,7 @@ export async function enablePush() {
   } catch (e) { pushState.update((s) => ({ ...s, error: e.message })); }
 }
 export async function disablePush() {
+  if (native()) { try { await syncNative(await app.push.disable()); } catch (e) { pushState.update((s) => ({ ...s, error: e.message })); } return; }
   try {
     const sub = await reg?.pushManager.getSubscription();
     if (sub) { await pushUnsubscribe(sub.endpoint).catch(() => {}); await sub.unsubscribe(); }
