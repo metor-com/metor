@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test test/
+      - run: node --test test/*.test.mjs
         working-directory: backend/relay
       - name: End to end with the gateway's web-push library
         run: npm install --no-save --no-fund --no-audit web-push@3.6.7 && node scripts/webpush-e2e.mjs

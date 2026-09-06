@@ -9,7 +9,7 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "start": "node relay.mjs",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.mjs",
     "e2e": "npm install --no-save --no-fund --no-audit web-push@3.6.7 && node scripts/webpush-e2e.mjs"
   }
 }

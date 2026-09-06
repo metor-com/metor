@@ -9,7 +9,7 @@ the still-encrypted body for Apple or Google and forwards it. It never sees a re
 notification, keeps no queue and no store, and logs no content.
 
 One file, no dependencies, Node 22 or newer: [relay.mjs](relay.mjs). Tests with stand-ins for APNs
-and FCM: `npm test` (`node --test test/`); `npm run e2e` sends a message with the gateway's own
+and FCM: `npm test` (`node --test test/*.test.mjs`); `npm run e2e` sends a message with the gateway's own
 `web-push` library through the relay and decrypts it on the device side
 ([scripts/webpush-e2e.mjs](scripts/webpush-e2e.mjs)).
 
@@ -71,6 +71,24 @@ push.example.com {
     reverse_proxy 127.0.0.1:6020
 }
 ```
+
+Without Docker – a host that only has Node (metor's own relay runs like this): a checkout of the
+repository, a system user, the environment in a root-owned file the user can read, and a systemd
+unit:
+
+```
+[Service]
+User=metor-push
+EnvironmentFile=/etc/metor-push/relay.env      # RELAY_ORIGIN, HOST=127.0.0.1, APNS_*, FCM_SERVICE_ACCOUNT_FILE
+ExecStart=/usr/bin/node /opt/metor/backend/relay/relay.mjs
+Restart=always
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadOnlyPaths=/etc/metor-push /opt/metor
+```
+
+Key files are owned by root with the service's group and mode 640. An update is `git pull` in the
+checkout and `systemctl restart metor-push`.
 
 ## Running your own
 
