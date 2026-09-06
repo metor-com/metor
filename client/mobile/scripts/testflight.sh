@@ -2,7 +2,10 @@
 # Archive the iPhone app and upload it to TestFlight (client/mobile/README.md, "TestFlight").
 #
 # Needs, on a Mac with Xcode: the interface build tools (node) and an App Store Connect API key
-# (App Store Connect → Users and Access → Integrations → App Store Connect API, role App Manager).
+# (App Store Connect → Users and Access → Integrations → App Store Connect API) with the **Admin** role:
+# the export signs with a cloud-managed Apple Distribution certificate, and only Admin keys may
+# create one ("Cloud signing permission error" otherwise). `--check` prints the settings and stops,
+# `--upload` skips the archive step and uploads the archive from the last run.
 # The settings come from ~/.config/metor/testflight.env (or the file named in METOR_TESTFLIGHT_ENV),
 # a plain shell file, or from the environment:
 #   APPLE_TEAM_ID   the developer team
@@ -56,19 +59,24 @@ AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" -authenti
 echo "== metor $VERSION build $BUILD, team $APPLE_TEAM_ID, key $ASC_KEY_ID ($ASC_KEY_PATH), issuer $ASC_ISSUER_ID"
 [ "${1:-}" = "--check" ] && { echo "settings complete – run without --check to archive and upload"; exit 0; }
 
-OUT=build/testflight; rm -rf "$OUT"; mkdir -p "$OUT"
-echo "== interface build + sync"
-npm run sync >/dev/null
+OUT=build/testflight
+if [ "${1:-}" = "--upload" ] && [ -d "$OUT/App.xcarchive" ]; then
+  echo "== using the archive of the last run ($OUT/App.xcarchive)"
+else
+  rm -rf "$OUT"; mkdir -p "$OUT"
+  echo "== interface build + sync"
+  npm run sync >/dev/null
 
-echo "== archive"
-set +e
-xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' \
-  -archivePath "$OUT/App.xcarchive" archive \
-  MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-  "${AUTH[@]}" > "$OUT/archive.log" 2>&1
-status=$?; set -e
-grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" "$OUT/archive.log" | head -20 || true
-[ $status -eq 0 ] && [ -d "$OUT/App.xcarchive" ] || fail "archive failed – the full log is $OUT/archive.log"
+  echo "== archive"
+  set +e
+  xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' \
+    -archivePath "$OUT/App.xcarchive" archive \
+    MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD" DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+    "${AUTH[@]}" > "$OUT/archive.log" 2>&1
+  status=$?; set -e
+  grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" "$OUT/archive.log" | head -20 || true
+  [ $status -eq 0 ] && [ -d "$OUT/App.xcarchive" ] || fail "archive failed – the full log is $OUT/archive.log"
+fi
 
 echo "== upload to App Store Connect"
 sed "s/TEAM_ID/$APPLE_TEAM_ID/" ios/ExportOptions.plist > "$OUT/ExportOptions.plist"
@@ -77,5 +85,5 @@ xcodebuild -exportArchive -archivePath "$OUT/App.xcarchive" -exportOptionsPlist 
   -exportPath "$OUT/export" "${AUTH[@]}" > "$OUT/export.log" 2>&1
 status=$?; set -e
 grep -E "error:|EXPORT (SUCCEEDED|FAILED)|Upload" "$OUT/export.log" | head -20 || true
-[ $status -eq 0 ] || fail "upload failed – the full log is $OUT/export.log"
+[ $status -eq 0 ] || { grep -q "Cloud signing permission" "$OUT/export.log" && echo "hint: the API key needs the Admin role (README, TestFlight)"; fail "upload failed – the full log is $OUT/export.log"; }
 echo "Done: $VERSION ($BUILD) – it appears in App Store Connect → TestFlight after processing (a few minutes)."

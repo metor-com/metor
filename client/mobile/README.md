@@ -184,8 +184,10 @@ Store Connect, where it appears under TestFlight after a few minutes. It needs, 
 
 - the App ID `com.metor.mobile` with the Push Notifications capability (exists) and an **app
   record** in App Store Connect (My Apps → + → iOS, bundle ID `com.metor.mobile`);
-- an **App Store Connect API key** (Users and Access → Integrations → App Store Connect API, role
-  App Manager): the issuer ID, the key's ID and the downloaded `.p8`. They go into
+- an **App Store Connect API key** (Users and Access → Integrations → App Store Connect API) with
+  the **Admin** role – the export signs with a cloud-managed Apple Distribution certificate, which
+  only an Admin key may create; an App Manager key archives fine and then fails the export with
+  "Cloud signing permission error". The issuer ID, the key's ID and the downloaded `.p8` go into
   `~/.config/metor/testflight.env`, a plain shell file the script reads (`METOR_TESTFLIGHT_ENV`
   names another): `APPLE_TEAM_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH` (absolute; `ASC_KEY_ID` is
   derived from the file name, and a single `AuthKey_*.p8` under `~/metor/keys/apple/` is found
@@ -193,8 +195,9 @@ Store Connect, where it appears under TestFlight after a few minutes. It needs, 
   placeholder the script fills in). The script stops with a clear message when something is
   missing; the full xcodebuild logs are in `build/testflight/`.
 
-The version is the repository's `VERSION`, the build number the UTC minute (`BUILD_NUMBER`
-overrides). Release builds talk to APNs production, so the relay's `apns` route is used, and the
+`npm run testflight -- --check` prints the resolved settings and stops, `-- --upload` skips the
+archive and uploads the archive of the last run (after fixing a key, say). The version is the
+repository's `VERSION`, the build number the UTC minute (`BUILD_NUMBER` overrides). Release builds talk to APNs production, so the relay's `apns` route is used, and the
 notification service extension gets its own profile from the same run. Before the first upload
 App Store Connect asks the export-compliance question once per build unless
 `ITSAppUsesNonExemptEncryption` is set in `Info.plist` – the app only uses the system's TLS and
