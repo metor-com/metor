@@ -130,9 +130,12 @@ notify events while the app is open), `@aparajita/capacitor-secure-storage` (ses
   let the gateway accept a per-session ticket (HMAC of the session id with a server key, revoked
   with the session) on the picture routes. Links to attachments need the same treatment (share
   sheet).
-- **Push on Android** is built (plugin, messaging service, decryption in Java) but not tested: it
-  needs a Firebase project's `google-services.json` in `android/app/` at build time (git-ignored)
-  and the service account on the relay. The emulator image with Google APIs can receive FCM.
+- **Push on Android** works in the emulator (verified 2026-09-06 against push.metor.com with the
+  Firebase project's `google-services.json` in `android/app/`, git-ignored): FCM token, subscription
+  at the gateway, relay → FCM 201, the messaging service decrypts and shows "Gemini: stopped".
+  Pitfall: Play services in a freshly booted emulator reported a push connection but delivered
+  nothing until the network was reset (airplane mode on and off); the relay's FCM messages are
+  high priority, a normal-priority data message would be held back in the background anyway.
 - **Store release**: Apple Developer Program and Google Play accounts, icons and splash screens
   (`ios/App/App/Assets.xcassets`, `android/app/src/main/res`), a demo computer for Apple's
   review, the QR scanner for pairing codes, Face ID in front of the session. The `mobile`

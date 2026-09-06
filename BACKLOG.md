@@ -64,8 +64,8 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   Remaining: inline pictures and attachment links (bearer-fetched blobs or a per-session ticket
   on the picture routes, see client/mobile/README.md "Open"), a QR scanner and Face ID on the
   connect screen, icons and splash
-  screens, TestFlight / internal Play track, push on Android end to end once the Firebase project exists
-  ([ADR-0017](knowledge/decisions/0017-push-relay.md): relay deployed at push.metor.com, iOS verified in the simulator), notification actions (approve/deny) and a notifications switch in the app, the demo computer for Apple's review. Until the relay
+  screens, TestFlight / internal Play track, notification actions (approve/deny) and a notifications switch
+  in the app ([ADR-0017](knowledge/decisions/0017-push-relay.md): relay at push.metor.com, push verified on both platforms in simulator and emulator), the demo computer for Apple's review. Until the relay
   exists the PWA remains the phone client with push.
 - **metor on the Mac** - built 2026-09-05: `metor setup` with Apple's `container` (macOS 26,
   Apple silicon) or Docker/Colima through the same wrapper, multi-arch image workflow, formula

@@ -1,6 +1,6 @@
 # 0017 – Push relay: native push for the phone app through a forwarder that sees only ciphertext
 
-**Date:** 2026-09-06 · **Status:** accepted; relay built, deployed at push.metor.com and verified end to end with the iOS app the same day, Android side built but waits for the Firebase project – see the sections at the end
+**Date:** 2026-09-06 · **Status:** accepted and implemented 2026-09-06: relay at push.metor.com, verified end to end with the iOS app in the simulator and the Android app in the emulator – see the sections at the end
 
 ## Context
 
@@ -132,6 +132,10 @@ deployment at `push.metor.com` (waits for the Apple key and the Firebase project
   reconnected – the relay now drops the connection after such a refusal. `xcrun simctl push` does
   not exercise the extension; only pushes through APNs do.
 - **Android**: plugin, messaging service and decryption in Java, Firebase Messaging wired; the
-  build activates it when `google-services.json` is present. Untested until the project exists.
+  build activates it when `google-services.json` is present. Verified in the emulator (API 36,
+  Google APIs) against the relay with the Firebase service account: the data message arrives,
+  the service decrypts and shows the gateway's title and text. All visible messages go out at
+  high priority – a normal-priority FCM data message is held back while the app is in the
+  background, which is when it matters.
 - Not yet: notification actions (approve/deny), badge counts, a device-level "notifications off"
   switch in the app's settings, and unsubscribing the relay endpoint when the app is deleted.
