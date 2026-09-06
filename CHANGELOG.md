@@ -11,7 +11,7 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-09-06
+## [0.3.0] - 2026-09-07
 
 ### Added
 
