@@ -34,9 +34,11 @@ What reaches the device: iOS gets an alert with a placeholder (`metor` / `New ac
 `mutable-content: 1` and the ciphertext under `metor.body` (base64) – the app's notification
 service extension decrypts and replaces title and body; if that ever fails the placeholder shows.
 Android gets a data message with `data.body` (base64 ciphertext), `data.enc` (`aes128gcm`) and
-`data.v`; the app's messaging service decrypts and shows the notification. `Urgency: high` becomes
-APNs priority 10 / FCM priority high, `TTL` becomes `apns-expiration` / `ttl`, `Topic` becomes
-`apns-collapse-id` / `collapse_key`.
+`data.v`; the app's messaging service decrypts and shows the notification. Every message is a
+user-visible alert and goes out immediately (APNs priority 10, FCM priority high – a "normal" FCM
+data message would be held back while the app is in the background); only `Urgency: low` and
+`very-low` defer. `TTL` becomes `apns-expiration` / `ttl`, `Topic` becomes `apns-collapse-id` /
+`collapse_key`.
 
 ## Limits
 

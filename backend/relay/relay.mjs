@@ -122,8 +122,10 @@ function apnsClient(apns) {
       // if that ever fails the placeholder shows – nothing readable was in transit
       const payload = JSON.stringify({ aps: { alert: { title: "metor", body: "New activity" }, "mutable-content": 1, sound: "default", ...(topic ? { "thread-id": topic } : {}) }, metor: message });
       if (Buffer.byteLength(payload) > MAX_PAYLOAD) return { status: 413, reason: "PayloadTooLarge" };
+      // Every message is a user-visible alert, so it is sent immediately (priority 10); only "very-low" and "low"
+      // urgency defer to the device's power state – the gateway uses "normal" and "high"
       const headers = (t) => ({ ":method": "POST", ":path": `/3/device/${device}`, authorization: `bearer ${t}`, "apns-topic": apns.topic, "apns-push-type": "alert",
-        "apns-priority": urgency === "high" ? "10" : "5", "apns-expiration": String(ttl ? Math.floor(Date.now() / 1000) + ttl : 0), ...(topic ? { "apns-collapse-id": topic } : {}), "content-type": "application/json" });
+        "apns-priority": urgency === "very-low" || urgency === "low" ? "5" : "10", "apns-expiration": String(ttl ? Math.floor(Date.now() / 1000) + ttl : 0), ...(topic ? { "apns-collapse-id": topic } : {}), "content-type": "application/json" });
       const url = sandbox ? apns.sandboxUrl : apns.url;
       let r = await request(url, headers(jwt()), payload);
       let reason = null; try { reason = JSON.parse(r.body).reason ?? null; } catch {}
@@ -157,7 +159,9 @@ function fcmClient(fcm) {
   };
   return {
     async send({ token: device, message, ttl, urgency, topic }) {
-      const body = JSON.stringify({ message: { token: device, android: { priority: urgency === "high" ? "high" : "normal", ttl: `${ttl}s`, ...(topic ? { collapse_key: topic } : {}) }, data: { v: "1", enc: message.enc, body: message.body } } });
+      // A data message is what the app decrypts; "normal" priority would be held back while the app is in the
+      // background (Doze), so everything user-visible goes out "high" – only "very-low"/"low" urgency defers
+      const body = JSON.stringify({ message: { token: device, android: { priority: urgency === "very-low" || urgency === "low" ? "normal" : "high", ttl: `${ttl}s`, ...(topic ? { collapse_key: topic } : {}) }, data: { v: "1", enc: message.enc, body: message.body } } });
       if (Buffer.byteLength(body) > MAX_PAYLOAD + 512) return { status: 413, reason: "PayloadTooLarge" };
       const r = await fetch(`${fcm.url}/v1/projects/${sa.project_id}/messages:send`, { method: "POST", headers: { authorization: `Bearer ${await accessToken()}`, "content-type": "application/json" }, body, signal: AbortSignal.timeout(10_000) });
       const text = await r.text(); let code = null; try { const e = JSON.parse(text).error; code = e?.details?.find((d) => d.errorCode)?.errorCode ?? e?.status ?? null; } catch {}

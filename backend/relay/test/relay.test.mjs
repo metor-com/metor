@@ -91,10 +91,12 @@ test("apns: forwarded with the gateway's headers mapped, still encrypted", async
   assert.equal(sent.body.aps["mutable-content"], 1); assert.equal(sent.body.aps.alert.title, "metor");
   assert.deepEqual(sent.body.metor, { v: 1, enc: "aes128gcm", body: ciphertext.toString("base64") });
 });
-test("apns: sandbox route, normal urgency → priority 5, no topic", async () => {
+test("apns: sandbox route, normal urgency still immediate (10), low urgency deferred (5), no topic", async () => {
   const r = await push(`/v1/apns-sandbox/${"c".repeat(64)}`, { headers: { urgency: "normal" } });
   assert.equal(r.status, 201);
-  const sent = apnsLog.at(-1); assert.equal(sent.headers["apns-priority"], "5"); assert.equal(sent.headers["apns-collapse-id"], undefined);
+  const sent = apnsLog.at(-1); assert.equal(sent.headers["apns-priority"], "10"); assert.equal(sent.headers["apns-collapse-id"], undefined);
+  await push(`/v1/apns-sandbox/${"c".repeat(64)}`, { headers: { urgency: "low" } });
+  assert.equal(apnsLog.at(-1).headers["apns-priority"], "5");
 });
 test("apns: gone and bad tokens answer 410, so the gateway drops the subscription", async () => {
   assert.equal((await push(`/v1/apns/gone${"0".repeat(60)}`)).status, 410);
@@ -117,6 +119,8 @@ test("fcm: data message with the ciphertext, priority and ttl", async () => {
   assert.equal(sent.headers.authorization, "Bearer fcm-access");
   assert.equal(sent.message.token, token);
   assert.deepEqual(sent.message.android, { priority: "high", ttl: "120s", collapse_key: "reply-bot1" });
+  await push(`/v1/fcm/${token}`, { headers: { urgency: "normal" } }); assert.equal(fcmLog.at(-1).message.android.priority, "high");
+  await push(`/v1/fcm/${token}`, { headers: { urgency: "low" } }); assert.equal(fcmLog.at(-1).message.android.priority, "normal");
   assert.deepEqual(sent.message.data, { v: "1", enc: "aes128gcm", body: ciphertext.toString("base64") });
 });
 test("fcm: unregistered and invalid tokens answer 410", async () => {
