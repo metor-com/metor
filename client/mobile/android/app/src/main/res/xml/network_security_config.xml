@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain http is allowed: a bots' computer on the user's own machine or network answers over http
+     (10.0.2.2 is the host as seen from the emulator), like in the desktop app and the browser. A
+     computer on a server is https because its address is. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

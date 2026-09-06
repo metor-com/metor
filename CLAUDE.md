@@ -25,7 +25,10 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
   Dev: `cd frontend && npm run dev` (proxied to the running box).
 - `client/` - native apps (ADR-0015): `desktop/` is the Electron shell for macOS/Windows/Linux
   around the unchanged `frontend/` build (served from `app://metor`, session as a bearer token
-  added in the main process); phones use the PWA. Dev: `cd client/desktop && npm install && npm start`.
+  added in the main process); `mobile/` is the Capacitor shell for iPhone and Android around the
+  same build (bridge `src/bridge.js`, generated `ios/` and `android/` committed); until it ships,
+  phones use the PWA. Dev: `cd client/desktop && npm install && npm start`; `cd client/mobile &&
+  npm install && npm run ios` (see its README).
 - `knowledge/` - **read first**: `README.md` (index), `GLOSSARY.md` (binding terms),
   `decisions/` (ADRs), `harness/claude-code-facts.md` and `harness/codex-facts.md` (verified
   harness facts), `design/` (drafts for upcoming work).

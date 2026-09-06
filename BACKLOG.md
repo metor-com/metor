@@ -54,8 +54,19 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   repositories), the microphone permission prompt on macOS (`askForMediaAccess`) once voice
   exists, control of a local computer from the tray (`metor setup`, see "metor on the Mac"),
   a screen-sharing button in the interface (the app already answers `getDisplayMedia`), a
-  monochrome template tray icon for macOS. Phones stay the PWA; Capacitor in `client/mobile/`
-  only when store presence or background voice demands it (then a push relay, own ADR).
+  monochrome template tray icon for macOS. **Phone app** - Capacitor scaffold in `client/mobile/`
+  since 2026-09-06 (iOS with SPM, Android, the `window.metor` bridge with bearer on fetch/SSE and
+  the session cookie for frames, `metor://` links, local notifications, `mobile` workflow);
+  verified in the iOS simulator and the Android emulator: build, pairing by link, session in the
+  keychain/keystore, bot list and chat, the bot's screen and terminal in the app's own web view
+  (`@capacitor/inappbrowser`; frames inside the page get no session cookie from either WebView, a
+  top-level page does – on Android only in the app's process, not the plugin's isolated one).
+  Remaining: inline pictures and attachment links (bearer-fetched blobs or a per-session ticket
+  on the picture routes, see client/mobile/README.md "Open"), a QR scanner and Face ID on the
+  connect screen, icons and splash
+  screens, TestFlight / internal Play track, the push relay
+  ([ADR-0017](knowledge/decisions/0017-push-relay.md), `backend/relay/`) before any store release, the demo computer for Apple's review. Until the relay
+  exists the PWA remains the phone client with push.
 - **metor on the Mac** - built 2026-09-05: `metor setup` with Apple's `container` (macOS 26,
   Apple silicon) or Docker/Colima through the same wrapper, multi-arch image workflow, formula
   template, *Bots' computer on this Mac* menu in the desktop app (see

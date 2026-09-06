@@ -1,0 +1,11 @@
+{
+  "appId": "com.metor.mobile",
+  "appName": "metor",
+  "webDir": "www",
+  "server": { "hostname": "localhost", "androidScheme": "http" },
+  "ios": { "allowsLinkPreview": false, "limitsNavigationsToAppBoundDomains": false },
+  "plugins": {
+    "CapacitorCookies": { "enabled": true },
+    "CapacitorHttp": { "enabled": false }
+  }
+}

@@ -1,6 +1,6 @@
 # 0015 – Native clients: Electron on the desktop, PWA on phones, one `client/` directory
 
-**Date:** 2026-09-04 · **Status:** accepted (desktop app and gateway prerequisites implemented 2026-09-04; phones remain the PWA)
+**Date:** 2026-09-04 · **Status:** accepted (desktop app and gateway prerequisites implemented 2026-09-04; Capacitor scaffold in `client/mobile/` 2026-09-06, see the addendum; phones remain the PWA until it ships)
 
 ## Context
 
@@ -91,3 +91,36 @@ Platform rules that matter:
   before voice is promised there.
 - Until the relay exists, the phone experience is the PWA – including push, which the PWA
   already has and a native app would not.
+
+## Addendum 2026-09-06: the phone scaffold
+
+`client/mobile/` exists as decided in item 2 and 3 – earlier than planned, so that the app can be
+used from TestFlight and Play's internal track long before a store release. Facts found on the way:
+
+- The bundled interface runs on `capacitor://localhost` (iOS) and `https://localhost` (Android);
+  both are built into the gateway's CORS list next to `app://metor`.
+- There is no main process on a phone, so the bearer token cannot be added outside the page: the
+  bridge (`src/bridge.js`, part of the app, not of `frontend/`) patches `fetch` and replaces
+  `EventSource` for the connected computer. Frames (screen, terminal) and inline pictures are
+  loaded by the WebView itself; for them the bridge puts the session into the WebView's cookie jar
+  for the computer's host. Verified the same day in the iOS simulator: the cookie is stored but
+  WKWebView does not send it with cross-site loads from the app's origin (third-party cookie
+  blocking) – a public icon from the computer loads, an avatar behind the sign-in does not. The
+  screen and terminal therefore open in a web view of their own (`@capacitor/inappbrowser`),
+  where the computer's host is the top-level page: verified the same day, the in-app web view
+  shares the cookie jar and the bot's desktop appears through noVNC with the gateway unchanged.
+  Android (emulator, API 36) behaves the same, with two twists: the app's origin is
+  `http://localhost`, not Capacitor's default `https://localhost`, so that a computer answering over
+  plain http is not blocked as mixed content (localhost is a secure context either way); and the
+  in-app web view must run in the app's process (`isIsolated: false`), the plugin's default
+  isolated process has a cookie store of its own. Inline pictures still need the bearer (fetched
+  blobs) or a per-session ticket on the picture routes – open, see `client/mobile/README.md`.
+- Simulator builds must keep Xcode's "Sign to Run Locally" signature: without entitlements the
+  keychain refuses every write (-34018) and the app cannot keep a session.
+- Push stays as decided: none in the app until the relay exists – a Web-Push-to-APNs/FCM
+  forwarder that only sees ciphertext, the gateway's existing Web Push code unchanged; decided in
+  [ADR-0017](0017-push-relay.md). The PWA keeps push meanwhile.
+- iOS uses Swift Package Manager (`--packagemanager SPM`), no CocoaPods. Android: the template's
+  Gradle 8.14 does not start on JDK 25+, and the Android Gradle plugin's `jlink` step fails there
+  too – the project runs Gradle 9.5 with a daemon pinned to a JDK 21 that Gradle downloads itself
+  (`gradle-daemon-jvm.properties`), so any JDK 17-26 on the machine will do.

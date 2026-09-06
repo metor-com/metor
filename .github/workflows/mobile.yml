@@ -1,0 +1,52 @@
+# Builds the phone app (client/mobile, ADR-0015) unsigned: the iOS project for the simulator and the
+# Android debug APK. A check that the generated projects, the bridge and the interface build still
+# fit together; store builds (signing, TestFlight, Play) come with the release process later.
+name: mobile
+on:
+  push:
+    paths: ["client/mobile/**", "frontend/**", ".github/workflows/mobile.yml"]
+  pull_request:
+    paths: ["client/mobile/**", "frontend/**", ".github/workflows/mobile.yml"]
+  workflow_dispatch: {}
+jobs:
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the interface
+        run: npm ci && npm run build
+        working-directory: frontend
+      - name: Take the interface build and sync the native projects
+        run: npm ci && node scripts/copy-ui.mjs && npx cap sync ios
+        working-directory: client/mobile
+      - name: Build for the simulator
+        run: xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build | tail -20
+        working-directory: client/mobile
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Build the interface
+        run: npm ci && npm run build
+        working-directory: frontend
+      - name: Take the interface build and sync the native projects
+        run: npm ci && node scripts/copy-ui.mjs && npx cap sync android
+        working-directory: client/mobile
+      - name: Build the debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: client/mobile/android
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metor-android-debug
+          path: client/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">metor</string>
+    <string name="title_activity_main">metor</string>
+    <string name="package_name">com.metor.mobile</string>
+    <string name="custom_url_scheme">com.metor.mobile</string>
+</resources>
