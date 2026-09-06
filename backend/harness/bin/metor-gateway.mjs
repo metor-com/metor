@@ -30,8 +30,11 @@ const VERSION = (() => {
 })();
 // Native clients (ADR-0015) load the interface from their own origin and talk to the API across
 // origins with a bearer token; the browser only lets them when the gateway names that origin.
-// The desktop app's origin is built in, further ones (a mobile shell, a dev server) come from the environment.
-const APP_ORIGINS = new Set(["app://metor", ...String(process.env.METOR_APP_ORIGINS ?? "").split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean)]);
+// The desktop app's origin and the phone app's (Capacitor: capacitor://localhost on iOS, http://localhost
+// on Android – http so that a computer on the user's own machine, which answers over plain http, is not
+// mixed content; localhost is a secure context regardless) are built in, further ones (a dev server)
+// come from the environment.
+const APP_ORIGINS = new Set(["app://metor", "capacitor://localhost", "http://localhost", ...String(process.env.METOR_APP_ORIGINS ?? "").split(",").map((o) => o.trim().replace(/\/$/, "")).filter(Boolean)]);
 function cors(req, res) {
   const origin = req.headers.origin;
   if (!origin || !APP_ORIGINS.has(origin)) return false;

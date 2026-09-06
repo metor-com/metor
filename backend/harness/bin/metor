@@ -6,7 +6,7 @@
 #   metor bot … | metor auth …    forwarded into the computer
 # Environment: METOR_RUNTIME=docker|container (else detected), METOR_BOX_IMAGE (default: a local
 # metor-box:dev, else the published image), METOR_BOX_CONTAINER, METOR_PORT (host port of the
-# interface, default 6010), METOR_WATCH_BASE, METOR_AUTH, METOR_MEMORY/METOR_CPUS (Apple container only).
+# interface, default 6010), METOR_WATCH_BASE, METOR_AUTH, METOR_APP_ORIGINS, METOR_MEMORY/METOR_CPUS (Apple container only).
 set -euo pipefail
 C="${METOR_BOX_CONTAINER:-metor-box}"
 PORT="${METOR_PORT:-6010}"
@@ -90,7 +90,7 @@ box_up() {
       docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
         --ulimit nofile=65536:65536 \
         -p "127.0.0.1:$PORT:6010" -p 127.0.0.1:6011-6049:6011-6049 \
-        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" \
         $VOLS "$IMAGE" >/dev/null ;;
     container)
       container rm "$C" >/dev/null 2>&1 || true
@@ -103,7 +103,7 @@ box_up() {
       # shellcheck disable=SC2086
       container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${METOR_MEMORY:-4g}" --cpus "${METOR_CPUS:-4}" \
         -p "127.0.0.1:$PORT:6010" \
-        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" \
         $VOLS "$IMAGE" >/dev/null ;;
   esac
   remember_runtime

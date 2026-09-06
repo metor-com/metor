@@ -15,13 +15,15 @@
   // Which step to start on: the context decides (a known computer that needs attention), else the
   // hash (#/connect/local|remote, also used by the app's menus), else the question
   const fromHash = /^#\/connect\/(local|remote)/.exec(location.hash)?.[1] ?? null;
-  let step = g ? (isLocal(g.origin) ? "local" : "remote") : fromHash ?? "choose";
+  // A phone (client/mobile) cannot run a computer of its own: no choice, no local step, every computer is "on a server"
+  const canLocal = !!app?.local;
+  let step = g ? (canLocal && isLocal(g.origin) ? "local" : "remote") : (canLocal ? fromHash ?? "choose" : "remote");
   const choose = () => { step = "choose"; error = null; localError = null; };
 
   // ---------- Known computers ----------
   let list = [];
   const locals = () => list.filter((c) => isLocal(c.origin));
-  const remotes = () => list.filter((c) => !isLocal(c.origin));
+  const remotes = () => list.filter((c) => !canLocal || !isLocal(c.origin));
   async function load() { try { list = (await app.gateways()) ?? []; } catch {} }
 
   // ---------- Remote: the form ----------
@@ -150,7 +152,7 @@
   {:else}
     <!-- Step 2b: on a server – the address and a one-time secret from there -->
     <main class="w-full max-w-md {box}">
-      <button type="button" class="text-[13px] text-zinc-500 hover:text-zinc-900" on:click={choose}>‹ Back</button>
+      {#if canLocal}<button type="button" class="text-[13px] text-zinc-500 hover:text-zinc-900" on:click={choose}>‹ Back</button>{/if}
       <h1 class="mt-2 text-xl font-bold">The bots' computer on a server</h1>
       {#if unreachable}
         <div class="mt-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
