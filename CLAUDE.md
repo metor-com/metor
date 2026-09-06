@@ -76,9 +76,10 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
 
 ## Current state
 
-Version 0.2.0 works end-to-end: bots with their own desktop, browser and terminal; chat with
+Version 0.3.0 works end-to-end: bots with their own desktop, browser and terminal; chat with
 streaming, tool cards and approvals; attachments both ways; routines; three runtimes (Claude Code,
 Codex, Gemini CLI) with model choice and a setup wizard; connectors (MCP servers); sign-in by device
-pairing; the phone PWA with push and a desktop app (Electron); server installation via image +
+pairing; the phone PWA with push, a native phone app (Capacitor, TestFlight, ADR-0017) and a
+desktop app (Electron); server installation via image +
 compose and `metor setup` on a Mac. What is missing lives in `BACKLOG.md`, what exists per feature
 in `CHANGELOG.md` (maintain both there, not here). The original build order was ADR-0003.

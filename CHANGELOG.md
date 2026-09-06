@@ -11,6 +11,8 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-06
+
 ### Added
 
 - **Pause, Resume and Run now on every routine card** - they work without the bot, so a routine
@@ -24,7 +26,14 @@ On a release the section is renamed to the version number and dated. Ideas and o
   counts unread replies across bots and clears as you read. Bot pictures and picture attachments
   show in the app, and a tap on an attachment or a file in the file browser opens it with the
   phone's viewer (Quick Look on iPhone). A setup or pairing link opened on a phone asks whether
-  to sign in the app or the browser. Not in the stores yet.
+  to sign in the app or the browser. Approve / Deny in a notification applies to the approvals
+  that exist today, those of connectors set to ask first. Available to invited testers through
+  TestFlight; not in the stores yet.
+- **A computer on a Mac can be reached from the phone in the same Wi-Fi**: `METOR_BIND=0.0.0.0`
+  at `metor box up` publishes the interface on the network (sign-in by pairing still guards it),
+  `METOR_WATCH_BASE` puts the Mac's address into the pairing links.
+- **Releases carry the installer**: a version tag becomes a GitHub Release with `install.sh` as
+  its asset, and `www.metor.com/install.sh` always points at the latest release.
 
 ### Changed
 
