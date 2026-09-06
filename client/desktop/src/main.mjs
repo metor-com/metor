@@ -24,7 +24,13 @@ const storeFile = () => join(app.getPath("userData"), "computers.json");
 let db = null;
 function load() { if (!db) { try { db = { computers: [], current: null, ...JSON.parse(readFileSync(storeFile(), "utf8")) }; } catch { db = { computers: [], current: null }; } } return db; }
 function save() { mkdirSync(dirname(storeFile()), { recursive: true }); const tmp = `${storeFile()}.tmp`; writeFileSync(tmp, JSON.stringify(db, null, 2) + "\n", { mode: 0o600 }); renameSync(tmp, storeFile()); }
-const encrypt = (s) => (safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(s).toString("base64")}` : `raw:${s}`);
+// Without an OS keychain (a Linux desktop without a keyring) the secret is kept in the clear – said out loud, not silently
+let warnedPlain = false;
+const encrypt = (s) => {
+  if (safeStorage.isEncryptionAvailable()) return `enc:${safeStorage.encryptString(s).toString("base64")}`;
+  if (!warnedPlain) { warnedPlain = true; console.warn(`metor: no OS keychain available – the session secret is stored unencrypted in ${storeFile()}`); }
+  return `raw:${s}`;
+};
 const decrypt = (v) => { try { return v?.startsWith("enc:") ? safeStorage.decryptString(Buffer.from(v.slice(4), "base64")) : v?.startsWith("raw:") ? v.slice(4) : null; } catch { return null; } };
 const secrets = new Map();   // id → session secret, decrypted once
 function secretOf(id) { if (!id) return null; if (!secrets.has(id)) { const c = load().computers.find((x) => x.id === id); secrets.set(id, c?.secret ? decrypt(c.secret) : null); } return secrets.get(id); }
@@ -40,6 +46,10 @@ const deviceLabel = () => `metor app on ${{ darwin: "Mac", win32: "Windows", lin
 // see the glossary); remote ones carry their host name. The local name is derived on every read, so older entries follow.
 const MACHINE = process.platform === "darwin" ? "this Mac" : "this machine";
 const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(origin);
+// Plain http only where the wire is the user's own: this machine, the local network, a .local name.
+// Anywhere else the claim and then the session secret would cross the internet in the clear
+const PRIVATE_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i;
+const insecureOrigin = (origin) => { try { const u = new URL(origin); return u.protocol === "http:" && !PRIVATE_HOST.test(u.hostname); } catch { return true; } };
 const nameFor = (origin) => { try { const u = new URL(origin); return isLocal(origin) ? `Bots' computer on ${MACHINE}${u.port && u.port !== "6010" ? ` (:${u.port})` : ""}` : u.hostname; } catch { return origin; } };
 
 async function fetchJson(url, init = {}, ms = 8000) {
@@ -60,6 +70,7 @@ async function connect({ url = "", claim = "" } = {}) {
   } catch { if (/^[a-z2-9]{4}-?[a-z2-9]{4}$/i.test(s)) code = s; else if (s) token = s; }
   if (!origin && url) { try { origin = new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`).origin; } catch { return { ok: false, error: "The address is not a URL." }; } }
   if (!origin) return { ok: false, error: "Enter the address of the bots' computer." };
+  if (insecureOrigin(origin)) return { ok: false, error: `${origin} is plain http on the internet – the session would travel unencrypted. Use https, or a computer on this machine or your local network.` };
   if (!token && !code) return { ok: false, error: "Enter a setup link, a pairing link or a pairing code." };
   let v; try { v = await fetchJson(`${origin}/bots/api/version`); } catch (e) { return { ok: false, error: `No answer from ${origin} (${e.message}).` }; }
   if (!v.ok || v.data?.name !== "metor") return { ok: false, error: `No bots' computer of metor answers at ${origin}.` };
@@ -253,23 +264,28 @@ app.on("second-instance", (_e, args) => { const link = args.find(isLink) ?? args
 app.on("open-url", (e, link) => { e.preventDefault(); if (app.isReady()) handleLink(link); else app.whenReady().then(() => handleLink(link)); });
 
 // ---------- IPC for the preload API (window.metor) ----------
-ipcMain.on("metor:info", (e) => {
+// Only the interface's own frame may call in – the preload runs there alone, and every handler checks
+// the sender's frame as well, so a screen or terminal frame from a computer can never reach these
+const fromUi = (e) => String(e.senderFrame?.url ?? "").startsWith(UI_URL);
+const handle = (channel, fn) => ipcMain.handle(channel, (e, ...args) => (fromUi(e) ? fn(e, ...args) : undefined));
+const on = (channel, fn) => ipcMain.on(channel, (e, ...args) => { if (fromUi(e)) fn(e, ...args); else if ("returnValue" in e) e.returnValue = null; });
+on("metor:info", (e) => {
   const win = BrowserWindow.fromWebContents(e.sender); const c = computer(currentOf(win)); const info = publicInfo(c);
   if (info && unreachable.get(win) === c.id) info.reachable = false;   // the connect screen says so and offers Try again / Start
   e.returnValue = { platform: process.platform, version: app.getVersion(), gateway: info };
 });
-ipcMain.handle("metor:gateways", () => load().computers.map(publicInfo));
-ipcMain.handle("metor:connect", async (e, args) => { const r = await connect(args ?? {}); if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); } return r; });
-ipcMain.handle("metor:use", (e, id) => { if (computer(id)) showComputer(BrowserWindow.fromWebContents(e.sender), id); });
-ipcMain.handle("metor:forget", async (_e, id) => { await forget(id); for (const [w, cid] of windows) if (cid === id) switchWindow(w, null); refreshMenus(); });
-ipcMain.handle("metor:local-status", () => localStatus());
-ipcMain.handle("metor:local", (e, action, id) => localAction(String(action), BrowserWindow.fromWebContents(e.sender), id ? String(id) : null));
-ipcMain.on("metor:signed-out", (e) => {
+handle("metor:gateways", () => load().computers.map(publicInfo));
+handle("metor:connect", async (e, args) => { const r = await connect(args ?? {}); if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); } return r; });
+handle("metor:use", (e, id) => { if (computer(id)) showComputer(BrowserWindow.fromWebContents(e.sender), id); });
+handle("metor:forget", async (_e, id) => { await forget(id); for (const [w, cid] of windows) if (cid === id) switchWindow(w, null); refreshMenus(); });
+handle("metor:local-status", () => localStatus());
+handle("metor:local", (e, action, id) => localAction(String(action), BrowserWindow.fromWebContents(e.sender), id ? String(id) : null));
+on("metor:signed-out", (e) => {
   const win = BrowserWindow.fromWebContents(e.sender); const c = computer(currentOf(win));
   if (c?.secret) { delete c.secret; secrets.set(c.id, null); save(); }
   win.loadURL(UI_URL); refreshMenus();
 });
-ipcMain.on("metor:notify", (e, n = {}) => {
+on("metor:notify", (e, n = {}) => {
   if (argv["trace-requests"]) console.log(`notify: ${n.title} – ${String(n.body ?? "").slice(0, 60)} (${n.bot})`);
   if (!Notification.isSupported()) return;
   const win = BrowserWindow.fromWebContents(e.sender);
@@ -301,9 +317,20 @@ app.whenReady().then(async () => {
     if (argv["trace-requests"]) console.log(`request: ${details.resourceType} ${details.method} ${details.url.slice(0, 120)} ${s ? "(token)" : ""}`);
     cb({ requestHeaders: details.requestHeaders });
   });
-  ses.setPermissionRequestHandler((_wc, permission, cb) => cb(["media", "notifications", "clipboard-read", "clipboard-sanitized-write", "display-capture", "fullscreen"].includes(permission)));
-  // Screen sharing for the bots: the system picker where there is one (macOS 15+), else the primary screen
-  ses.setDisplayMediaRequestHandler(async (_req, cb) => {
+  // Permissions by who asks: the interface itself may use microphone, camera, clipboard, screen and
+  // notifications; a frame from a connected computer (its screen, its terminal) gets the clipboard and
+  // full screen only; any other page – a computer gone bad, a stray navigation – gets nothing
+  const UI_PERMISSIONS = ["media", "notifications", "clipboard-read", "clipboard-sanitized-write", "display-capture", "fullscreen"];
+  const FRAME_PERMISSIONS = ["clipboard-read", "clipboard-sanitized-write", "fullscreen"];
+  ses.setPermissionRequestHandler((wc, permission, cb, details) => {
+    const from = String(details?.requestingUrl ?? wc?.getURL?.() ?? "");
+    const allowed = from.startsWith(UI_URL) ? UI_PERMISSIONS : computerForUrl(from) ? FRAME_PERMISSIONS : [];
+    cb(allowed.includes(permission));
+  });
+  // Screen sharing for the bots, on a click in the interface only: the system picker where there is one
+  // (macOS 15+), else the primary screen
+  ses.setDisplayMediaRequestHandler(async (req, cb) => {
+    if (!String(req.securityOrigin ?? "").startsWith("app://metor") || !req.userGesture) return cb({});
     try { const sources = await desktopCapturer.getSources({ types: ["screen"] }); cb(sources.length ? { video: sources[0] } : {}); } catch { cb({}); }
   }, { useSystemPicker: true });
 

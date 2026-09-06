@@ -117,45 +117,13 @@ docker pull -q "$IMAGE"
 say "Writing $DIR"
 mkdir -p "$DIR"; cd "$DIR"
 
-cat > compose.yml <<'COMPOSE'
-services:
-  box:
-    image: ${METOR_IMAGE:-ghcr.io/metor-com/metor-box:latest}
-    container_name: metor-box
-    hostname: metor
-    restart: unless-stopped
-    shm_size: "1g"
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    environment:
-      METOR_WATCH_BASE: ${METOR_WATCH_BASE:-}
-      METOR_NTFY_URL: ${METOR_NTFY_URL:-}
-      METOR_ROUTINE_GUARD: ${METOR_ROUTINE_GUARD:-}
-      METOR_AUTH: ${METOR_AUTH:-}                   # "off" = no gateway sign-in (only behind your own login)
-    volumes:
-      - metor-workspace:/workspace
-      - metor-claude:/home/box/.claude
-      - metor-codex:/home/box/.codex
-    ports:
-      - "127.0.0.1:6010:6010"
-  caddy:
-    image: caddy:2
-    profiles: ["caddy"]
-    restart: unless-stopped
-    ports: ["80:80", "443:443"]
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-volumes:
-  metor-workspace: { name: metor-workspace }
-  metor-claude: { name: metor-claude }
-  metor-codex: { name: metor-codex }
-  caddy-data: { name: metor-caddy-data }
-  caddy-config: { name: metor-caddy-config }
-COMPOSE
+# The compose file comes out of the image itself (deploy/compose.yml at build time), so that the
+# volumes, limits and variables always match the image that runs – a copy here would drift
+if ! docker run --rm --entrypoint cat "$IMAGE" /usr/local/lib/metor/compose.yml > compose.yml.new 2>/dev/null || [ ! -s compose.yml.new ]; then
+  rm -f compose.yml.new
+  echo "The image $IMAGE carries no compose file – it is older than this installer (an image newer than metor 0.2.0 is needed)."; exit 1
+fi
+mv compose.yml.new compose.yml
 
 {
   echo "METOR_IMAGE=$IMAGE"

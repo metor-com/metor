@@ -90,6 +90,17 @@ if [ "$AUTH_MODE" != "off" ]; then
   check "device list shows the second device" sub '[ "$(api /auth/sessions | jq_ "j.length")" -ge 2 ]'
   check "revoke the second device" sub "[ \"\$(inbox curl -s -b $JAR -o /dev/null -w '%{http_code}' -X DELETE $G/bots/api/auth/sessions/$SECOND)\" = 200 ]"
   check "revoked device is out" sub "[ \"\$(inbox curl -s -o /dev/null -w '%{http_code}' -b $JAR2 $G/bots/api/agents)\" = 401 ]"
+  # Sessions end after a year on the server, not only in the cookie: pair once more, age that session, expect 401
+  CODE=$(apipost /auth/pair '{}' | jq_ 'j.code')
+  inbox curl -s -o /dev/null -c "$JAR2" --data-urlencode code="$CODE" "$G/bots/auth/code"
+  AGED=$(inbox curl -s -b "$JAR2" "$G/bots/api/auth/sessions" | jq_ 'j.find(s=>s.current)?.id??""')
+  if [ -n "$AGED" ]; then
+    inbox node -e 'const fs=require("fs"),f="/workspace/.metor/auth.json";const d=JSON.parse(fs.readFileSync(f,"utf8"));for(const s of d.sessions)if(s.id===process.argv[1])s.expiresAt=Date.now()-800*86400e3;fs.writeFileSync(f,JSON.stringify(d,null,2)+"\n")' "$AGED"
+    check "a session past its year is refused" sub "[ \"\$(inbox curl -s -o /dev/null -w '%{http_code}' -b $JAR2 $G/bots/api/agents)\" = 401 ]"
+  else fail "pairing for the expiry check"; fi
+  # Cross-site writes with the cookie (CSRF): a foreign Origin is refused, the computer's own passes
+  check "cross-site POST with the cookie is refused" sub "[ \"\$(inbox curl -s -b $JAR -o /dev/null -w '%{http_code}' -X POST -H 'origin: https://evil.example' -H 'content-type: application/json' -d '{}' $G/bots/api/auth/pair)\" = 403 ]"
+  check "same-origin POST with the cookie passes" sub "[ \"\$(inbox curl -s -b $JAR -o /dev/null -w '%{http_code}' -X POST -H 'origin: $G' -H 'content-type: application/json' -d '{}' $G/bots/api/auth/pair)\" = 200 ]"
 else
   echo "skip - METOR_AUTH=off: sign-in checks skipped"
 fi
@@ -123,7 +134,24 @@ if metor bot create "$PROBE" --role "Smoke-test bot: answer briefly." --no-start
   check "logs shows the host log" bash -c "metor bot logs $PROBE | grep -q 'Host for $PROBE started'"
   check "watch-url and mcp.json were written" inbox sh -c "test -f /workspace/bots/$PROBE/.metor/watch-url && test -f /workspace/bots/$PROBE/mcp.json"
   check "screen page is proxied with the session" sub "[ \"\$(inbox curl -s -b $JAR -o /dev/null -w '%{http_code}' $G/bots/$PROBE/vnc.html)\" = 200 ]"
+  # --- files a bot leaves: served behind the sign-in, pages sandboxed, links and configuration not served ---
+  inbox sh -c "cd /workspace/bots/$PROBE && echo hello > note.txt && echo '<script>1</script>' > report.html && ln -sf .metor/harness.json leak.txt && ln -sf /etc/hostname leak2.txt"
+  check "a regular bot file is served" sub "[ \"\$(apicode '/agents/$PROBE/chat/file?path=note.txt')\" = 200 ]"
+  check "a bot's page is served sandboxed" sub "inbox curl -s -b $JAR -D - -o /dev/null '$G/bots/api/agents/$PROBE/chat/file?path=report.html' | grep -qi 'content-security-policy: sandbox'"
+  check "a link into a dot path is not served" sub "[ \"\$(apicode '/agents/$PROBE/chat/file?path=leak.txt')\" = 404 ]"
+  check "a link out of the bot directory is not served" sub "[ \"\$(apicode '/agents/$PROBE/chat/file?path=leak2.txt')\" = 404 ]"
+  check "the connector file is not served" sub "[ \"\$(apicode '/agents/$PROBE/chat/file?path=mcp.json')\" = 404 ]"
+  check "the file browser hides the connector file" sub "! api /agents/$PROBE/files | grep -q '\"mcp.json\"'"
+  check "an upload lands under uploads/" sub "inbox curl -s -b $JAR -X POST --data-binary 'x' '$G/bots/api/agents/$PROBE/chat/upload?filename=a.txt' | grep -q '\"path\":\"uploads/'"
+  # --- routines: impossible schedules are refused, pause/resume works without the bot ---
+  check "an impossible schedule has no next date" inbox node -e 'import("/usr/local/lib/metor/metor-routines.mjs").then(m=>process.exit(m.nextRun(m.parseCron("0 0 31 2 *"),new Date())===null?0:1))'
+  inbox node -e 'const fs=require("fs"),d="/workspace/bots/"+process.argv[1]+"/.metor";fs.writeFileSync(d+"/routines.json",JSON.stringify({v:1,routines:[{id:"smoke1",name:"Smoke",cron:"0 7 * * *",prompt:"Reply with the word ROUTINE-OK and nothing else.",enabled:true,createdAt:new Date().toISOString(),lastRunAt:null,nextRunAt:new Date(Date.now()+86400e3).toISOString()}]})+"\n")' "$PROBE"
+  check "pause a routine from the panel" sub "inbox curl -s -b $JAR -X PUT -H 'content-type: application/json' -d '{\"enabled\":false}' $G/bots/api/agents/$PROBE/routines/smoke1 | grep -q '\"enabled\":false'"
+  check "resume a routine from the panel" sub "inbox curl -s -b $JAR -X PUT -H 'content-type: application/json' -d '{\"enabled\":true}' $G/bots/api/agents/$PROBE/routines/smoke1 | grep -q '\"enabled\":true'"
+  check "unknown routine is 404" sub "[ \"\$(inbox curl -s -b $JAR -o /dev/null -w '%{http_code}' -X PUT -H 'content-type: application/json' -d '{\"enabled\":true}' $G/bots/api/agents/$PROBE/routines/nope)\" = 404 ]"
   if [ $CHAT -eq 1 ]; then
+    check "run a routine now" sub "[ \"\$(inbox curl -s -b $JAR -o /dev/null -w '%{http_code}' -X POST $G/bots/api/agents/$PROBE/routines/smoke1/run)\" = 202 ]"
+    wait_for 150 "the bot worked the routine" sub "api /agents/$PROBE/chat/history | jq_ 'j.filter(x=>x.role===\"assistant\"&&x.kind===\"text\").some(x=>x.text.includes(\"ROUTINE-OK\"))?\"yes\":\"\"' | grep -q yes"
     WORD="SMOKE$RANDOM"
     R=$(apipost "/agents/$PROBE/chat/send" "{\"text\":\"Reply with exactly the word $WORD and nothing else.\",\"sendId\":\"smoke-$WORD\"}")
     echo "$R" | grep -q '"accepted":true' && ok "chat send accepted" || fail "chat send" "$R"

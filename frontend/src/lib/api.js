@@ -62,6 +62,8 @@ export const fileUrl = (name, path) => `${base}/agents/${name}/chat/file?path=${
 export const listFiles = (name, path = "") => req("GET", `/agents/${name}/files?path=${encodeURIComponent(path)}`);
 export const chatPermission = (name, ref, decision) => req("POST", `/agents/${name}/chat/permission`, { ref, decision });
 export const listRoutines = (name) => req("GET", `/agents/${name}/routines`);
+export const setRoutineEnabled = (name, id, enabled) => req("PUT", `/agents/${name}/routines/${id}`, { enabled });
+export const runRoutine = (name, id) => req("POST", `/agents/${name}/routines/${id}/run`, {});
 export const chatInterrupt = (name) => req("POST", `/agents/${name}/chat/interrupt`);
 export const chatRead = (name) => req("POST", `/agents/${name}/chat/read`);   // "I am looking at this chat" – clears the unread badge
 export const chatHistory = (name, limit = 200) => req("GET", `/agents/${name}/chat/history?limit=${limit}`);

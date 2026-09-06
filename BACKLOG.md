@@ -47,6 +47,27 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   and `Bash` removed from the allow list, a Claude bot still ran shell commands without a
   permission card (`canUseTool` was not called). Approval cards therefore come only from "ask
   first" connectors (ADR-0014) today; check whether the SDK wiring matches ADR-0004's intent.
+  The plan that follows from it: [ADR-0019](knowledge/decisions/0019-boundary-approvals.md) -
+  "ask" connectors produce a card in every runtime (Codex approval requests, Gemini
+  `session/request_permission`), connectors chosen per bot, trust profiles on top.
+
+## Security (from the architecture review of 2026-09-06; the quick wins are built)
+
+- **Separate the management from the bots** -
+  [ADR-0018](knowledge/decisions/0018-management-plane.md): users `metor` and `box`, hosts spawn
+  runtimes as `box`, `.metor/` not writable by bots, the routines server over a host socket,
+  a migration pass for existing volumes, `-u box` on operator commands. First step: the host
+  socket for the routines server. Then a seccomp profile in `deploy/` so Chromium runs with its
+  sandbox and `--no-sandbox` leaves `metor-desktop.mjs` (needs the user split to be worth it).
+- **Relay: bind the sender's key to the endpoint** -
+  [ADR-0020](knowledge/decisions/0020-relay-sender-binding.md), before the first TestFlight round
+  with outside testers; negative test in the relay suite.
+- Smaller follow-ups from the review: atomic start lock (`wx` instead of read-then-write in
+  `metor-lifecycle.mjs`); keep a broken state file for diagnosis instead of treating a parse
+  error as empty; `frame-ancestors` and the other security headers without breaking the
+  screen/terminal frames; a time zone per routine (today the box's, Europe/Berlin); pin base
+  images and GitHub Actions to digests; a stable image channel apart from `main` with the smoke
+  test in front of it.
 - **Telegram channel** as a thin additional entrance to the gateway (the one OpenClaw gap that
   matters); related idea: an e-mail address per bot as an entrance (delegate by forwarding)
 - **Server installation** - built 2026-09-01: ghcr workflow, compose (with or without Caddy),
@@ -102,4 +123,5 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 - Cosmetics: consolidate `.desktop` /
   `.browser` under `.metor`
 - SQLite as the next step for chat/inbox JSONL once histories grow large (lesson from comparable
-  products)
+  products); until then a paginated history read (`readHistory` reads the whole file) and
+  timeouts on the synchronous runtime probes

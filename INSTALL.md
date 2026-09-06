@@ -22,6 +22,17 @@ from a device that is already signed in, and every device can be removed again. 
 - A second login layer in front (Basic Auth, SSO) is optional. If you add one, remember that
   browsers do not send Basic Auth on WebSocket handshakes, and set `METOR_AUTH=off` only if that
   layer covers *everything* under `/bots`.
+- A device's session ends after a year, and removing a device closes its open screens, terminals
+  and live updates at once. Writes with the session cookie must come from the interface's own
+  origin: the gateway compares the browser's `Origin` with the `Host` it sees (or with
+  `METOR_WATCH_BASE`) - a proxy of your own must pass the `Host` header through (Caddy does, nginx
+  needs `proxy_set_header Host $host`).
+- Files a bot writes are served behind the sign-in, and pages or SVGs among them run sandboxed:
+  their scripts cannot reach the session or the API.
+- What the sign-in does not do: separate the bots from the management. Everything inside the box
+  runs as one user today, so a bot under prompt injection can reach the sign-in's files; do not
+  give bots accounts you would not give the whole computer
+  ([ADR-0018](knowledge/decisions/0018-management-plane.md) is the planned separation).
 
 ## A) New server - one-liner (recommended)
 
@@ -40,7 +51,8 @@ curl -fsSL https://raw.githubusercontent.com/metor-com/metor/main/deploy/install
 The installer asks for a domain (nothing else) and proposes `<public-ip>.sslip.io` as the default,
 a name that resolves to the server without owning a domain (see "Without your own domain" below);
 Enter takes it, `local` means this machine only without TLS. It installs Docker if it is missing,
-writes `/opt/metor/{compose.yml, Caddyfile, .env}`, pulls the image, starts box + Caddy (TLS via
+pulls the image, writes `/opt/metor/{compose.yml, Caddyfile, .env}` (the compose file comes out of
+the image, so it always matches the version that runs), starts box + Caddy (TLS via
 Let's Encrypt as soon as the name resolves to the server) and prints the **setup link** for your
 first device, as text and as a QR code. If something already listens on port 80 or 443, the
 installer leaves its own Caddy off, names the process, and prints the block to add to that proxy
@@ -235,3 +247,6 @@ start the bots.
   for a client of your own or the interface's dev server.
 - `METOR_ROUTINE_GUARD` - auto-pause: a routine pauses after this many runs without a user message
   (default 20, `0` = off).
+- `METOR_MEMORY` - memory limit of the box (default `8G`; the compose file also caps the box at
+  4096 processes, so a runaway bot cannot take the server down with it). A handful of bots with
+  their browsers fit into 8 GB; raise it for more.

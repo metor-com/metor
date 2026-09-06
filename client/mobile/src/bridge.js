@@ -42,6 +42,10 @@ const nameFor = (origin) => { try { return new URL(origin).hostname; } catch { r
 const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
 const deviceLabel = () => `metor app on ${{ ios: "iPhone", android: "Android" }[platform] ?? platform}`;
 const isOurs = (u, c) => !!c && String(u).startsWith(c.origin + "/");
+// Plain http only where the wire is the user's own: this device, the local network, a .local name.
+// Anywhere else the claim and then the session secret would cross the internet in the clear
+const PRIVATE_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i;
+const insecureOrigin = (origin) => { try { const u = new URL(origin); return u.protocol === "http:" && !PRIVATE_HOST.test(u.hostname); } catch { return true; } };
 
 async function fetchJson(url, init = {}, ms = 8000) {
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
@@ -75,6 +79,7 @@ async function connect({ url = "", claim = "" } = {}) {
   } catch { if (/^[a-z2-9]{4}-?[a-z2-9]{4}$/i.test(s)) code = s; else if (s) token = s; }
   if (!origin && url) { try { origin = new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`).origin; } catch { return { ok: false, error: "The address is not a URL." }; } }
   if (!origin) return { ok: false, error: "Enter the address of the bots' computer." };
+  if (insecureOrigin(origin)) return { ok: false, error: `${origin} is plain http on the internet – the session would travel unencrypted. Use https, or a computer on this device or your local network.` };
   if (!token && !code) return { ok: false, error: "Enter a setup link, a pairing link or a pairing code." };
   let v; try { v = await fetchJson(`${origin}/bots/api/version`); } catch (e) { return { ok: false, error: `No answer from ${origin} (${e.message}).` }; }
   if (!v.ok || v.data?.name !== "metor") return { ok: false, error: `No bots' computer of metor answers at ${origin}.` };

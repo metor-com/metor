@@ -1,16 +1,25 @@
 <script>
-  // Routines of a bot as a pane next to the chat (read-only: the bot creates and changes them
-  // itself in the chat). Every routine as a card in plain words – when it runs, next and last run,
-  // whether it is paused and why, the task it sends – plus the recent runs of the bot.
+  // Routines of a bot as a pane next to the chat. The bot creates and edits them in the chat; pausing,
+  // resuming and running one works right here – without the bot, so that a routine the quota guard
+  // paused can be switched back on even when that quota is used up. Every routine as a card in plain
+  // words – when it runs, next and last run, whether it is paused and why, the task it sends – plus
+  // the recent runs of the bot.
   import { onMount } from "svelte";
-  import { listRoutines } from "../lib/api.js";
+  import { listRoutines, runRoutine, setRoutineEnabled } from "../lib/api.js";
   import { describeCron } from "../lib/cron.js";
   import { dateTimeLabel, relativeLabel } from "../lib/when.js";
   export let bot;
   export let title = null;
 
-  let data = null, error = null, open = {};
-  onMount(async () => { try { data = await listRoutines(bot); } catch (e) { error = e.message; data = { routines: [], runs: [] }; } });
+  let data = null, error = null, open = {}, busy = {}, ran = {};
+  async function reload() { try { data = await listRoutines(bot); } catch (e) { error = e.message; data = data ?? { routines: [], runs: [] }; } }
+  onMount(reload);
+  async function act(r, fn) {
+    busy[r.id] = true; error = null;
+    try { await fn(); await reload(); } catch (e) { error = e.message; } finally { busy[r.id] = false; }
+  }
+  const toggle = (r) => act(r, () => setRoutineEnabled(bot, r.id, r.enabled === false));
+  const runNow = (r) => act(r, async () => { await runRoutine(bot, r.id); ran[r.id] = Date.now(); });
   const ms = (iso) => (iso ? Date.parse(iso) : null);
   $: routines = [...(data?.routines ?? [])].sort((a, b) => (ms(a.nextRunAt) ?? Infinity) - (ms(b.nextRunAt) ?? Infinity));
   $: runs = [...(data?.runs ?? [])].reverse().slice(0, 12);
@@ -51,8 +60,13 @@
               <dd class="text-zinc-800">{#if r.lastRunAt}{dateTimeLabel(ms(r.lastRunAt))} <span class="text-zinc-400">· {relativeLabel(ms(r.lastRunAt))}</span>{:else}never{/if}</dd>
             </dl>
             {#if paused && r.pausedReason}
-              <p class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[13px] leading-relaxed text-amber-900">Paused: {r.pausedReason}. Tell the bot to switch it back on.</p>
+              <p class="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[13px] leading-relaxed text-amber-900">Paused: {r.pausedReason}.</p>
             {/if}
+            <div class="mt-3 flex items-center gap-2">
+              <button type="button" class="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-[13px] font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50" disabled={busy[r.id]} on:click={() => toggle(r)}>{paused ? "Resume" : "Pause"}</button>
+              <button type="button" class="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-[13px] font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50" disabled={busy[r.id]} on:click={() => runNow(r)}>Run now</button>
+              {#if ran[r.id]}<span class="text-[13px] text-zinc-500">sent to the bot</span>{/if}
+            </div>
             <div class="mt-3 border-t border-zinc-100 pt-2.5">
               <div class="text-[11px] font-medium tracking-wide text-zinc-400 uppercase">What the bot is asked to do</div>
               <p class="mt-1 text-[13px] leading-relaxed text-zinc-700 {open[r.id] ? '' : 'line-clamp-3'}">{r.prompt}</p>
@@ -74,7 +88,7 @@
           {/each}
         </ul>
       {/if}
-      <p class="mt-4 text-xs leading-relaxed text-zinc-400">Create, change, pause or delete a routine in the chat – the bot manages them itself. Times are local to the bots' computer.</p>
+      <p class="mt-4 text-xs leading-relaxed text-zinc-400">Create, change or delete a routine in the chat – the bot manages them itself. Times are local to the bots' computer.</p>
     {/if}
     {#if error}<p class="mt-2 text-[13px] text-red-600">{error}</p>{/if}
   </div>

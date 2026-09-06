@@ -89,8 +89,15 @@ docs/       user documentation
   impersonation of a subscription ([ADR-0004](knowledge/decisions/0004-bot-policy.md),
   [ADR-0006](knowledge/decisions/0006-legal-guardrails.md),
   [subscription rules](knowledge/harness/subscription-auth-rules.md)).
-- Inside the box everything is allowed; approvals sit at the boundary - the user's machine and
-  actions with external effect ([ADR-0004](knowledge/decisions/0004-bot-policy.md)).
+- Inside the box everything is allowed - the shell, the browser and the files never ask. Approval
+  cards sit at the boundary: today for connectors marked "Ask before each use" with Claude Code
+  bots; the same for Codex and Gemini and a choice of connectors per bot are planned
+  ([ADR-0004](knowledge/decisions/0004-bot-policy.md),
+  [ADR-0019](knowledge/decisions/0019-boundary-approvals.md)). A bot signed in to a site in its
+  browser acts there without a card - keep sensitive accounts behind an asking connector.
+- The bots and the management (sign-in, devices, approvals) run as one user inside the box today;
+  a bot under prompt injection can reach the management's files. Separating them is the next
+  security step ([ADR-0018](knowledge/decisions/0018-management-plane.md)).
 - The bot ID is part of every path and tool call so that harder isolation stays possible later
   ([ADR-0002](knowledge/decisions/0002-box-model.md)).
 - No source maps in releases, no silent uploads, no secrets in the repository.

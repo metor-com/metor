@@ -83,13 +83,17 @@ a line break.
 - **Tool lines**: grey lines with a gear icon show what the bot is doing (reading a file, running a
   command, opening a page). Click a line to expand the full command and its result; click again to
   collapse it.
-- **Approval cards**: when the runtime asks for permission - typically for actions with external
-  effect - an amber card titled "Approval" appears with the tool, the reason and the exact input.
+- **Approval cards**: when a connector marked **Ask before each use** (Settings → Connectors) is
+  called, an amber card titled "Approval" appears with the tool, the reason and the exact input.
   Choose **Allow** or **Deny**. The card stays in the history with the decision. While a card is
   open the bot list says "waiting for your approval", and with notifications turned on
   (Settings → Devices) your phone gets a push.
-  Approval cards come from Claude Code bots; Codex bots currently run without approval prompts
-  inside the box.
+  Be clear about what asks and what does not: inside the bots' computer nothing asks - not the
+  shell, not the browser, not the files. A bot that is signed in to a site in its browser can act
+  there without a card. Approval cards exist for connectors marked "Ask before each use", and
+  today only Claude Code bots show them; Codex and Gemini bots run every connector without asking
+  ([ADR-0019](../knowledge/decisions/0019-boundary-approvals.md) is the plan to close that gap).
+  Give a bot accounts it may use freely, and keep the sensitive ones behind an asking connector.
 - **Stop**: while the bot is working, a red stop button sits in the header. It interrupts the
   current turn; the bot keeps its context and you can send the next message right away.
 - **Message status**: your own messages carry ticks like in a messenger - one tick while the
@@ -150,15 +154,17 @@ digest." The bot creates the schedule itself and confirms it. Times are in the b
 The routines button in the header (a calendar with a clock) shows the bot's routines next to the
 chat, one card each in plain words: when it runs ("Weekdays at 07:00"), the next and the last run,
 whether it is active or paused and why, and the task the bot receives. Below the cards the recent
-runs are listed. The panel is read-only: routines are changed the same way they are created - ask
-the bot to move the time, change the task, pause or resume it, or delete it. Each run arrives in
-the chat as a grey "Routine" message followed by the bot's work.
+runs are listed. Every card has **Pause** / **Resume** and **Run now** - they work without the bot,
+so a routine can be switched back on even when the bot's quota is used up. Changing a routine
+works the same way it was created: ask the bot to move the time, change the task, or delete it.
+Each run arrives in the chat as a grey "Routine" message followed by the bot's work.
 
 **Auto-pause**: a routine that has run 20 times without you sending the bot any message is paused
-automatically and marked "paused" in the panel; the bot leaves a note in the chat. Just tell the
-bot to resume it. The threshold is configurable per installation (`METOR_ROUTINE_GUARD`, `0`
-disables the guard). A run that was missed while the box was down is caught up once after the
-restart.
+automatically and marked "paused" in the panel; the bot leaves a note in the chat. Resume it in
+the panel or tell the bot. The threshold is configurable per installation (`METOR_ROUTINE_GUARD`,
+`0` disables the guard). A run that was missed while the box was down is caught up once after the
+restart. A schedule that never matches a date (the 31st of February) is refused when the routine
+is created; one that runs out of dates pauses with a note.
 
 ## 8. Runtimes and models
 

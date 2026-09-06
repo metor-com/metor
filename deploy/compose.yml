@@ -17,12 +17,20 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+    # A runaway bot (or a fork bomb from a page it visited) must not take the whole server with it.
+    # Memory: 8 GB is enough for a handful of bots with their browsers – raise METOR_MEMORY for more.
+    deploy:
+      resources:
+        limits:
+          memory: ${METOR_MEMORY:-8G}
+          pids: 4096
     environment:
       METOR_WATCH_BASE: ${METOR_WATCH_BASE:-}
       METOR_NTFY_URL: ${METOR_NTFY_URL:-}          # optional: push notification on "waiting for approval"
       METOR_ROUTINE_GUARD: ${METOR_ROUTINE_GUARD:-} # optional: auto-pause threshold (empty = 20, 0 = off)
       METOR_AUTH: ${METOR_AUTH:-}                   # "off" = no gateway sign-in (only behind your own login)
       METOR_APP_ORIGINS: ${METOR_APP_ORIGINS:-}     # optional: further app origins allowed to call the API (ADR-0015)
+      METOR_PUSH_SUBJECT: ${METOR_PUSH_SUBJECT:-}   # optional: contact for the push services (see .env.example)
     volumes:
       - metor-workspace:/workspace
       - metor-claude:/home/box/.claude
