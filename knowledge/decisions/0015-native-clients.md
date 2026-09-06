@@ -113,8 +113,11 @@ used from TestFlight and Play's internal track long before a store release. Fact
   `http://localhost`, not Capacitor's default `https://localhost`, so that a computer answering over
   plain http is not blocked as mixed content (localhost is a secure context either way); and the
   in-app web view must run in the app's process (`isIsolated: false`), the plugin's default
-  isolated process has a cookie store of its own. Inline pictures still need the bearer (fetched
-  blobs) or a per-session ticket on the picture routes – open, see `client/mobile/README.md`.
+  isolated process has a cookie store of its own. Pictures and files (2026-09-06): the bridge
+  says `fetchMedia`, the interface fetches pictures with the token and shows the blob, and a
+  tapped file goes to the app, which downloads it with the token and opens it with the system
+  viewer – no ticket in URLs, the gateway only learnt `HEAD` on the file route
+  (`frontend/src/lib/media.js`, `client/mobile/README.md` "Pictures and files").
 - Simulator builds must keep Xcode's "Sign to Run Locally" signature: without entitlements the
   keychain refuses every write (-34018) and the app cannot keep a session.
 - Push stays as decided: none in the app until the relay exists – a Web-Push-to-APNs/FCM

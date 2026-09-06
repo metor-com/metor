@@ -10,6 +10,9 @@ import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
 import { InAppBrowser, DefaultWebViewOptions } from "@capacitor/inappbrowser";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
+import { FileOpener } from "@capacitor-community/file-opener";
 // Native push (ADR-0017): registration with APNs/FCM and the device's Web Push key pair, implemented in
 // ios/App/App/MetorPushPlugin.swift and android/…/MetorPushPlugin.kt; absent in a browser
 const MetorPush = registerPlugin("MetorPush");
@@ -199,6 +202,32 @@ async function openComputer(url) {
   } });
 }
 
+// ---------- Files (attachments, the file browser): downloaded with the session, opened by the system ----------
+// A link cannot carry the token and the WebView withholds the cookie from cross-site loads (see README), so
+// the interface hands a tapped file here (frontend/src/lib/media.js): downloaded into the app's cache with the
+// token (natively, no detour through JavaScript), then Quick Look on iOS / the app registered for the type on
+// Android; the share sheet when nothing opens it. The cache folder is emptied at every start.
+const FILE_TYPES = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", heic: "image/heic",
+  pdf: "application/pdf", txt: "text/plain", md: "text/plain", csv: "text/csv", json: "application/json", html: "text/html", zip: "application/zip",   // md as plain text: Quick Look knows no markdown
+  mp4: "video/mp4", mov: "video/quicktime", mp3: "audio/mpeg", m4a: "audio/mp4", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation" };
+const FILES_DIR = "metor-files";
+async function openFile(url, name) {
+  const c = current();
+  if (!c?.secret || !isOurs(url, c)) throw new Error("not a file of the connected computer");
+  const safe = String(name || "file").replace(/[^\w.\- ()]+/g, "_").slice(-120) || "file";
+  const dir = `${FILES_DIR}/${randomId()}`, path = `${dir}/${safe}`;   // its own folder, so the viewer sees the real name
+  const r = await nativeFetch(url, { method: "HEAD", headers: { authorization: `Bearer ${c.secret}` } }).catch(() => null);
+  if (r && !r.ok) throw new Error(r.status === 404 ? "the file is no longer there" : `HTTP ${r.status}`);
+  await Filesystem.mkdir({ path: dir, directory: Directory.Cache, recursive: true }).catch(() => {});   // downloadFile's `recursive` is not honoured on Android
+  await Filesystem.downloadFile({ url, path, directory: Directory.Cache, headers: { authorization: `Bearer ${c.secret}` } });
+  const { uri } = await Filesystem.getUri({ path, directory: Directory.Cache });
+  const contentType = FILE_TYPES[safe.split(".").pop()?.toLowerCase()] ?? "application/octet-stream";
+  try { await FileOpener.open({ filePath: uri, contentType, openWithDefault: true }); }
+  catch (e) { console.warn("metor: open file", e?.message ?? e); await Share.share({ title: safe, files: [uri] }); }
+}
+Filesystem.rmdir({ path: FILES_DIR, directory: Directory.Cache, recursive: true }).catch(() => {});
+
 // ---------- Native push: register with APNs/FCM, then hand the gateway a Web Push subscription whose endpoint is the relay ----------
 // The gateway treats it like any browser subscription (metor-push.mjs): it encrypts for the device's key pair and
 // posts to the endpoint; the relay forwards to Apple or Google; the app decrypts (notification extension / messaging service).
@@ -288,6 +317,8 @@ window.metor = {
   signedOut: () => { signedOut(); },
   notify,
   openComputer,
+  fetchMedia: true,   // pictures cannot be loaded by the WebView itself – the interface fetches them (frontend/src/lib/media.js)
+  openFile,
   push: { state: async () => { if (pushInFlight) await pushInFlight; return pushState; }, enable: enablePush, disable: disablePush },
   onOpenBot: (cb) => { openBotCallback = cb; if (pendingBot) { const b = pendingBot; pendingBot = null; cb(b); } },
 };

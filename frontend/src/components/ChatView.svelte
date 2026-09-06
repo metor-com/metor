@@ -1,5 +1,6 @@
 <script>
   import { chatSend, chatPermission, uploadFile, fileUrl } from "../lib/api.js";
+  import { picture, openFile } from "../lib/media.js";   // pictures and files inside the phone app (session by fetch, system viewer)
   import Ticks from "./Ticks.svelte";
   import { renderMarkdown } from "../lib/markdown.js";
   export let bot;
@@ -132,9 +133,9 @@
               <div class="mb-1.5 flex flex-wrap gap-1.5 {e.text ? '' : 'mb-0'}">
                 {#each e.attachments as a}
                   {#if a.image}
-                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer"><img src={fileUrl(bot, a.path)} alt={a.name} class="max-h-40 max-w-full rounded-lg" /></a>
+                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer" on:click={(ev) => openFile(ev, fileUrl(bot, a.path), a.name)}><img use:picture={fileUrl(bot, a.path)} alt={a.name} class="max-h-40 max-w-full rounded-lg" /></a>
                   {:else}
-                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 rounded-lg bg-zinc-700 px-2.5 py-1.5 text-xs text-zinc-100 hover:bg-zinc-600">📄 <span class="max-w-[14rem] truncate">{a.name}</span> <span class="text-zinc-400">{fmtSize(a.size)}</span></a>
+                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer" on:click={(ev) => openFile(ev, fileUrl(bot, a.path), a.name)} class="flex items-center gap-1.5 rounded-lg bg-zinc-700 px-2.5 py-1.5 text-xs text-zinc-100 hover:bg-zinc-600">📄 <span class="max-w-[14rem] truncate">{a.name}</span> <span class="text-zinc-400">{fmtSize(a.size)}</span></a>
                   {/if}
                 {/each}
               </div>
@@ -156,9 +157,9 @@
               <div class="flex flex-wrap gap-1.5 {e.text ? 'mt-2' : ''}">
                 {#each e.attachments as a}
                   {#if a.image}
-                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer"><img src={fileUrl(bot, a.path)} alt={a.name} class="max-h-48 max-w-full rounded-lg border border-zinc-200" /></a>
+                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer" on:click={(ev) => openFile(ev, fileUrl(bot, a.path), a.name)}><img use:picture={fileUrl(bot, a.path)} alt={a.name} class="max-h-48 max-w-full rounded-lg border border-zinc-200" /></a>
                   {:else}
-                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs text-zinc-800 hover:bg-zinc-200">📄 <span class="max-w-[14rem] truncate">{a.name}</span> <span class="text-zinc-400">{fmtSize(a.size)}</span></a>
+                    <a href={fileUrl(bot, a.path)} target="_blank" rel="noopener noreferrer" on:click={(ev) => openFile(ev, fileUrl(bot, a.path), a.name)} class="flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs text-zinc-800 hover:bg-zinc-200">📄 <span class="max-w-[14rem] truncate">{a.name}</span> <span class="text-zinc-400">{fmtSize(a.size)}</span></a>
                   {/if}
                 {/each}
               </div>

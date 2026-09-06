@@ -332,7 +332,7 @@ async function api(req, res, url) {
     // Serve a file (chat attachments in both directions + file browser): everything below the
     // bot directory EXCEPT dot paths (.metor, .browser, .desktop, .claude – that's where histories,
     // browser profile and state live). Access like the whole API: behind the Caddy login.
-    if (action === "chat" && rest[3] === "file" && req.method === "GET") {
+    if (action === "chat" && rest[3] === "file" && (req.method === "GET" || req.method === "HEAD")) {   // HEAD: the phone app asks before it downloads
       const rel = String(u.searchParams.get("path") ?? "");
       const file = safeBotPath(name, rel);
       if (!file || !existsSync(file) || !statSync(file).isFile()) return send(404, { error: "file not found" });
@@ -341,6 +341,7 @@ async function api(req, res, url) {
         "content-length": st.size,
         // uploads/ carry a timestamp in the name (immutable), bot files can change
         "cache-control": rel.startsWith("uploads/") ? "public, max-age=31536000, immutable" : "no-store" });
+      if (req.method === "HEAD") return res.end();
       return createReadStream(file).pipe(res);
     }
     // File browser: directory listing (dot entries hidden)

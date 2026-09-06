@@ -27,7 +27,7 @@ cookie store of its own, which shows the gateway's sign-in page instead).
 Status: scaffold (2026-09-06). Pairing by `metor://` link, the session in the keychain or
 keystore, the bot list and chat (fetch and SSE with the bearer token), and the bot's screen and
 terminal in the app's own web view work in the iOS simulator and the Android emulator against a
-local computer. Inline pictures do not yet – see *Open*.
+local computer, as do pictures and attachments (see *Pictures and files*) and push (ADR-0017).
 
 ## Development
 
@@ -162,18 +162,41 @@ simulator can lag or skip.
 
 Plugins: `@capacitor/app` (launch and open URLs), `@capacitor/local-notifications` (the gateway's
 notify events while the app is open), `@aparajita/capacitor-secure-storage` (sessions),
-`@capacitor/inappbrowser` (the screen and terminal web view).
+`@capacitor/inappbrowser` (the screen and terminal web view), `@capacitor/filesystem` and
+`@capacitor-community/file-opener` with `@capacitor/share` (attachments, see *Pictures and files*).
+
+## Pictures and files
+
+In a browser the interface and the computer share an origin, so every `<img>` and every link to a
+file carries the session cookie by itself. In the app the interface sits on its own origin and the
+computer is a foreign site: the session travels as a bearer token that the bridge adds to `fetch`
+and the SSE stream – but a picture or a link is a load the WebView makes on its own, without the
+token, and both WebViews withhold the session cookie from such cross-site loads (verified
+2026-09-06: a public icon from the computer loads, an avatar behind the sign-in does not; Android
+treats the cookie as SameSite=Lax). The desktop app has no such problem, its main process adds the
+token to every request (`webRequest.onBeforeSendHeaders`); WKWebView offers nothing of the kind.
+
+So the bridge says `fetchMedia` and the interface adapts (`frontend/src/lib/media.js`):
+
+- **Pictures** (avatars, attachment previews): the `picture` action fetches the URL – the bridge's
+  `fetch` carries the token – and puts the blob into the `<img>`; one cache per session (the
+  newest 300 object URLs). In a browser and in the desktop app the action just sets `src`.
+- **Files** (attachments, the file browser): a tap calls `window.metor.openFile(url, name)`
+  instead of following the link. The bridge asks the gateway with `HEAD` (a clear message when
+  the file is gone), downloads into a folder of its own under the app's cache
+  (`Filesystem.downloadFile` with the token, streamed natively) and opens it with the system:
+  Quick Look on iOS, the app registered for the type on Android (`@capacitor-community/file-opener`,
+  which brings its own `FileProvider`); the share sheet when nothing opens it. The cache folder is
+  emptied at every start. Pitfall: `downloadFile`'s `recursive` option does not create the folder
+  on Android – `mkdir` first.
+
+Verified 2026-09-06 in the simulator and the emulator: an uploaded avatar shows, a picture
+attachment shows inline and opens full-screen on a tap, a PDF opens in Quick Look and in the
+Android PDF viewer. Pictures are not cached on disk by the WebView any more (the object URLs live
+in memory) – acceptable for chat-sized pictures.
 
 ## Open
 
-- **Inline pictures** (avatars, attachment previews in the chat): `<img>` loads from the
-  computer's host are cross-site subresource loads, and neither WKWebView nor Android's WebView
-  sends the session cookie with them (verified 2026-09-06 on both: a public icon from the computer
-  loads, an avatar or attachment behind the sign-in does not; Android treats the cookie as
-  SameSite=Lax by default). Fetch them with the bearer token in the frontend and show the blob, or
-  let the gateway accept a per-session ticket (HMAC of the session id with a server key, revoked
-  with the session) on the picture routes. Links to attachments need the same treatment (share
-  sheet).
 - **Push on Android** works in the emulator (verified 2026-09-06 against push.metor.com with the
   Firebase project's `google-services.json` in `android/app/`, git-ignored): FCM token, subscription
   at the gateway, relay → FCM 201, the messaging service decrypts and shows "Gemini: stopped".

@@ -1,5 +1,6 @@
 <script>
   import { listFiles, fileUrl } from "../lib/api.js";
+  import { openFile } from "../lib/media.js";   // inside the phone app a file opens through the app (media.js)
   export let bot;
   let path = "", data = null, error = null, lastBot = null;
 
@@ -43,7 +44,8 @@
             </button>
           {:else}
             <a class="flex min-w-0 items-baseline gap-2.5 px-3 py-2 hover:bg-zinc-100"
-              href={fileUrl(bot, path ? `${path}/${e.name}` : e.name)} target="_blank" rel="noopener noreferrer">
+              href={fileUrl(bot, path ? `${path}/${e.name}` : e.name)} target="_blank" rel="noopener noreferrer"
+              on:click={(ev) => openFile(ev, fileUrl(bot, path ? `${path}/${e.name}` : e.name), e.name)}>
               <span class="shrink-0">📄</span><span class="min-w-0 flex-1 truncate">{e.name}</span>
               <span class="shrink-0 text-xs text-zinc-400">{fmtSize(e.size)}</span>
               <span class="shrink-0 text-xs text-zinc-400">{fmtTs(e.mtime)}</span>

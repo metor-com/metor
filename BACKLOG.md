@@ -65,9 +65,9 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   keychain/keystore, bot list and chat, the bot's screen and terminal in the app's own web view
   (`@capacitor/inappbrowser`; frames inside the page get no session cookie from either WebView, a
   top-level page does – on Android only in the app's process, not the plugin's isolated one).
-  Remaining: inline pictures and attachment links (bearer-fetched blobs or a per-session ticket
-  on the picture routes, see client/mobile/README.md "Open"), a QR scanner and Face ID on the
-  connect screen, icons and splash
+  Pictures and attachments work since 2026-09-06 (fetched with the token, files open with the
+  system viewer – client/mobile/README.md "Pictures and files"). Remaining: a QR scanner and
+  Face ID on the connect screen, icons and splash
   screens, TestFlight / internal Play track
   ([ADR-0017](knowledge/decisions/0017-push-relay.md): relay at push.metor.com; push, the Approve/Deny actions and the notifications switch verified in simulator and emulator), the demo computer for Apple's review. Until the relay
   exists the PWA remains the phone client with push.
