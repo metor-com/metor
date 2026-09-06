@@ -132,7 +132,9 @@ function apnsClient(apns) {
       if (r.status === 410 || (r.status === 400 && ["BadDeviceToken", "DeviceTokenNotForTopic"].includes(reason))) return { status: 410, reason };
       if (r.status === 413) return { status: 413, reason };
       if (r.status === 429) return { status: 429, reason };
-      if (r.status === 403 || r.status === 401 || r.status === 400 || r.status === 404) return { status: 500, reason };   // our configuration, not the device
+      // Our configuration, not the device. APNs judges topic and provider token per connection: after a refusal the
+      // session is dropped, so a fix in the developer portal takes effect on the next message, not after a restart
+      if (r.status === 403 || r.status === 401 || r.status === 400 || r.status === 404) { const s = sessions.get(url); if (s) { s.close(); sessions.delete(url); } return { status: 500, reason }; }
       return { status: 502, reason };
     },
     close() { for (const s of sessions.values()) s.close(); sessions.clear(); },
