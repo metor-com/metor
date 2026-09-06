@@ -213,7 +213,11 @@ start the bots.
 ## Operations
 
 - **Update:** `docker compose pull && docker compose up -d` (add the profile if you use it). Bots,
-  histories and routines survive; sessions resume with their context.
+  histories and routines survive; sessions resume with their context. On a Mac it is
+  `metor box update`. The interface shows the newest release under *Settings → Computer* (the box
+  asks GitHub once a day; `METOR_UPDATE_CHECK=off` stops that), together with the runtimes'
+  versions - the runtimes travel with the image, so updating metor is what brings new runtime
+  versions and models.
 - **Backup:** back up the three volumes - `metor-workspace` (bots, histories, routines, files),
   `metor-claude` (Claude login **and sessions**; without this volume the conversation contexts are
   gone), `metor-codex` (Codex login and sessions) and `metor-gemini` (Gemini login and sessions).
@@ -229,6 +233,7 @@ start the bots.
 - `METOR_IMAGE` - a different box image (for example a version tag instead of `latest`).
 - `METOR_WATCH_BASE` - public base URL of the interface; ends up in the watch links that bots send
   and in the pairing links (`metor auth link`).
+- `METOR_UPDATE_CHECK` - `off` keeps the box from asking GitHub for the newest release.
 - `METOR_BIND` - the address the wrapper publishes the interface on, default `127.0.0.1` (this
   machine only). `0.0.0.0` makes a computer on a Mac reachable in the same Wi-Fi, for the phone
   app: `METOR_BIND=0.0.0.0 METOR_WATCH_BASE=http://<the Mac's address>:6010 metor box up`. Sign-in

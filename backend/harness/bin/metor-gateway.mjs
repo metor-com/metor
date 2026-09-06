@@ -553,9 +553,33 @@ function readForm(req) {
   });
 }
 // What a client may ask before signing in: who is there, which version, what it can do
+// ---------- Updates: metor's newest release (GitHub, once a day; METOR_UPDATE_CHECK=off never asks) and the runtimes' versions ----------
+// Shown under Settings → Computer. Runtimes travel with the image (backend/box/Dockerfile pins them, a weekly
+// workflow proposes bumps), so "update metor" is the one step that brings new runtimes and models.
+const RELEASES_API = "https://api.github.com/repos/metor-com/metor/releases/latest";
+let latestRelease = null;   // { version, url, checkedAt }
+async function checkLatestRelease() {
+  if ((process.env.METOR_UPDATE_CHECK ?? "").toLowerCase() === "off") return;
+  try {
+    const r = await fetch(RELEASES_API, { headers: { accept: "application/vnd.github+json", "user-agent": `metor/${VERSION}` }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return;
+    const j = await r.json(), v = String(j.tag_name ?? "").replace(/^v/, "");
+    if (/^\d+\.\d+\.\d+$/.test(v)) latestRelease = { version: v, url: j.html_url ?? null, checkedAt: Date.now() };
+  } catch {}
+}
+setTimeout(checkLatestRelease, 20_000).unref?.(); setInterval(checkLatestRelease, 24 * 3600_000).unref?.();
+const newerThan = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number); for (let i = 0; i < 3; i += 1) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0); return false; };
+const RUNTIME_PACKAGES = { claude: "@anthropic-ai/claude-agent-sdk", codex: "@openai/codex", gemini: "@google/gemini-cli" };
+const runtimeVersions = Object.fromEntries(Object.entries(RUNTIME_PACKAGES).map(([id, pkg]) => {
+  try { return [id, JSON.parse(readFileSync(`/usr/local/lib/node_modules/${pkg}/package.json`, "utf8")).version]; } catch { return [id, null]; }
+}));
 async function versionInfo() {
+  const semver = /^\d+\.\d+\.\d+$/.test(VERSION);
   return { name: "metor", version: VERSION, authOff: AUTH_OFF,
-    capabilities: { bearer: true, redeem: true, connectors: true, push: await push.available(), harnesses: Object.keys(HARNESSES) } };
+    capabilities: { bearer: true, redeem: true, connectors: true, push: await push.available(), harnesses: Object.keys(HARNESSES) },
+    runtimes: runtimeVersions,
+    latest: latestRelease ? { ...latestRelease, newer: semver && newerThan(latestRelease.version, VERSION) } : null,
+    updateCheck: (process.env.METOR_UPDATE_CHECK ?? "").toLowerCase() !== "off" };
 }
 // JSON twin of the redirect flow below, for native clients (ADR-0015): the session secret is
 // returned once and never again – the client keeps it (keychain) and sends it as a bearer token

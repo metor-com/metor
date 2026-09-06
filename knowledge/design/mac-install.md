@@ -97,5 +97,6 @@ Two problems, both outside metor's code:
    computer* offers the same plus *Stop* and *Start automatically when the app opens* (on by
    default: the app starts a stopped local computer at launch, the interface reconnects on its own).
 
-Open: phone access to the local computer (Cloudflare Tunnel or Tailscale), an update command
-(`metor box update`: pull + restart), the legacy port range in the Docker command.
+Open: phone access to the local computer away from home (Cloudflare Tunnel or Tailscale; in the
+same Wi-Fi `METOR_BIND=0.0.0.0` does it), the legacy port range in the Docker command.
+`metor box update` (pull + recreate) exists since 2026-09-07.

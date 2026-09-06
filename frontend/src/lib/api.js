@@ -19,6 +19,7 @@ async function req(method, path, body) {
 }
 
 // Devices (ADR-0012): the session behind this browser, all sessions, pairing, sign-out
+export const versionInfo = () => req("GET", "/version");   // version, runtimes, the newest release (Settings → Computer)
 export const authMe = () => req("GET", "/auth/me");
 export const authSessions = () => req("GET", "/auth/sessions");
 export const authRevoke = (id) => req("DELETE", `/auth/sessions/${id}`);

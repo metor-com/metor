@@ -11,6 +11,13 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ## [Unreleased]
 
+### Added
+
+- **Settings → Computer**: metor's version, the newest release (the computer asks GitHub once a
+  day, `METOR_UPDATE_CHECK=off` stops that) with the update command for a server or a Mac, and
+  the versions of the runtimes the computer carries. `metor box update` pulls the newest image and
+  starts the computer again on a Mac. A weekly check proposes runtime updates as pull requests.
+
 ### Changed
 
 - **Codex runs GPT-6 Astra**: the box carries Codex CLI 0.153.4, whose model list (it is the

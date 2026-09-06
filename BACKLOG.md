@@ -98,9 +98,13 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   Apple silicon) or Docker/Colima through the same wrapper, multi-arch image workflow, formula
   template, *Bots' computer on this Mac* menu in the desktop app (see
   [knowledge/design/mac-install.md](knowledge/design/mac-install.md)). Remaining: create the tap
-  repository `metor-com/homebrew-tap` with the formula and a release sha256; `metor box update`
-  (pull + restart); drop the legacy 6011-6049 port range from the Docker command; phone access to
-  a local computer (Cloudflare Tunnel or Tailscale)
+  repository `metor-com/homebrew-tap` with the formula and a release sha256; drop the legacy
+  6011-6049 port range from the Docker command; phone access to a local computer away from home
+  (Cloudflare Tunnel or Tailscale; `metor box update` and the update hint exist since 2026-09-07)
+- **Runtimes out of the image** (idea, 2026-09-07): install the runtimes into a volume and offer
+  *Update* per runtime under Settings → Computer, against a list of versions metor has tested
+  (published with each release), with a way back to the tested version - new models without a
+  metor release. Today the weekly `runtimes` workflow proposes bumps as pull requests.
 - **Host names without a domain: `<ip-with-dashes>.ip.metor.com`** - our own sslip.io: a tiny
   DNS server (the open-source sslip.io binary or CoreDNS) answering every `<a>-<b>-<c>-<d>.ip.metor.com`
   with the embedded address, the zone delegated from metor.com; the installer then defaults to that

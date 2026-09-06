@@ -94,7 +94,7 @@ box_up() {
       docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
         --ulimit nofile=65536:65536 \
         -p "$BIND:$PORT:6010" -p 127.0.0.1:6011-6049:6011-6049 \
-        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" \
         $VOLS "$IMAGE" >/dev/null ;;
     container)
       container rm "$C" >/dev/null 2>&1 || true
@@ -107,7 +107,7 @@ box_up() {
       # shellcheck disable=SC2086
       container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${METOR_MEMORY:-4g}" --cpus "${METOR_CPUS:-4}" \
         -p "$BIND:$PORT:6010" \
-        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" \
         $VOLS "$IMAGE" >/dev/null ;;
   esac
   remember_runtime
@@ -139,6 +139,14 @@ case "${1:-}" in
             need_runtime; exec "$RT" build -t "${METOR_BOX_IMAGE:-metor-box:dev}" -f "$CORE/box/Dockerfile" "$CORE/.." ;;  # context = repo root (backend/ + frontend/)
     up)     box_up ;;
     down)   exec "$RT" stop "$C" ;;
+    update) need_runtime   # the published image: pull the newest, recreate the computer (bots, histories and sign-ins live in the volumes)
+            if [ -z "${METOR_BOX_IMAGE:-}" ] && image_present metor-box:dev; then
+              echo "this computer runs an image built from a checkout – update it with: git pull && metor box build && metor box down && metor box up"; exit 1; fi
+            IMG="${METOR_BOX_IMAGE:-$PUBLIC_IMAGE}"; echo "pulling $IMG"
+            # shellcheck disable=SC2086
+            "$RT" image pull $PROGRESS "$IMG" || exit 1
+            running && "$RT" stop "$C" >/dev/null
+            echo "starting again with the environment of this call (METOR_BIND, METOR_WATCH_BASE, …)"; box_up ;;
     state)  [ "$RT" = none ] && { echo none; exit 0; }; running && echo "running $RT" || echo "stopped $RT" ;;
     status) running || { echo "$C: stopped ($RT)"; exit 0; }
             exec_in "$C" bash -lc 'claude auth status 2>&1 | head -5; echo; metor bot list' ;;
@@ -161,5 +169,5 @@ CADDY
   esac ;;
   version|--version) echo "metor $(cat "$CORE/../VERSION" 2>/dev/null || echo "$METOR_VERSION_FALLBACK")" ;;
   bot|auth) running || { echo "$C is not running – metor box up"; exit 1; }; c="$1"; shift; exec_in "$C" metor "$c" "$@" ;;
-  *) echo 'metor – CLI'; echo '  setup                       (runtime, image, start, setup link)'; echo '  box  build | up | down | state | status | shell | logs | login | serve'; echo '  bot  create <name> --role "..." | list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name>'; echo '  auth link | sessions | revoke <id>      (sign-in link for a device, signed-in devices)'; echo "  Runtime: $RT (METOR_RUNTIME=docker|container)  Environment: METOR_WATCH_BASE=https://bots.example.com (public base URL of the interface), METOR_BIND=0.0.0.0 (reachable on the LAN, e.g. for the phone)"; [ -n "${1:-}" ] && exit 1 || exit 0 ;;
+  *) echo 'metor – CLI'; echo '  setup                       (runtime, image, start, setup link)'; echo '  box  build | up | down | update | state | status | shell | logs | login | serve'; echo '  bot  create <name> --role "..." | list | start <name>|--all | stop <name> | logs <name> | watch <name> | rm <name>'; echo '  auth link | sessions | revoke <id>      (sign-in link for a device, signed-in devices)'; echo "  Runtime: $RT (METOR_RUNTIME=docker|container)  Environment: METOR_WATCH_BASE=https://bots.example.com (public base URL of the interface), METOR_BIND=0.0.0.0 (reachable on the LAN, e.g. for the phone)"; [ -n "${1:-}" ] && exit 1 || exit 0 ;;
 esac
