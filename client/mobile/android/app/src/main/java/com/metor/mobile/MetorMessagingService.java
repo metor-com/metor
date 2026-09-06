@@ -43,7 +43,7 @@ public class MetorMessagingService extends FirebaseMessagingService {
         int id = bot != null ? bot.hashCode() : (int) System.currentTimeMillis();
         PendingIntent tap = PendingIntent.getActivity(this, id, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL)
-            .setSmallIcon(R.mipmap.ic_launcher).setContentTitle(title).setContentText(text)
+            .setSmallIcon(R.drawable.ic_stat_metor).setContentTitle(title).setContentText(text)   // white "m" on transparent (res/drawable)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
             .setPriority("approval".equals(kind) ? NotificationCompat.PRIORITY_MAX : NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true).setContentIntent(tap)

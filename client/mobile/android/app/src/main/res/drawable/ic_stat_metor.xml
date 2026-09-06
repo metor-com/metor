@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The status-bar icon of metor's notifications: the "m" of the logo, white on transparent, as Android
+     wants small icons (MetorMessagingService). Same path as frontend/public/icons/icon.svg. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="512" android:viewportHeight="512">
+    <path
+        android:pathData="M132,380V236C132,158 256,158 256,236V380M256,236C256,158 380,158 380,236V380"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="54"
+        android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000"/>
+</vector>

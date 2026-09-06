@@ -2,7 +2,7 @@
   "name": "metor-mobile",
   "productName": "metor",
   "version": "0.2.0",
-  "description": "metor – the app for iPhone and Android (ADR-0015): Capacitor around the unchanged interface",
+  "description": "metor \u2013 the app for iPhone and Android (ADR-0015): Capacitor around the unchanged interface",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
@@ -12,7 +12,9 @@
     "ios": "npm run sync && cap open ios",
     "android": "npm run sync && cap open android",
     "run:ios": "npm run sync && cap run ios",
-    "run:android": "npm run sync && cap run android"
+    "run:android": "npm run sync && cap run android",
+    "assets": "capacitor-assets generate --ios --android --iconBackgroundColor '#18181b' --iconBackgroundColorDark '#18181b' --splashBackgroundColor '#f4f4f5' --splashBackgroundColorDark '#18181b' --logoSplashTargetWidth 640",
+    "testflight": "scripts/testflight.sh"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^8.5.1",
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.5.1",
     "@capacitor/ios": "^8.5.1",
     "esbuild": "^0.27.0"

@@ -165,6 +165,37 @@ notify events while the app is open), `@aparajita/capacitor-secure-storage` (ses
 `@capacitor/inappbrowser` (the screen and terminal web view), `@capacitor/filesystem` and
 `@capacitor-community/file-opener` with `@capacitor/share` (attachments, see *Pictures and files*).
 
+## Icons and splash screens
+
+The sources are `assets/logo.svg` (the metor mark, the same as `frontend/public/icons/icon.svg`)
+and `assets/logo-dark.svg` (the white "m" alone, for dark splash screens). `npm run assets`
+regenerates everything with `@capacitor/assets`: the iOS app icon (full-bleed, the mark on
+`#18181b`), the iOS launch images (light `#f4f4f5` / dark `#18181b`, logo 640 px wide on 2732),
+Android's adaptive launcher icons and splash drawables. Android's status-bar icon for
+notifications is a vector drawable of the "m" (`res/drawable/ic_stat_metor.xml`), which Android
+wants white on transparent. Pitfall: with an SVG source the tool's `--logoSplashScale` refers to
+the SVG's own 512 px, so the splash logo is given as a target width instead.
+
+## TestFlight
+
+`npm run testflight` (`scripts/testflight.sh`) builds the interface, archives the app for a real
+iPhone in Release, signs it with the team's automatically managed profiles and uploads it to App
+Store Connect, where it appears under TestFlight after a few minutes. It needs, once:
+
+- the App ID `com.metor.mobile` with the Push Notifications capability (exists) and an **app
+  record** in App Store Connect (My Apps → + → iOS, bundle ID `com.metor.mobile`);
+- an **App Store Connect API key** (Users and Access → Integrations → App Store Connect API, role
+  App Manager): the key's ID, the issuer ID and the downloaded `.p8`, as `ASC_KEY_ID`,
+  `ASC_ISSUER_ID`, `ASC_KEY_PATH`; and the team as `APPLE_TEAM_ID`. Nothing of that lives in the
+  repository (`ios/ExportOptions.plist` carries a placeholder the script fills in).
+
+The version is the repository's `VERSION`, the build number the UTC minute (`BUILD_NUMBER`
+overrides). Release builds talk to APNs production, so the relay's `apns` route is used, and the
+notification service extension gets its own profile from the same run. Before the first upload
+App Store Connect asks the export-compliance question once per build unless
+`ITSAppUsesNonExemptEncryption` is set in `Info.plist` – the app only uses the system's TLS and
+CryptoKit, decide and set it. The `mobile` workflow still builds unsigned; uploads run from a Mac.
+
 ## Pictures and files
 
 In a browser the interface and the computer share an origin, so every `<img>` and every link to a
@@ -203,7 +234,7 @@ in memory) – acceptable for chat-sized pictures.
   Pitfall: Play services in a freshly booted emulator reported a push connection but delivered
   nothing until the network was reset (airplane mode on and off); the relay's FCM messages are
   high priority, a normal-priority data message would be held back in the background anyway.
-- **Store release**: Apple Developer Program and Google Play accounts, icons and splash screens
-  (`ios/App/App/Assets.xcassets`, `android/app/src/main/res`), a demo computer for Apple's
+- **Store release**: the App Store Connect app record and API key for *TestFlight* (above), a
+  Google Play account with an internal track and a signing keystore, a demo computer for Apple's
   review, the QR scanner for pairing codes, Face ID in front of the session. The `mobile`
   workflow in `.github/workflows/` builds both projects unsigned on every change here.
