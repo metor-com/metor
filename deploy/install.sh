@@ -86,7 +86,9 @@ IMAGE="${METOR_IMAGE:-$IMAGE_DEFAULT}"
 port_holder() { ss -Hltnp "sport = :$1" 2>/dev/null | sed -n 's/.*users:(("\([^"]*\)".*/\1/p' | head -1; }
 port_busy() { ss -Hltn "sport = :$1" 2>/dev/null | grep -q .; }
 PROXY=own
-if [ -n "$DOMAIN" ] && { port_busy 80 || port_busy 443; }; then
+# metor's own Caddy from an earlier run of this installer holds the ports itself – that is not another web server
+own_caddy() { docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^metor-caddy'; }
+if [ -n "$DOMAIN" ] && { port_busy 80 || port_busy 443; } && ! own_caddy; then
   PROXY=existing
   H80=$(port_holder 80); H443=$(port_holder 443)
   say "Another web server (${H80:-${H443:-unknown}}) already uses port 80/443 on this machine."
