@@ -19,9 +19,14 @@ cd "$(dirname "$0")/.."
 CONFIG="${METOR_TESTFLIGHT_ENV:-$HOME/.config/metor/testflight.env}"
 VARS=(APPLE_TEAM_ID ASC_ISSUER_ID ASC_KEY_ID ASC_KEY_PATH BUILD_NUMBER)
 if [ -f "$CONFIG" ]; then   # the file fills in what the environment does not set
-  for v in "${VARS[@]}"; do eval "env_$v=\${$v:-}"; done
-  set -a; . "$CONFIG"; set +a
-  for v in "${VARS[@]}"; do eval "[ -n \"\$env_$v\" ] && $v=\$env_$v || true"; done
+  eval "$(. "$CONFIG"; for v in "${VARS[@]}"; do eval "printf 'cfg_%s=%q\\n' $v \"\${$v:-}\""; done)"
+  for v in "${VARS[@]}"; do eval "[ -n \"\${$v:-}\" ] || $v=\${cfg_$v:-}"; done
+  # a stale export from an earlier attempt must not beat a working file
+  if [ -n "${ASC_KEY_PATH:-}" ] && ! [ -f "${ASC_KEY_PATH/#\~/$HOME}" ] && [ -f "${cfg_ASC_KEY_PATH:-}" ]; then
+    echo "note: ASC_KEY_PATH from the environment ($ASC_KEY_PATH) does not exist – using the settings in $CONFIG"
+    ASC_KEY_PATH=$cfg_ASC_KEY_PATH; ASC_KEY_ID=${cfg_ASC_KEY_ID:-}
+    ASC_ISSUER_ID=${cfg_ASC_ISSUER_ID:-$ASC_ISSUER_ID}; APPLE_TEAM_ID=${cfg_APPLE_TEAM_ID:-$APPLE_TEAM_ID}
+  fi
 fi
 KEYS_DIR="$HOME/metor/keys/apple"
 
@@ -34,7 +39,13 @@ if [ -z "${ASC_KEY_PATH:-}" ]; then
   [ ${#found[@]} -eq 1 ] && [ -f "${found[0]}" ] || fail "no ASC_KEY_PATH and not exactly one AuthKey_*.p8 in $KEYS_DIR – put the downloaded key there or set ASC_KEY_PATH in $CONFIG"
   ASC_KEY_PATH="${found[0]}"
 fi
-ASC_KEY_PATH=$(absolute "$ASC_KEY_PATH") || fail "key file not found: $ASC_KEY_PATH"
+given="$ASC_KEY_PATH"
+if ! ASC_KEY_PATH=$(absolute "$given"); then
+  # moved since? with the key's ID the file is unmistakable wherever it lies under ~/metor/keys
+  id="${ASC_KEY_ID:-$(basename "$given" .p8)}"; id="${id#AuthKey_}"
+  ASC_KEY_PATH=$(find "$HOME/metor/keys" -name "AuthKey_$id.p8" 2>/dev/null | head -1)
+  [ -n "$ASC_KEY_PATH" ] && echo "note: $given is gone, using $ASC_KEY_PATH" || fail "key file not found: $given (and no AuthKey_$id.p8 under ~/metor/keys) – fix ASC_KEY_PATH in $CONFIG"
+fi
 if [ -z "${ASC_KEY_ID:-}" ]; then ASC_KEY_ID=$(basename "$ASC_KEY_PATH" .p8); ASC_KEY_ID="${ASC_KEY_ID#AuthKey_}"; fi
 [ -n "${ASC_ISSUER_ID:-}" ] || fail "ASC_ISSUER_ID is not set – the issuer ID from App Store Connect → Users and Access → Integrations, into $CONFIG"
 [ -n "${APPLE_TEAM_ID:-}" ] || fail "APPLE_TEAM_ID is not set – the team ID from the developer account, into $CONFIG"
