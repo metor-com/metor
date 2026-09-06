@@ -152,9 +152,11 @@ streamChat.subscribe(({ bot, entry }) => sseEmit(`chat:${bot}`, "chat", { bot, e
 // the interface closes its stream while in the background, so a phone in the pocket does get the push.
 const viewers = (bot) => new Set([...sseClients].filter((c) => c.sessionId && c.topics.has(`chat:${bot}`)).map((c) => c.sessionId));
 const liveSessions = () => (AUTH_OFF ? null : new Set(listSessions().map((s) => s.id)));
+// The app icon's badge: unread replies across all bots (the same count the bot list shows), sent with every push
+const unreadTotal = () => bots().reduce((n, b) => n + (streamChat.summary(b.name).unread ?? 0), 0);
 function notifyPush(kind, bot, msg) {
   sseEmit("notify", "notify", { kind, bot, url: `/bots/#/${bot}`, ...msg });   // native clients listen here (ADR-0015)
-  push.notify({ kind, bot, url: `/bots/#/${bot}`, ...msg }, { skip: viewers(bot), sessions: liveSessions() })
+  push.notify({ kind, bot, url: `/bots/#/${bot}`, badge: unreadTotal(), ...msg }, { skip: viewers(bot), sessions: liveSessions() })
     .then((r) => { if (r.sent || r.failed || r.removed) console.log(`push: ${kind} for ${bot} – ${r.sent} sent${r.failed ? `, ${r.failed} failed` : ""}${r.removed ? `, ${r.removed} dropped` : ""}`); })
     .catch((e) => console.error("push:", e.message));
 }

@@ -13,6 +13,7 @@ public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "register", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setComputer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearComputer", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise),
     ]
     static let approvalCategory = "metor.approval"   // notification actions Approve / Deny (registered in AppDelegate)
     static let opened = Notification.Name("metor.push.opened")
@@ -40,6 +41,25 @@ public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
         do { try PushComputers.set(id, .init(origin: origin, token: token)); call.resolve() } catch { call.reject("keychain: \(error)") }
     }
     @objc func clearComputer(_ call: CAPPluginCall) { if let id = call.getString("id") { PushComputers.remove(id) }; call.resolve() }
+
+    // The badge follows the bot list while the app is open: the unread total, and the notifications of bots that
+    // were read disappear from the notification center (they are grouped by thread "bot:<name>")
+    @objc func setBadge(_ call: CAPPluginCall) {
+        let count = call.getInt("count") ?? 0
+        let read = Set((call.getArray("read") as? [String]) ?? [])
+        let center = UNUserNotificationCenter.current()
+        DispatchQueue.main.async {
+            if #available(iOS 16.0, *) { center.setBadgeCount(count) { _ in } } else { UIApplication.shared.applicationIconBadgeNumber = count }
+        }
+        if count == 0 { center.removeAllDeliveredNotifications() }
+        else if !read.isEmpty {
+            center.getDeliveredNotifications { delivered in
+                let ids = delivered.filter { read.contains($0.request.content.threadIdentifier.replacingOccurrences(of: "bot:", with: "")) }.map { $0.request.identifier }
+                if !ids.isEmpty { center.removeDeliveredNotifications(withIdentifiers: ids) }
+            }
+        }
+        call.resolve()
+    }
 
     @objc func gotToken(_ n: Notification) {
         guard let token = n.object as? Data, let call = pending else { return }

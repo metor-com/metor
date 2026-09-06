@@ -93,7 +93,7 @@ nothing readable leaves the user's computer.
 - Version coupling is by the Web Push standard, not by metor versions: relay and app do not need
   to move with the gateway.
 - Not covered: Android without Google services (a UnifiedPush distributor could be a second
-  target of the same relay later), badge counts, monitoring of the relay itself.
+  target of the same relay later), monitoring of the relay itself.
 - Effort estimate: relay one day; app side two to three days, most of it the decryption in the iOS
   extension.
 
@@ -150,4 +150,8 @@ deployment at `push.metor.com` (waits for the Apple key and the Firebase project
   FCM answer `UNREGISTERED` and APNs `Unregistered`, the relay answers 410, the gateway drops the
   subscription (verified on Android in the emulator; the iOS simulator does not report removals to
   APNs, real devices do). Sign-out, "forget" and a revoked session unsubscribe explicitly.
-- Not yet: badge counts.
+- **The badge** (same evening): every push carries the unread total across bots (`badge`, the
+  gateway computes it when it sends); the iOS extension puts it on the notification, Android
+  notifications carry it as their number. While the app is open the bridge applies each bot list
+  from the stream: count on the icon, notifications of read bots removed. Verified in simulator
+  and emulator (see the app's README).

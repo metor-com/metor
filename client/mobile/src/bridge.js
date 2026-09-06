@@ -122,7 +122,13 @@ class BearerEventSource extends EventTarget {
     this.readyState = 1; this.onopen?.(new Event("open"));
     const reader = res.body.getReader(), dec = new TextDecoder();
     let buf = "", event = "message", data = [];
-    const flush = () => { if (data.length) { const ev = new MessageEvent(event, { data: data.join("\n") }); this.dispatchEvent(ev); if (event === "message") this.onmessage?.(ev); } event = "message"; data = []; };
+    const flush = () => {
+      if (data.length) {
+        const text = data.join("\n"), ev = new MessageEvent(event, { data: text }); this.dispatchEvent(ev); if (event === "message") this.onmessage?.(ev);
+        if (event === "agents") badgeFromAgents(text);   // the bot list is the source of the app icon's badge
+      }
+      event = "message"; data = [];
+    };
     try {
       for (;;) {
         const { value, done } = await reader.read(); if (done) break;
@@ -146,6 +152,20 @@ window.EventSource = function EventSource(url, init) {
   const c = current();
   return c?.secret && isOurs(url, c) ? new BearerEventSource(String(url), c.secret) : new NativeEventSource(url, init);
 };
+
+// ---------- The app icon's badge: unread replies across bots, from the bot list the stream delivers ----------
+// Pushes carry the same number for the time the app is closed; while it is open, every agents event puts the badge
+// right and clears the notifications of bots that were read (native: MetorPush.setBadge). Every event, not only
+// changed counts: a notification can arrive for a bot that another device has read meanwhile.
+let lastAgents = null;
+function badgeFromAgents(text) {
+  lastAgents = text;
+  let list; try { list = JSON.parse(text); } catch { return; }
+  if (!Array.isArray(list)) return;
+  const count = list.reduce((n, a) => n + (Number(a.unread) || 0), 0);
+  const read = list.filter((a) => !a.unread).map((a) => a.name);
+  MetorPush.setBadge({ count, read }).catch(() => {});
+}
 
 // ---------- Notifications while the app is open (the gateway's notify events); push comes later, with the relay ----------
 let openBotCallback = null, pendingBot = null, notifyId = 1;
@@ -201,6 +221,7 @@ async function doRegisterPush(c) {
       // The native side answers approvals from the notification itself (Approve / Deny) – it needs the computer's address and session
       try { await MetorPush.setComputer({ id: c.id, origin: c.origin, token: c.secret }); } catch (e) { console.warn("metor: push computer", e?.message ?? e); }
       console.log("metor: push registered", route);
+      if (lastAgents) badgeFromAgents(lastAgents);   // the permission may have just been granted – the badge is allowed now
       return (pushState = { state: "on", error: null });
     }
     console.warn("metor: push subscribe", res.status, res.data?.error ?? "");

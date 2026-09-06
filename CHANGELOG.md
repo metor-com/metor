@@ -11,6 +11,14 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ## [Unreleased]
 
+### Added
+
+- **Native phone app for iPhone and Android** (`client/mobile/`,
+  [ADR-0017](knowledge/decisions/0017-push-relay.md)): the same interface in a store-ready shell,
+  connected to a computer by its setup link, with push notifications through metor's relay -
+  Approve / Deny right in the notification, a switch per device, and a badge on the app icon that
+  counts unread replies across bots and clears as you read. Not in the stores yet.
+
 ### Changed
 
 - **The bot list says what a bot is doing, without a status dot**: three pulsing dots under the

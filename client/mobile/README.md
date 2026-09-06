@@ -115,6 +115,20 @@ notification disappears; iOS decrypts and marks the category (the simulator's no
 does not let the tool tap, so the action itself waits for a real iPhone). Real approval cards come
 from connectors marked "ask first" (ADR-0014); the box's own tools do not ask (ADR-0004).
 
+**The badge on the app icon.** It shows the number of unread replies across all bots – the same
+count the bot list shows. Every push carries it (`badge` in the payload, computed by the gateway
+when it sends); the iOS extension puts it on the notification (`content.badge`) and Android
+notifications carry it as their number, so the count is right while the app is closed. While the
+app is open the bridge applies every bot list it receives on the stream (`MetorPush.setBadge`):
+the count goes on the icon, the notifications of bots that are read disappear from the
+notification center (iOS: by thread `bot:<name>`; Android: by the notification id, the bot's
+hash), all of them when nothing is unread. Applied on every list, not only on changes, because a
+notification can arrive for a bot another device has read meanwhile. Android has no icon count
+of its own – launchers derive their dot or number from the active notifications. Verified
+2026-09-06: iPhone simulator badge 6 at start, 1 after reading a bot, 2 after a reply pushed
+while the app was on the home screen (the extension set it), 1 again after reading it with the
+notification gone; Android notification `number` matches and is cancelled when the bot is read.
+
 Verified 2026-09-06 in the iPhone 17 simulator against push.metor.com: registration (real APNs
 sandbox token – the simulator on Apple silicon registers with APNs), subscription at a local
 computer, gateway → relay → APNs 201, extension decrypts ("Gemini: stopped" with the gateway's

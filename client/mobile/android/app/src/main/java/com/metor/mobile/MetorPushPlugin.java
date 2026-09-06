@@ -45,6 +45,21 @@ public class MetorPushPlugin extends Plugin {
     @PluginMethod
     public void clearComputer(PluginCall call) { String id = call.getString("id"); if (id != null) WebPushCrypto.clearComputer(getContext(), id); call.resolve(); }
 
+    // Android has no badge of its own: the launcher's dot or count comes from the active notifications. So the
+    // notifications of bots that were read go away (their id is the bot's hash, MetorMessagingService), all of them
+    // when nothing is unread any more.
+    @PluginMethod
+    public void setBadge(PluginCall call) {
+        android.app.NotificationManager nm = getContext().getSystemService(android.app.NotificationManager.class);
+        int count = call.getInt("count", 0);
+        if (count == 0) nm.cancelAll();
+        else {
+            com.getcapacitor.JSArray read = call.getArray("read");
+            if (read != null) for (int i = 0; i < read.length(); i++) { try { nm.cancel(read.getString(i).hashCode()); } catch (Exception ignored) {} }
+        }
+        call.resolve();
+    }
+
     @PluginMethod
     public void register(PluginCall call) {
         if (Build.VERSION.SDK_INT >= 33 && getPermissionState("notifications") != PermissionState.GRANTED) {

@@ -91,7 +91,7 @@ export function dropSession(sessionId) {
 // chat right now), restricted to `only` when given (the test button), and never to a session that
 // no longer exists (`sessions` = the live ones; null = no check). Endpoints the push service
 // rejects for good (404/410 gone, 401/403 key mismatch) are dropped on the spot.
-export async function notify({ kind, bot = null, title, body = "", url = "/bots/", tag = null, ref = null }, { skip = new Set(), only = null, sessions = null } = {}) {
+export async function notify({ kind, bot = null, title, body = "", url = "/bots/", tag = null, ref = null, badge = null }, { skip = new Set(), only = null, sessions = null } = {}) {
   const wp = await webPush(); if (!wp) return { enabled: false, sent: 0, failed: 0, removed: 0 };
   const key = await publicKey(); const d = load();
   if (sessions) {
@@ -102,7 +102,8 @@ export async function notify({ kind, bot = null, title, body = "", url = "/bots/
   const targets = d.subscriptions.filter((s) => (only ? only.has(s.sessionId) : !skip.has(s.sessionId)));
   if (!targets.length) return { enabled: true, sent: 0, failed: 0, removed: 0 };
   const payload = JSON.stringify({ kind, bot, title: String(title ?? "metor").slice(0, 120), body: String(body ?? "").slice(0, 400),
-    url, tag: tag ?? (bot ? `bot:${bot}` : kind), ts: Date.now(), ...(ref ? { ref: String(ref) } : {}) });   // ref: what an approval answers
+    url, tag: tag ?? (bot ? `bot:${bot}` : kind), ts: Date.now(), ...(ref ? { ref: String(ref) } : {}),   // ref: what an approval answers
+    ...(Number.isInteger(badge) ? { badge } : {}) });   // badge: unread across bots, for the app icon
   const opts = { TTL, urgency: kind === "approval" ? "high" : "normal", vapidDetails: { subject: SUBJECT, publicKey: key, privateKey: d.vapid.privateKey } };
   let sent = 0, failed = 0, removed = 0;
   await Promise.all(targets.map(async (s) => {

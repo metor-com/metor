@@ -26,12 +26,14 @@ public class MetorMessagingService extends FirebaseMessagingService {
         String body = message.getData().get("body");
         if (body == null) return;
         String title = "metor", text = "New activity", bot = null, kind = null, ref = null, computer = message.getData().get("c");
+        int badge = 0;   // unread across bots – launchers that show a count use it
         try {
             WebPushCrypto.Keys keys = WebPushCrypto.load(this);
             if (keys != null) {
                 JSONObject json = new JSONObject(new String(WebPushCrypto.decrypt(Base64.decode(body, Base64.DEFAULT), keys), "UTF-8"));
                 title = json.optString("title", title); text = json.optString("body", "");
                 bot = json.optString("bot", null); kind = json.optString("kind", null); ref = json.optString("ref", null);
+                badge = json.optInt("badge", 0);
             }
         } catch (Exception e) { Log.w("metor", "push: " + e.getMessage()); }   // the placeholder shows; nothing readable was in transit
         NotificationManager nm = getSystemService(NotificationManager.class);
@@ -44,7 +46,8 @@ public class MetorMessagingService extends FirebaseMessagingService {
             .setSmallIcon(R.mipmap.ic_launcher).setContentTitle(title).setContentText(text)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
             .setPriority("approval".equals(kind) ? NotificationCompat.PRIORITY_MAX : NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true).setContentIntent(tap);
+            .setAutoCancel(true).setContentIntent(tap)
+            .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL).setNumber(badge);
         // An approval can be answered from the notification when the permission's ref and the computer are known;
         // both actions ask for the unlock first (setAuthenticationRequired, Android 12+)
         if ("approval".equals(kind) && ref != null && !ref.isEmpty() && bot != null && computer != null) {

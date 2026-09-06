@@ -16,7 +16,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
    (start the server once, list its tools), OAuth for remote servers
 5. PWA follow-ups (ADR-0013 built 2026-09-04): remove the ntfy stopgap (`METOR_NTFY_URL`) after
    one release; a per-event choice (approvals only / everything) in the notifications card; the
-   badge count on the app icon (Badging API) for open approvals
+   badge count on the app icon (Badging API) for the PWA – the phone app has it (ADR-0017)
 
 ## Routine polish (ADR-0010 "consequences")
 
