@@ -16,3 +16,6 @@ client/desktop/ui/
 client/desktop/dist/
 client/desktop/resources/
 client/mobile/www/
+
+# Firebase configuration of a build (client/mobile): identifies the publisher's project – never in the repository
+client/mobile/android/app/google-services.json
