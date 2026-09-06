@@ -1,0 +1,26 @@
+# metor push relay (ADR-0017): the forwarder behind push.metor.com – or your own, if you build the
+# phone app with your own Apple and Firebase credentials and your own relay address.
+#   docker compose -f relay.compose.yml up -d
+# Secrets are files in a directory only root can read, mounted read-only:
+#   /etc/metor-push/apns.p8   the APNs auth key from the Apple developer portal
+#   /etc/metor-push/fcm.json  a Firebase service account key with the messaging permission
+# Key id, team id and the bundle id are plain identifiers and come from a .env next to this file.
+# The relay listens on the loopback interface only; a TLS proxy in front terminates https for
+# the relay address, e.g. in Caddy:   push.example.com { reverse_proxy 127.0.0.1:6020 }
+services:
+  push:
+    image: ${METOR_PUSH_IMAGE:-ghcr.io/metor-com/metor-push:latest}
+    container_name: metor-push
+    restart: unless-stopped
+    environment:
+      RELAY_ORIGIN: ${RELAY_ORIGIN:-https://push.metor.com}   # the VAPID audience: the address the app uses
+      APNS_KEY_FILE: /secrets/apns.p8
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      APNS_TOPIC: ${APNS_TOPIC:-com.metor.mobile}
+      FCM_SERVICE_ACCOUNT_FILE: /secrets/fcm.json
+      RELAY_DAILY_LIMIT: ${RELAY_DAILY_LIMIT:-500}
+    volumes:
+      - ${METOR_PUSH_SECRETS:-/etc/metor-push}:/secrets:ro
+    ports:
+      - "127.0.0.1:6020:6020"

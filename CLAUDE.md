@@ -19,7 +19,9 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
   proxies) with `metor-auth.mjs` (sign-in by device pairing, ADR-0012),
   `harness/bin/metor-harness.mjs` (runtime registry), `metor-agent-host.mjs` +
   `metor-host-core.mjs` + `metor-host-claude.mjs` / `metor-host-codex.mjs` (bot hosts),
-  `metor-routines*.mjs` (routines), `harness/hooks/`, `harness/templates/` (bot instructions).
+  `metor-routines*.mjs` (routines), `harness/hooks/`, `harness/templates/` (bot instructions);
+  `relay/` - the push relay for the phone app (ADR-0017): one file, no dependencies, its own image
+  `ghcr.io/metor-com/metor-push`, `deploy/relay.compose.yml`.
 - `frontend/` - the UI (ADR-0008): Svelte + Vite, **without SvelteKit**; the gateway serves the
   build under `/bots/` (multi-stage Docker build, **build context = repo root**).
   Dev: `cd frontend && npm run dev` (proxied to the running box).

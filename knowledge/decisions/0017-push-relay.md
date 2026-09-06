@@ -1,6 +1,6 @@
 # 0017 – Push relay: native push for the phone app through a forwarder that sees only ciphertext
 
-**Date:** 2026-09-06 · **Status:** accepted (decided with the phone scaffold, [ADR-0015](0015-native-clients.md); not built yet – see *Verification*)
+**Date:** 2026-09-06 · **Status:** accepted (decided with the phone scaffold, [ADR-0015](0015-native-clients.md)); relay built and tested the same day (`backend/relay/`), app side and deployment open – see *Verification*
 
 ## Context
 
@@ -105,3 +105,15 @@ nothing readable leaves the user's computer.
 - Rate limit and VAPID refusal covered by the relay's own tests (`node --test`).
 - End to end from a local computer: approval needed, reply finished, unexpected stop – one push
   each on an iPhone and an Android phone with the app in the background.
+
+## Built 2026-09-06: the relay
+
+`backend/relay/relay.mjs` – Node 22, no dependencies (VAPID verification, the APNs provider token
+and the FCM service-account token all with `node:crypto`; APNs over `node:http2`). 14 tests with
+stand-ins for APNs and FCM cover the header mapping, 410 for gone tokens on both platforms, the
+renewed provider token, VAPID refusals (missing, wrong key, wrong audience, expired), body limits
+and the daily limit. An end-to-end check with the gateway's own `web-push` library: the message
+sent as `metor-push.mjs` sends it arrives at the (stand-in) APNs still encrypted and decrypts on
+the device side with the subscription's private key to the original payload. Image and compose
+file exist; the `relay-image` workflow runs the tests and publishes the image. Not yet done: the
+deployment at `push.metor.com` (waits for the Apple key and the Firebase project) and the app side.

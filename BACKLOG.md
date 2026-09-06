@@ -64,8 +64,8 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   Remaining: inline pictures and attachment links (bearer-fetched blobs or a per-session ticket
   on the picture routes, see client/mobile/README.md "Open"), a QR scanner and Face ID on the
   connect screen, icons and splash
-  screens, TestFlight / internal Play track, the push relay
-  ([ADR-0017](knowledge/decisions/0017-push-relay.md), `backend/relay/`) before any store release, the demo computer for Apple's review. Until the relay
+  screens, TestFlight / internal Play track, the push relay's app side and deployment
+  ([ADR-0017](knowledge/decisions/0017-push-relay.md); the relay itself is built and tested in `backend/relay/`) before any store release, the demo computer for Apple's review. Until the relay
   exists the PWA remains the phone client with push.
 - **metor on the Mac** - built 2026-09-05: `metor setup` with Apple's `container` (macOS 26,
   Apple silicon) or Docker/Colima through the same wrapper, multi-arch image workflow, formula
