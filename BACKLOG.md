@@ -68,8 +68,9 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   Pictures and attachments work since 2026-09-06 (fetched with the token, files open with the
   system viewer – client/mobile/README.md "Pictures and files"); icons, splash screens and the
   TestFlight upload script exist since 2026-09-06 (README "TestFlight": needs the App Store
-  Connect app record and an API key). Remaining: the first TestFlight upload, an internal Play
-  track with a signing keystore, a QR scanner and Face ID on the connect screen
+  Connect app record and an Admin API key); the first TestFlight build went up on 2026-09-06.
+  Remaining: an internal Play track with a signing keystore, a QR scanner and Face ID on the
+  connect screen, a real-iPhone test of push, the notification tap and the actions
   ([ADR-0017](knowledge/decisions/0017-push-relay.md): relay at push.metor.com; push, the Approve/Deny actions and the notifications switch verified in simulator and emulator), the demo computer for Apple's review. Until the relay
   exists the PWA remains the phone client with push.
 - **metor on the Mac** - built 2026-09-05: `metor setup` with Apple's `container` (macOS 26,
