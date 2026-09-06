@@ -25,7 +25,7 @@ if [ -f "$CONFIG" ]; then   # the file fills in what the environment does not se
   eval "$(. "$CONFIG"; for v in "${VARS[@]}"; do eval "printf 'cfg_%s=%q\\n' $v \"\${$v:-}\""; done)"
   for v in "${VARS[@]}"; do eval "[ -n \"\${$v:-}\" ] || $v=\${cfg_$v:-}"; done
   # a stale export from an earlier attempt must not beat a working file
-  if [ -n "${ASC_KEY_PATH:-}" ] && ! [ -f "${ASC_KEY_PATH/#\~/$HOME}" ] && [ -f "${cfg_ASC_KEY_PATH:-}" ]; then
+  if [ -n "${ASC_KEY_PATH:-}" ] && ! [ -f "${ASC_KEY_PATH/#\~/$HOME}" ] && [ -n "${cfg_ASC_KEY_PATH:-}" ] && [ "$ASC_KEY_PATH" != "$cfg_ASC_KEY_PATH" ]; then
     echo "note: ASC_KEY_PATH from the environment ($ASC_KEY_PATH) does not exist – using the settings in $CONFIG"
     ASC_KEY_PATH=$cfg_ASC_KEY_PATH; ASC_KEY_ID=${cfg_ASC_KEY_ID:-}
     ASC_ISSUER_ID=${cfg_ASC_ISSUER_ID:-$ASC_ISSUER_ID}; APPLE_TEAM_ID=${cfg_APPLE_TEAM_ID:-$APPLE_TEAM_ID}
