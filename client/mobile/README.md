@@ -185,9 +185,13 @@ Store Connect, where it appears under TestFlight after a few minutes. It needs, 
 - the App ID `com.metor.mobile` with the Push Notifications capability (exists) and an **app
   record** in App Store Connect (My Apps → + → iOS, bundle ID `com.metor.mobile`);
 - an **App Store Connect API key** (Users and Access → Integrations → App Store Connect API, role
-  App Manager): the key's ID, the issuer ID and the downloaded `.p8`, as `ASC_KEY_ID`,
-  `ASC_ISSUER_ID`, `ASC_KEY_PATH`; and the team as `APPLE_TEAM_ID`. Nothing of that lives in the
-  repository (`ios/ExportOptions.plist` carries a placeholder the script fills in).
+  App Manager): the issuer ID, the key's ID and the downloaded `.p8`. They go into
+  `~/.config/metor/testflight.env`, a plain shell file the script reads (`METOR_TESTFLIGHT_ENV`
+  names another): `APPLE_TEAM_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH` (absolute; `ASC_KEY_ID` is
+  derived from the file name, and a single `AuthKey_*.p8` under `~/metor/keys/apple/` is found
+  without a path). Nothing of that lives in the repository (`ios/ExportOptions.plist` carries a
+  placeholder the script fills in). The script stops with a clear message when something is
+  missing; the full xcodebuild logs are in `build/testflight/`.
 
 The version is the repository's `VERSION`, the build number the UTC minute (`BUILD_NUMBER`
 overrides). Release builds talk to APNs production, so the relay's `apns` route is used, and the
