@@ -29,7 +29,9 @@ from a device that is already signed in, and every device can be removed again. 
 curl -fsSL https://www.metor.com/install.sh | sudo bash
 ```
 
-The same script from the repository:
+That address redirects to the installer of the newest release (the `install.sh` asset of the
+[latest GitHub release](https://github.com/metor-com/metor/releases/latest)). The development
+version, straight from the repository:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/metor-com/metor/main/deploy/install.sh | sudo bash

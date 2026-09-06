@@ -4,6 +4,9 @@
 # Macs and arm servers) are pushed by digest and joined into one multi-arch tag; QEMU emulation
 # would slow the Claude/npm install steps by an order of magnitude.
 # The image is pushed as ghcr.io/<repository owner>/metor-box. Package visibility is switched in the GitHub package settings.
+# A version tag also becomes a GitHub Release with deploy/install.sh as its asset, so that
+# https://github.com/<owner>/<repo>/releases/latest/download/install.sh – and www.metor.com/install.sh,
+# which redirects there – always serve the installer of the newest release.
 name: box-image
 on:
   push:
@@ -87,3 +90,24 @@ jobs:
             $(printf '${{ env.IMAGE }}@sha256:%s ' *)
       - name: Show the result
         run: docker buildx imagetools inspect ${{ env.IMAGE }}:${{ steps.meta.outputs.version }}
+  release:
+    needs: merge
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > /tmp/notes.md
+          [ -s /tmp/notes.md ] || echo "See CHANGELOG.md." > /tmp/notes.md
+      - name: Create the release, or refresh the installer on an existing one
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" deploy/install.sh --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" deploy/install.sh --title "metor ${GITHUB_REF_NAME#v}" --notes-file /tmp/notes.md --verify-tag
+          fi
