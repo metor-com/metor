@@ -1,6 +1,6 @@
 # 0017 – Push relay: native push for the phone app through a forwarder that sees only ciphertext
 
-**Date:** 2026-09-06 · **Status:** accepted (decided with the phone scaffold, [ADR-0015](0015-native-clients.md)); relay built and tested the same day (`backend/relay/`), app side and deployment open – see *Verification*
+**Date:** 2026-09-06 · **Status:** accepted; relay built, deployed at push.metor.com and verified end to end with the iOS app the same day, Android side built but waits for the Firebase project – see the sections at the end
 
 ## Context
 
@@ -117,3 +117,21 @@ sent as `metor-push.mjs` sends it arrives at the (stand-in) APNs still encrypted
 the device side with the subscription's private key to the original payload. Image and compose
 file exist; the `relay-image` workflow runs the tests and publishes the image. Not yet done: the
 deployment at `push.metor.com` (waits for the Apple key and the Firebase project) and the app side.
+
+## Built 2026-09-06: deployment and the app side
+
+- **push.metor.com** runs the relay as a systemd service on the metor.com server (Node 22 from
+  Ubuntu, checkout under `/opt/metor`, secrets in `/etc/metor-push/`), Caddy in front. Team-scoped
+  APNs key for sandbox and production; FCM follows with the Firebase project.
+- **iOS**: own Capacitor plugin (permission, APNs registration, key pair in the shared keychain),
+  the bridge subscribes at the gateway with the relay endpoint, a notification service extension
+  decrypts. Verified in the simulator: a real push from a local computer arrives on the lock
+  screen with the gateway's title and text. Found on the way: a "production only" APNs key
+  refuses sandbox tokens (`BadEnvironmentKeyInToken`); an App ID without the push capability gives
+  `TopicDisallowed`, and APNs kept that verdict on the relay's open connection until it
+  reconnected – the relay now drops the connection after such a refusal. `xcrun simctl push` does
+  not exercise the extension; only pushes through APNs do.
+- **Android**: plugin, messaging service and decryption in Java, Firebase Messaging wired; the
+  build activates it when `google-services.json` is present. Untested until the project exists.
+- Not yet: notification actions (approve/deny), badge counts, a device-level "notifications off"
+  switch in the app's settings, and unsubscribing the relay endpoint when the app is deleted.

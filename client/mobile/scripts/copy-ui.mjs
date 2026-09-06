@@ -23,6 +23,8 @@ writeFileSync(join(dst, "index.html"), html);
 const version = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")).version;
 await build({
   entryPoints: [join(here, "..", "src", "bridge.js")], bundle: true, format: "esm", target: ["ios15", "chrome100"],
-  outfile: join(dst, "bridge.js"), define: { __METOR_VERSION__: JSON.stringify(version) }, sourcemap: false, minify: false, logLevel: "warning",
+  outfile: join(dst, "bridge.js"), sourcemap: false, minify: false, logLevel: "warning",
+  // The push relay of this build (ADR-0017): whoever builds the app with their own Apple/Firebase credentials sets their own
+  define: { __METOR_VERSION__: JSON.stringify(version), __METOR_PUSH_RELAY__: JSON.stringify((process.env.METOR_PUSH_RELAY ?? "https://push.metor.com").replace(/\/$/, "")) },
 });
 console.log(`www: interface from ${src}, bridge ${version}`);

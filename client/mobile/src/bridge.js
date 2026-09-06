@@ -5,11 +5,15 @@
 // stream to the connected computer get an Authorization header (patched below), and the session
 // also goes into the WebView's cookie jar for that computer, because the screen and terminal frames
 // and inline pictures are plain subresource loads that cannot carry a header (see README).
-import { Capacitor, CapacitorCookies } from "@capacitor/core";
+import { Capacitor, CapacitorCookies, registerPlugin } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
 import { InAppBrowser, DefaultWebViewOptions } from "@capacitor/inappbrowser";
+// Native push (ADR-0017): registration with APNs/FCM and the device's Web Push key pair, implemented in
+// ios/App/App/MetorPushPlugin.swift and android/…/MetorPushPlugin.kt; absent in a browser
+const MetorPush = registerPlugin("MetorPush");
+const PUSH_RELAY = __METOR_PUSH_RELAY__;   // the relay of this app build (scripts/copy-ui.mjs, default https://push.metor.com)
 
 const VERSION = __METOR_VERSION__;          // filled in by scripts/copy-ui.mjs
 const STORE_KEY = "computers";
@@ -84,6 +88,7 @@ async function connect({ url = "", claim = "" } = {}) {
 // Forget a computer: sign the session out there (best effort), then drop it here
 async function forget(id) {
   const c = computer(id); if (!c) return;
+  if (c.secret && c.pushEndpoint) { try { await fetchJson(`${c.origin}/bots/api/push/unsubscribe`, { method: "POST", headers: { authorization: `Bearer ${c.secret}`, "content-type": "application/json" }, body: JSON.stringify({ endpoint: c.pushEndpoint }) }, 4000); } catch {} }
   if (c.secret) { try { await fetchJson(`${c.origin}/bots/api/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${c.secret}` } }, 4000); } catch {} }
   await clearSessionCookie(c);
   db.computers = db.computers.filter((x) => x.id !== id);
@@ -144,7 +149,9 @@ window.EventSource = function EventSource(url, init) {
 // ---------- Notifications while the app is open (the gateway's notify events); push comes later, with the relay ----------
 let openBotCallback = null, pendingBot = null, notifyId = 1;
 const openBot = (bot) => { if (!bot) return; if (openBotCallback) openBotCallback(bot); else pendingBot = bot; };
+let pushEndpoint = null;   // the subscription registered with the current computer, null without native push
 async function notify(n) {
+  if (pushEndpoint) return;   // the gateway pushes to this device natively; a local copy would double it
   try {
     let p = (await LocalNotifications.checkPermissions()).display;
     if (p !== "granted") p = (await LocalNotifications.requestPermissions()).display;
@@ -168,6 +175,24 @@ async function openComputer(url) {
     android: { ...DefaultWebViewOptions.android, isIsolated: false },
   } });
 }
+
+// ---------- Native push: register with APNs/FCM, then hand the gateway a Web Push subscription whose endpoint is the relay ----------
+// The gateway treats it like any browser subscription (metor-push.mjs): it encrypts for the device's key pair and
+// posts to the endpoint; the relay forwards to Apple or Google; the app decrypts (notification extension / messaging service).
+async function registerPush(c) {
+  if (!c?.secret || platform === "web") return;
+  let r; try { r = await MetorPush.register(); } catch (e) { console.warn("metor: push", e?.message ?? e); return; }
+  if (!r?.token || !r.p256dh || !r.auth) { console.log("metor: push not available", r?.reason ?? ""); return; }
+  const route = r.platform === "android" ? "fcm" : r.sandbox ? "apns-sandbox" : "apns";
+  const endpoint = `${PUSH_RELAY}/v1/${route}/${r.token}`;
+  try {
+    const res = await fetchJson(`${c.origin}/bots/api/push/subscribe`, { method: "POST", headers: { authorization: `Bearer ${c.secret}`, "content-type": "application/json" }, body: JSON.stringify({ subscription: { endpoint, keys: { p256dh: r.p256dh, auth: r.auth } } }) });
+    if (res.ok) { pushEndpoint = endpoint; if (c.pushEndpoint !== endpoint) { c.pushEndpoint = endpoint; await save(); } console.log("metor: push registered", route); }
+    else console.warn("metor: push subscribe", res.status, res.data?.error ?? "");
+  } catch (e) { console.warn("metor: push subscribe", e?.message ?? e); }
+}
+// A tap on a push notification carries the bot (payload of metor-push.mjs); the extension/service put it into the notification
+MetorPush.addListener("opened", (e) => openBot(e?.bot)).catch(() => {});   // no native plugin in a browser
 
 // ---------- Links: metor://connect?url=…&token=… (also …&code=…) from a pairing link or QR code; metor://open?bot=… ----------
 async function handleLink(link) {
@@ -215,3 +240,4 @@ window.metor = {
 // Now the interface: base.js reads window.metor when its module is evaluated
 const entry = document.querySelector("script[data-entry]")?.dataset.entry;
 if (entry) { const s = document.createElement("script"); s.type = "module"; s.src = entry; document.head.appendChild(s); }
+if (c?.secret && reach) registerPush(c);   // in the background; the interface does not wait for it

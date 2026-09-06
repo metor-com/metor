@@ -70,12 +70,44 @@ npm run android      # … and opens the Android project in Android Studio
 - `www/` is build output (git-ignored); `ios/` and `android/` are committed as generated, with
   the edits listed under *Native parts* – regenerate nothing, edit in place.
 
+## Push (ADR-0017)
+
+The app registers with APNs or FCM through its own plugin (`MetorPushPlugin`, iOS in
+`ios/App/App/`, Android in `android/app/src/main/java/com/metor/mobile/`), generates a Web Push
+key pair and auth secret like a browser, and hands the gateway a subscription through the
+existing `/push/subscribe` whose endpoint is the relay of this build (`METOR_PUSH_RELAY` at
+`npm run ui`, default `https://push.metor.com`): `/v1/apns/<token>`, `/v1/apns-sandbox/<token>`
+for development builds, `/v1/fcm/<token>`. The gateway encrypts for the device as it does for a
+browser; the relay forwards; on iOS the notification service extension
+(`ios/App/MetorNotificationService/`) decrypts and replaces the placeholder before the
+notification is shown, on Android the messaging service does. The keys live in the keychain
+access group both app and extension share (`$(AppIdentifierPrefix)com.metor.mobile`), on
+Android in preferences wrapped with a keystore key. While native push is registered the bridge
+shows no local notifications of its own. A tap opens the bot.
+
+Verified 2026-09-06 in the iPhone 17 simulator against push.metor.com: registration (real APNs
+sandbox token – the simulator on Apple silicon registers with APNs), subscription at a local
+computer, gateway → relay → APNs 201, extension decrypts ("Gemini: stopped" with the gateway's
+text on the lock screen). Pitfalls met: the simulator build needs `DEVELOPMENT_TEAM` so that the
+entitlements carry the team (keychain group, application identifier); an APNs key created as
+"production only" answers `BadEnvironmentKeyInToken` for sandbox tokens; `TopicDisallowed` until
+the App ID has the Push Notifications capability – and the relay's open APNs connection kept the
+old verdict until it reconnected (it now drops the connection after such a refusal);
+`xcrun simctl push` does not run the extension, only real pushes do; APNs delivery to the
+simulator can lag or skip.
+
 ## Native parts (the edits to the generated projects)
 
 - `ios/App/App/Info.plist`: the `metor` URL scheme (`CFBundleURLTypes`), local networking over
-  plain http (`NSAppTransportSecurity` → `NSAllowsLocalNetworking`).
+  plain http (`NSAppTransportSecurity` → `NSAllowsLocalNetworking`). `App.entitlements` and the
+  extension's: `aps-environment`, the shared keychain access group. `SceneDelegate.swift` uses
+  `MainViewController` (Capacitor plus the app's own plugins); `AppDelegate.swift` forwards the
+  APNs token and handles notification taps. The extension target was added to the Xcode project
+  with the `xcodeproj` gem (CocoaPods ships it); `MetorNotificationService/` holds its files.
 - `android/app/src/main/AndroidManifest.xml`: the `metor` intent filter, the network security
-  config; `res/xml/network_security_config.xml` (plain http allowed).
+  config, the messaging service, `POST_NOTIFICATIONS`; `res/xml/network_security_config.xml`
+  (plain http allowed); `app/build.gradle`: `firebase-messaging` (the google-services plugin
+  applies itself when `google-services.json` exists); `MainActivity.java` registers the plugin.
 - `android/gradle/wrapper/gradle-wrapper.properties` (Gradle 9.5.0), `android/settings.gradle`
   (toolchain resolver), `android/gradle/gradle-daemon-jvm.properties` (daemon on JDK 21) – see
   *Android* above; `android/variables.gradle`: `minSdkVersion 26` (Android 8), required by the
@@ -98,8 +130,9 @@ notify events while the app is open), `@aparajita/capacitor-secure-storage` (ses
   let the gateway accept a per-session ticket (HMAC of the session id with a server key, revoked
   with the session) on the picture routes. Links to attachments need the same treatment (share
   sheet).
-- **Push**: needs the relay (APNs/FCM only take messages signed by the app's publisher); until then
-  the app notifies only while it is open. Separate ADR.
+- **Push on Android** is built (plugin, messaging service, decryption in Java) but not tested: it
+  needs a Firebase project's `google-services.json` in `android/app/` at build time (git-ignored)
+  and the service account on the relay. The emulator image with Google APIs can receive FCM.
 - **Store release**: Apple Developer Program and Google Play accounts, icons and splash screens
   (`ios/App/App/Assets.xcassets`, `android/app/src/main/res`), a demo computer for Apple's
   review, the QR scanner for pairing codes, Face ID in front of the session. The `mobile`
