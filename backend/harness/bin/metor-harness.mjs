@@ -79,7 +79,8 @@ export const HARNESSES = {
     // Fallback only – the live list comes from the app-server (`model/list`, no login needed, ~50 ms;
     // verified 2026-09-05), so new Codex models show up without a metor release
     models: [
-      { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", default: true },
+      { id: "gpt-6-astra", label: "GPT-6 Astra", default: true },
+      { id: "gpt-5.6-sol", label: "GPT-5.6 Sol" },
       { id: "gpt-5.6-terra", label: "GPT-5.6 Terra" },
       { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
     ],

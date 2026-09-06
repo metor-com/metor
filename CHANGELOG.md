@@ -11,6 +11,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ## [Unreleased]
 
+### Changed
+
+- **Codex runs GPT-6 Astra**: the box carries Codex CLI 0.153.4, whose model list (it is the
+  runtime's own, metor only asks for it) offers GPT-6 Astra as the default for new bots; existing
+  bots keep their model until you change it.
+
 ## [0.3.0] - 2026-09-07
 
 ### Added
