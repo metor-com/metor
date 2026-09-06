@@ -19,3 +19,5 @@ client/mobile/www/
 
 # Firebase configuration of a build (client/mobile): identifies the publisher's project – never in the repository
 client/mobile/android/app/google-services.json
+# Firebase service account keys (the relay's secret) – never in the repository, wherever they are dropped
+*firebase-adminsdk*.json
