@@ -90,6 +90,8 @@ test("apns: forwarded with the gateway's headers mapped, still encrypted", async
   assert.deepEqual(h, { alg: "ES256", kid: "KEY123" }); assert.equal(c.iss, "TEAM123");
   assert.equal(sent.body.aps["mutable-content"], 1); assert.equal(sent.body.aps.alert.title, "metor");
   assert.deepEqual(sent.body.metor, { v: 1, enc: "aes128gcm", body: ciphertext.toString("base64") });
+  await push(`/v1/apns/${token}?c=9d52821a0263`);
+  assert.equal(apnsLog.at(-1).body.metor.c, "9d52821a0263");   // the sending computer, from the subscription's endpoint
 });
 test("apns: sandbox route, normal urgency still immediate (10), low urgency deferred (5), no topic", async () => {
   const r = await push(`/v1/apns-sandbox/${"c".repeat(64)}`, { headers: { urgency: "normal" } });
@@ -122,6 +124,8 @@ test("fcm: data message with the ciphertext, priority and ttl", async () => {
   await push(`/v1/fcm/${token}`, { headers: { urgency: "normal" } }); assert.equal(fcmLog.at(-1).message.android.priority, "high");
   await push(`/v1/fcm/${token}`, { headers: { urgency: "low" } }); assert.equal(fcmLog.at(-1).message.android.priority, "normal");
   assert.deepEqual(sent.message.data, { v: "1", enc: "aes128gcm", body: ciphertext.toString("base64") });
+  await push(`/v1/fcm/oTher:APA91b${"e".repeat(40)}?c=9d52821a0263`);   // a fresh token: the daily limit in this test is 3
+  assert.equal(fcmLog.at(-1).message.data.c, "9d52821a0263");
 });
 test("fcm: unregistered and invalid tokens answer 410", async () => {
   assert.equal((await push(`/v1/fcm/gone${"0".repeat(40)}`)).status, 410);

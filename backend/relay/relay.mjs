@@ -161,7 +161,7 @@ function fcmClient(fcm) {
     async send({ token: device, message, ttl, urgency, topic }) {
       // A data message is what the app decrypts; "normal" priority would be held back while the app is in the
       // background (Doze), so everything user-visible goes out "high" – only "very-low"/"low" urgency defers
-      const body = JSON.stringify({ message: { token: device, android: { priority: urgency === "very-low" || urgency === "low" ? "normal" : "high", ttl: `${ttl}s`, ...(topic ? { collapse_key: topic } : {}) }, data: { v: "1", enc: message.enc, body: message.body } } });
+      const body = JSON.stringify({ message: { token: device, android: { priority: urgency === "very-low" || urgency === "low" ? "normal" : "high", ttl: `${ttl}s`, ...(topic ? { collapse_key: topic } : {}) }, data: { v: "1", enc: message.enc, body: message.body, ...(message.c ? { c: message.c } : {}) } } });
       if (Buffer.byteLength(body) > MAX_PAYLOAD + 512) return { status: 413, reason: "PayloadTooLarge" };
       const r = await fetch(`${fcm.url}/v1/projects/${sa.project_id}/messages:send`, { method: "POST", headers: { authorization: `Bearer ${await accessToken()}`, "content-type": "application/json" }, body, signal: AbortSignal.timeout(10_000) });
       const text = await r.text(); let code = null; try { const e = JSON.parse(text).error; code = e?.details?.find((d) => d.errorCode)?.errorCode ?? e?.status ?? null; } catch {}
@@ -202,7 +202,9 @@ export function createRelay(cfg) {
       const ttl = Math.min(Math.max(Number(req.headers.ttl ?? 86_400) || 0, 0), 28 * 86_400);
       const urgency = ["very-low", "low", "normal", "high"].includes(req.headers.urgency) ? req.headers.urgency : "normal";
       const topic = /^[A-Za-z0-9_-]{1,32}$/.test(String(req.headers.topic ?? "")) ? String(req.headers.topic) : null;
-      const r = await client.send({ sandbox: platform === "apns-sandbox", token: device, message: { v: 1, enc: "aes128gcm", body: body.toString("base64") }, ttl, urgency, topic });
+      // ?c=<id> on the endpoint names the sending computer for the app – one device token serves several computers
+      const c = /^[A-Za-z0-9_-]{1,32}$/.test(String(url.searchParams.get("c") ?? "")) ? url.searchParams.get("c") : null;
+      const r = await client.send({ sandbox: platform === "apns-sandbox", token: device, message: { v: 1, enc: "aes128gcm", body: body.toString("base64"), ...(c ? { c } : {}) }, ttl, urgency, topic });
       console.log(`${platform} ${tokenTag(device)} ${r.status}${r.reason ? ` ${r.reason}` : ""} ${Date.now() - started}ms`);
       if (r.status === 201) return json(res, 201, { ok: true });
       return json(res, r.status, { error: r.reason ?? http.STATUS_CODES[r.status] ?? "failed" }, r.status === 429 ? { "retry-after": "60" } : {});

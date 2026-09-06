@@ -165,7 +165,8 @@ const turnText = new Map();        // bot → last assistant text of the running
 streamChat.subscribe(({ bot, entry }) => {
   if (entry.kind === "permission" && entry.permission?.status === "pending") {
     const p = entry.permission;
-    notifyPush("approval", bot, { title: `${titleOf(bot)}: approval needed`, body: excerpt(p.reason ? `${p.title ?? p.tool} – ${p.reason}` : (p.title ?? p.tool ?? entry.text)) });
+    // ref = the permission card's entry id: a phone answers it from the notification (POST …/chat/permission, ADR-0017)
+    notifyPush("approval", bot, { title: `${titleOf(bot)}: approval needed`, body: excerpt(p.reason ? `${p.title ?? p.tool} – ${p.reason}` : (p.title ?? p.tool ?? entry.text)), ref: entry.id });
   } else if (entry.role === "assistant" && entry.kind === "text" && entry.text?.trim()) turnText.set(bot, entry.text);
 });
 const lastStatus = new Map();
