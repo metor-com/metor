@@ -1,8 +1,9 @@
 // metor-connectors – MCP servers configured in the interface (Settings → Connectors), valid for
 // every bot (ADR-0014). Store: /workspace/.metor/connectors.json – secrets (tokens in env or
 // headers) live there in the clear, like the runtimes' own config inside the box (ADR-0004);
-// the API masks them on the way out. Both runtimes get the connectors when a bot starts:
-// Claude Code through the bot's mcp.json (writeMcpConfig), Codex through -c mcp_servers.* overrides.
+// the API masks them on the way out. Every runtime gets the connectors when a bot starts:
+// Claude Code through the bot's mcp.json (writeMcpConfig), Codex through -c mcp_servers.* overrides,
+// Gemini through .gemini/settings.json, Copilot through .copilot/mcp-config.json on the command line.
 // Per-bot selection is a later step – forBot() is the seam for it.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -116,6 +117,17 @@ export function geminiServers(bot) {
     out[c.key] = c.transport === "stdio"
       ? { command: c.command, args: c.args, ...(nonEmpty(c.env) ? { env: c.env } : {}), trust: !c.approval }
       : { ...(c.transport === "sse" ? { url: c.url } : { httpUrl: c.url }), ...(nonEmpty(c.headers) ? { headers: c.headers } : {}), trust: !c.approval };
+  }
+  return out;
+}
+// Copilot CLI: mcp-config.json → mcpServers (type local: command/args/env; type http or sse: url/headers;
+// tools ["*"] exposes every tool – the process runs with --allow-all, "ask first" waits for ADR-0019)
+export function copilotServers(bot) {
+  const out = {};
+  for (const c of forBot(bot)) {
+    out[c.key] = c.transport === "stdio"
+      ? { type: "local", command: c.command, args: c.args, ...(nonEmpty(c.env) ? { env: c.env } : {}), tools: ["*"] }
+      : { type: c.transport, url: c.url, ...(nonEmpty(c.headers) ? { headers: c.headers } : {}), tools: ["*"] };
   }
   return out;
 }

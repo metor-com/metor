@@ -37,10 +37,26 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 - **Gemini follow-ups** (built 2026-09-05, ADR-0016): verify the ACP update shapes and session
   replay with a signed-in account; record the model the session reports for the labels; an API-key
   field in the wizard; Gemini in the bot-to-bot bridge and in `scripts/smoke.sh`
-- **OpenCode as fourth runtime** - through the same seam (registry, kind "http" via
-  `opencode serve`); subscription paths: GitHub Copilot (official partnership, device flow) and
-  ChatGPT headless; Anthropic is not permitted there (see
-  [ADR-0011](knowledge/decisions/0011-multi-harness.md))
+- **Memory per bot** - measured 2026-09-07 on a Mac: about 550 MB per idle bot (its Chromium with
+  renderers, the desktop chain, the host; a Copilot process alone is 290 MB RSS), so six bots froze
+  the 4 GB default computer (no swap; `container exec` and the gateway stopped answering, only
+  killing the VM helped). Wanted: a guard that warns in Settings → Computer and refuses to start
+  more bots than the memory carries, a lighter desktop (no browser until a bot needs one), and
+  `METOR_MEMORY` in the Mac docs; the local computer now runs with 6 GB. Measured per idle bot:
+  desktop about 400 MB (Chromium 306), runtime 150 (Codex) to 265 MB (Claude, Copilot), MCP
+  servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
+  found the same day is fixed
+- **Runtime choice when both are installed** - on a Mac with Docker Desktop and Apple's
+  `container`, the host command picks Docker (a stopped Docker cannot say whether it holds the
+  computer) and starts Docker Desktop, even while Apple's runtime already runs (seen 2026-09-07
+  on a second Mac). Wanted: the app's setup screen offers the choice, or a running Apple runtime
+  wins; `~/.config/metor/runtime` or `METOR_RUNTIME=container` is the workaround
+- **Copilot follow-ups** (built 2026-09-07, ADR-0021, facts in
+  [copilot-facts.md](knowledge/harness/copilot-facts.md)): verify with a paid plan whether
+  `--model` sticks over ACP (with Free it fell back to Auto); the built-in GitHub MCP server as a
+  connector in the directory; Copilot in the bot-to-bot bridge; approval cards through
+  `session/request_permission` (ADR-0019); attachments as ACP image blocks. ChatGPT headless
+  through OpenCode stays an idea (ADR-0011)
 - Codex polish: quota display (`account/rateLimits/read`), approval cards via app-server approvals
   (`model/list` is live since 2026-09-05)
 - **Claude bots never ask for approval** - observed 2026-09-06: with `permissionMode` `default`

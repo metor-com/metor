@@ -3,12 +3,13 @@
 # Needs the metor wrapper and its container runtime (Docker or Apple's container, taken from
 # METOR_RUNTIME or the runtime remembered by the wrapper); curl and node run inside the container.
 #
-#   scripts/smoke.sh [--build] [--restart] [--no-chat] [--codex <bot>] [--keep]
+#   scripts/smoke.sh [--build] [--restart] [--no-chat] [--codex <bot>] [--copilot <bot>] [--keep]
 #
 #   --build     rebuild the image first (metor box build)
 #   --restart   restart the container first and wait for every autostart bot to come back
 #   --no-chat   skip the chat roundtrips (they spend subscription quota)
 #   --codex X   use bot X for the Codex roundtrip (default: the first idle Codex bot, else skipped)
+#   --copilot X use bot X for the Copilot roundtrip (default: the first idle Copilot bot, else skipped)
 #   --keep      keep the probe bot instead of removing it at the end
 #
 # Exit code = number of failed checks. Every check prints "ok" or "FAIL".
@@ -22,11 +23,12 @@ case "$RT" in docker|container) ;; *) RT=docker ;; esac
 export RT
 export JAR=/tmp/smoke.jar JAR2=/tmp/smoke2.jar
 PROBE="${SMOKE_BOT:-smoke}"
-BUILD=0 RESTART=0 CHAT=1 KEEP=0 CODEX_BOT=""
+BUILD=0 RESTART=0 CHAT=1 KEEP=0 CODEX_BOT="" COPILOT_BOT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --build) BUILD=1 ;; --restart) RESTART=1 ;; --no-chat) CHAT=0 ;; --keep) KEEP=1 ;;
     --codex) CODEX_BOT="$2"; shift ;;
+    --copilot) COPILOT_BOT="$2"; shift ;;
     *) echo "unknown option: $1"; exit 2 ;;
   esac; shift
 done
@@ -182,6 +184,18 @@ if [ $CHAT -eq 1 ]; then
     wait_for 150 "Codex bot $CODEX_BOT answered" sub "api /agents/$CODEX_BOT/chat/history | jq_ 'j.filter(x=>x.role===\"assistant\"&&x.kind===\"text\").some(x=>x.text.includes(\"$WORD\"))?\"yes\":\"\"' | grep -q yes"
   else
     echo "skip - no idle Codex bot (use --codex <bot>)"
+  fi
+fi
+
+# --- Copilot roundtrip (optional) ------------------------------------------------------------
+if [ $CHAT -eq 1 ]; then
+  [ -z "$COPILOT_BOT" ] && COPILOT_BOT=$(api /agents | jq_ 'j.filter(a=>a.harness==="copilot"&&a.status==="idle").map(a=>a.name)[0]??""')
+  if [ -n "$COPILOT_BOT" ]; then
+    WORD="SMOKE$RANDOM"
+    apipost "/agents/$COPILOT_BOT/chat/send" "{\"text\":\"Reply with exactly the word $WORD and nothing else.\"}" >/dev/null
+    wait_for 150 "Copilot bot $COPILOT_BOT answered" sub "api /agents/$COPILOT_BOT/chat/history | jq_ 'j.filter(x=>x.role===\"assistant\"&&x.kind===\"text\").some(x=>x.text.includes(\"$WORD\"))?\"yes\":\"\"' | grep -q yes"
+  else
+    echo "skip - no idle Copilot bot (use --copilot <bot>)"
   fi
 fi
 

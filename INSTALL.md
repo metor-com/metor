@@ -206,6 +206,11 @@ volume.
   phone). Beforehand, enable **device code authorization** once in the ChatGPT security settings;
   without it the login fails with a red notice - enable it, then start the wizard again (the old
   code is void). Uses your ChatGPT subscription.
+- **GitHub Copilot** - sign in from the interface: "new bot" -> runtime GitHub Copilot -> Sign in.
+  The wizard shows GitHub's device-code login (link + one-time code); any Copilot plan works, Free
+  included. The token stays inside the box (`/home/box/.copilot`, volume `metor-copilot`). If a
+  Copilot bot answers "Access denied by policy settings", enable Copilot CLI and MCP servers in
+  your Copilot settings - for members of an organisation its admin does that.
 
 A runtime whose login expires stops only its own bots; the others keep running. Sign in again and
 start the bots.
@@ -218,9 +223,10 @@ start the bots.
   asks GitHub once a day; `METOR_UPDATE_CHECK=off` stops that), together with the runtimes'
   versions - the runtimes travel with the image, so updating metor is what brings new runtime
   versions and models.
-- **Backup:** back up the three volumes - `metor-workspace` (bots, histories, routines, files),
+- **Backup:** back up the volumes - `metor-workspace` (bots, histories, routines, files),
   `metor-claude` (Claude login **and sessions**; without this volume the conversation contexts are
-  gone), `metor-codex` (Codex login and sessions) and `metor-gemini` (Gemini login and sessions).
+  gone), `metor-codex` (Codex login and sessions), `metor-gemini` (Gemini login and sessions) and
+  `metor-copilot` (Copilot login and sessions).
 - **Bots via CLI:** `docker compose exec box metor bot list|create|start|stop|rm ...`
 - **Version:** `docker compose exec box metor version`.
 - **Devices and lost access:** `docker compose exec box metor auth sessions` lists the signed-in

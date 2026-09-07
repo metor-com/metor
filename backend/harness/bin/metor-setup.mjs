@@ -6,6 +6,9 @@
 //            it into the UI and it goes to the waiting CLI's stdin (Claude Code)
 //   key    – the user pastes an API key; the registry stores it inside the box and checks it with
 //            one request (Gemini CLI, since Google closed the account login for the CLI)
+// A CLI that asks its questions only under a terminal (Copilot: keep the token in a plaintext file,
+// the box has no keychain) runs inside a pseudo-terminal (registry `setup.pty`, util-linux `script`)
+// and the registry's `setup.answer` is written to it once its pattern shows.
 // Credentials NEVER leave the box – the UI only sees the display data of the official flow.
 // No user input reaches argv; the pasted code is written to the CLI's stdin only.
 import { spawn } from "node:child_process";
@@ -13,7 +16,8 @@ import { HARNESSES } from "./metor-harness.mjs";
 
 const slots = new Map();   // harnessId → { state, url, code, error, child, out, startedAt }
 const ACTIVE = ["starting", "pending", "verifying"];
-const strip = (s) => s.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+const strip = (s) => s.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "").replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "").replace(/\r/g, "");   // OSC (clipboard, title), CSI, a pty's CR
+const shq = (s) => `'${String(s).replace(/'/g, "'\\''")}'`;   // the registry's static words for `script -c`
 const lastLine = (out) => out.trim().split("\n").map((l) => l.trim()).filter((l) => l && !/paste code here/i.test(l)).pop()?.slice(0, 300);
 
 export function setupStart(id) {
@@ -24,13 +28,16 @@ export function setupStart(id) {
   if (mode === "key") { slots.set(id, { state: "pending", url: desc.setup.link ?? null, code: null, error: null, child: null, out: "", startedAt: Date.now() }); return setupStatus(id); }
   const cur = slots.get(id);
   if (cur && ACTIVE.includes(cur.state)) return setupStatus(id);   // idempotent, no double spawn
-  const child = spawn(desc.setup.command[0], desc.setup.command.slice(1), { stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, ...(desc.setup.env ?? {}) } });
-  const slot = { state: "starting", url: null, code: null, error: null, child, out: "", startedAt: Date.now() };
+  const argv = desc.setup.pty ? ["script", "-q", "-f", "-e", "-c", desc.setup.command.map(shq).join(" "), "/dev/null"] : desc.setup.command;
+  const child = spawn(argv[0], argv.slice(1), { stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, ...(desc.setup.pty ? { TERM: "xterm" } : {}), ...(desc.setup.env ?? {}) } });
+  const slot = { state: "starting", url: null, code: null, error: null, child, out: "", answered: false, startedAt: Date.now() };
   slots.set(id, slot);
   // Some CLIs are driven over a protocol (Gemini: ACP) – the registry says what to send first
   for (const line of desc.setup.stdin ?? []) { try { child.stdin.write(line + "\n"); } catch {} }
   const onData = (d) => {
     slot.out = strip(slot.out + String(d)).slice(-4000);
+    // The CLI's question that only a terminal gets (Copilot: plaintext storage) – answered once, from the registry
+    if (desc.setup.answer && !slot.answered && desc.setup.answer.when.test(slot.out)) { slot.answered = true; try { child.stdin.write(desc.setup.answer.text + "\n"); } catch {} }
     // Servers that keep running after the login: the registry's patterns decide, not the exit
     if (desc.setup.done?.test(slot.out) && !["done", "failed", "cancelled"].includes(slot.state)) { slot.state = "done"; try { child.kill(); } catch {} return; }
     if (desc.setup.failed?.test(slot.out) && !["done", "failed", "cancelled"].includes(slot.state)) { slot.state = "failed"; slot.error = "the sign-in was not accepted – start it again"; try { child.kill(); } catch {} return; }
@@ -38,7 +45,7 @@ export function setupStart(id) {
       const url = slot.out.match(/https:\/\/\S+/)?.[0];
       if (!url) return;
       if (mode === "device") {
-        const code = slot.out.match(/\b([A-Z0-9]{4}-[A-Z0-9]{5,6})\b/)?.[1];
+        const code = slot.out.match(/\b([A-Z0-9]{4}-[A-Z0-9]{4,6})\b/)?.[1];   // Codex XXXX-XXXXX, GitHub XXXX-XXXX
         if (code) { slot.url = url; slot.code = code; slot.state = "pending"; }
       } else { slot.url = url; slot.state = "pending"; }
     } else if (slot.state === "verifying" && /invalid|expired|denied|error|failed/i.test(String(d))) {

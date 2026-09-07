@@ -1,5 +1,5 @@
 # Weekly: are there newer releases of the runtimes the box carries (Claude Agent SDK, Codex CLI,
-# Gemini CLI)? If so, bump the pins in backend/box/Dockerfile, prove that the image still builds,
+# Gemini CLI, Copilot CLI)? If so, bump the pins in backend/box/Dockerfile, prove that the image still builds,
 # and open (or refresh) a pull request. The runtimes' protocols are verified per version
 # (knowledge/harness/), so a person merges – after the chat smoke ran on a real computer.
 name: runtimes
@@ -35,7 +35,7 @@ jobs:
             Newer runtime releases on npm; the box image builds with them (this workflow).
 
             Before merging: `metor box build`, then `scripts/smoke.sh` with chat against that computer, and a look at
-            the runtimes' release notes – the protocols metor speaks (Codex app-server, Gemini ACP, the Agent SDK) are
+            the runtimes' release notes – the protocols metor speaks (Codex app-server, Gemini and Copilot ACP, the Agent SDK) are
             verified per version in `knowledge/harness/`. Add a line under Unreleased in CHANGELOG.md when a new model
             or another visible change comes with it. A merge to main publishes the `latest` image.
           labels: runtimes

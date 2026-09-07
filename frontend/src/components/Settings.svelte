@@ -12,7 +12,7 @@
   // Computer: metor's version, the newest release, the runtimes the box carries (all from /bots/api/version)
   let info = null, infoError = null;
   versionInfo().then((v) => (info = v)).catch((e) => (infoError = e.message));
-  const RUNTIME_NAMES = { claude: "Claude Code (Agent SDK)", codex: "Codex CLI", gemini: "Gemini CLI" };
+  const RUNTIME_NAMES = { claude: "Claude Code (Agent SDK)", codex: "Codex CLI", gemini: "Gemini CLI", copilot: "Copilot CLI" };
   export let tab = "devices";
   let open = false;   // phone: a section is open (list hidden)
   const SECTIONS = [

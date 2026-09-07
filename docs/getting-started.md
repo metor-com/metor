@@ -91,7 +91,7 @@ a line break.
   Be clear about what asks and what does not: inside the bots' computer nothing asks - not the
   shell, not the browser, not the files. A bot that is signed in to a site in its browser can act
   there without a card. Approval cards exist for connectors marked "Ask before each use", and
-  today only Claude Code bots show them; Codex and Gemini bots run every connector without asking
+  today only Claude Code bots show them; Codex, Gemini and Copilot bots run every connector without asking
   ([ADR-0019](../knowledge/decisions/0019-boundary-approvals.md) is the plan to close that gap).
   Give a bot accounts it may use freely, and keep the sensitive ones behind an asking connector.
 - **Stop**: while the bot is working, a red stop button sits in the header. It interrupts the
@@ -168,7 +168,7 @@ is created; one that runs out of dates pauses with a note.
 
 ## 8. Runtimes and models
 
-Each bot runs on one **runtime** - Claude Code or Codex - and one model, chosen at creation. The
+Each bot runs on one **runtime** - Claude Code, Codex, Gemini CLI or GitHub Copilot - and one model, chosen at creation. The
 header of a bot shows both as a small badge on desktop widths.
 
 - **Claude Code** bots use your Claude subscription. The sidebar shows the subscription's quota
@@ -184,6 +184,14 @@ header of a bot shows both as a small badge on desktop widths.
   they cannot assign tasks to other bots yet. The model choice is "Auto" - Gemini picks the
   model per task and the bot's header shows which one answered last - or one of the models
   Gemini lists, or a pinned id through *Other model id…*.
+- **GitHub Copilot** bots use your GitHub Copilot subscription - any plan, Free included - and with
+  it models from every vendor (Claude, GPT, Gemini, Grok, Kimi). Sign in once from the create
+  dialog with GitHub's device code; the login stays inside the bots' computer. The model choice is
+  "Auto" - Copilot picks per task and the bot's header shows which model answered - or one of the
+  models Copilot lists. Copilot bots chat, use shell and files, drive their browser, run routines
+  and send files; like Codex and Gemini bots they cannot assign tasks to other bots yet. If a
+  Copilot bot answers "Access denied by policy settings", your Copilot settings (or, in an
+  organisation, its admin) have to allow Copilot CLI and MCP servers.
 
 **Which models?** For Claude Code the choice is a family - **Fable**, **Opus**, **Sonnet**,
 **Haiku** - and each name always means the newest model of that family that Claude Code offers,

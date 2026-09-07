@@ -4,7 +4,14 @@
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { claudeServers, geminiServers } from "./metor-connectors.mjs";
+import { claudeServers, copilotServers, geminiServers } from "./metor-connectors.mjs";
+
+// Gemini CLI runs as a Node wrapper (`node /usr/local/bin/gemini`) with a Node child, and neither reacts to
+// SIGTERM – probe pairs lived on for 20 minutes and ate 240 MB each (measured 2026-09-07, the memory creep
+// that froze a 4 GB computer). Spawned detached, the pair is its own process group: this ends the whole group
+export function killGroup(child, signal = "SIGKILL") {
+  try { process.kill(-child.pid, signal); } catch { try { child.kill(signal); } catch {} }
+}
 
 // Port scheme per display – shared by metor.mjs and the adapters
 export const ports = (d) => ({ display: d, vnc: 5900 + d, novnc: 6000 + d, cdp: 9200 + d, ttyd: 7100 + d });
@@ -134,9 +141,9 @@ HARNESSES.gemini = {
   listModels() {
     const key = geminiKey(); if (!key) return Promise.resolve(null);
     return new Promise((done) => {
-      const child = spawn("gemini", ["--acp", "--skip-trust"], { cwd: "/tmp", stdio: ["pipe", "pipe", "ignore"], env: { ...process.env, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", GEMINI_API_KEY: key } });
+      const child = spawn("gemini", ["--acp", "--skip-trust"], { cwd: "/tmp", stdio: ["pipe", "pipe", "ignore"], detached: true, env: { ...process.env, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", GEMINI_API_KEY: key } });
       let id = 0, buf = ""; const waiting = new Map();
-      const finish = (v) => { clearTimeout(timer); try { child.kill(); } catch {} done(v); };
+      const finish = (v) => { clearTimeout(timer); killGroup(child); done(v); };   // the probe has nothing to save
       const timer = setTimeout(() => finish(null), 8000);
       const send = (method, params) => new Promise((r) => { const i = ++id; waiting.set(i, r); child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: i, method, params }) + "\n"); });
       child.on("error", () => finish(null));
@@ -221,6 +228,82 @@ export function geminiKey() {
   try { return /^GEMINI_API_KEY=(\S+)/m.exec(readFileSync(join(GEMINI_HOME, ".env"), "utf8"))?.[1] ?? null; } catch { return null; }
 }
 
+// ---------- GitHub Copilot (ADR-0021; facts in knowledge/harness/copilot-facts.md) ----------
+// The CLI's home: config.json with the login, session-store and session-state, logs – the volume metor-copilot
+export const COPILOT_HOME = process.env.COPILOT_HOME ?? join(process.env.HOME ?? "/home/box", ".copilot");
+const COPILOT_ENV = { ...process.env, COPILOT_AUTO_UPDATE: "false" };   // never let a probe replace the pinned CLI
+// config.json is JSONC ("// User settings belong in settings.json." on top) – the comment lines go first
+function copilotConfig() {
+  try { return JSON.parse(readFileSync(join(COPILOT_HOME, "config.json"), "utf8").split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n")); } catch { return null; }
+}
+// "claude-fable-5.1" → "Claude Fable 5.1", "gpt-5.6-luna" → "GPT 5.6 Luna", "kimi-k2.7-code" → "Kimi K2.7 Code"
+export const copilotLabel = (id) => String(id ?? "").split("-").filter(Boolean).map((w) => (/^(gpt|mai)$/i.test(w) || /^k\d/i.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1))).join(" ");
+HARNESSES.copilot = {
+  id: "copilot",
+  label: "GitHub Copilot",
+  kind: "ipc-host",
+  adapterModule: "./metor-host-copilot.mjs",
+  // "auto" = the CLI's own choice per task; a full id (Other model id…) pins one – whether the CLI honours
+  // it over ACP is verified only for the Free plan, where it did not (the label tells the truth either way)
+  models: [{ id: "auto", label: "Auto (Copilot decides)", default: true }],
+  // No model API without a session – `copilot help config` lists the ids the CLI accepts; cached per CLI
+  // version in models.json, so a new CLI brings a new list without a metor release
+  async listModels() {
+    const db = readModelsFile(); const h = db.copilot ?? {};
+    const cli = (spawnSync("copilot", ["--version"], { encoding: "utf8", timeout: 15_000, env: COPILOT_ENV }).stdout ?? "").match(/\d+\.\d+\.\d+/)?.[0] ?? "?";
+    let ids = h.cli === cli && Array.isArray(h.ids) && h.ids.length ? h.ids : null;
+    if (!ids) {
+      const out = spawnSync("copilot", ["help", "config"], { encoding: "utf8", timeout: 20_000, env: COPILOT_ENV }).stdout ?? "";
+      const section = out.split(/\n(?=\s*`)/).find((s) => /^\s*`model`:/.test(s)) ?? "";
+      ids = [...section.matchAll(/^\s*-\s*"([^"]+)"/gm)].map((m) => m[1]);
+      if (!ids.length) return null;
+      db.copilot = { ...h, cli, ids }; writeModelsFile(db);
+    }
+    return [this.models[0], ...ids.map((id) => ({ id, label: copilotLabel(id) }))];
+  },
+  roleFile: "AGENTS.md",
+  // The Codex template, with the browser server under the name Copilot allows (see writeMcpConfig)
+  scaffold(dir, bot, templatesDir) {
+    const tpl = readFileSync(join(templatesDir, "AGENTS.md"), "utf8")
+      .replaceAll("{{NAME}}", bot.name).replaceAll("{{TITLE}}", bot.title ?? bot.name).replaceAll("{{ROLE}}", bot.role)
+      .replace("MCP server `browser`, tools `browser_navigate`", "MCP server `playwright`, tools `playwright-browser_navigate`");
+    writeFileSync(join(dir, "AGENTS.md"), tpl);
+  },
+  // The CLI ignores ACP's mcpServers parameter; a file on the command line (--additional-mcp-config @file)
+  // augments its global ~/.copilot/mcp-config.json for that process only – written at every start
+  writeMcpConfig(dir, bot) {
+    const p = ports(bot.display);
+    mkdirSync(join(dir, ".copilot"), { recursive: true });
+    // Copilot's API reserves the namespace "browser" – a server of that name fails every turn with
+    // "Function 'browser.browser-browser_click' is not allowed in reserved namespace" (2026-09-07), so
+    // the bot's browser is the server "playwright" here (tools playwright-browser_navigate …)
+    const builtIn = {
+      playwright: { type: "local", command: "playwright-mcp", args: ["--cdp-endpoint", `http://127.0.0.1:${p.cdp}`, "--output-dir", `/workspace/bots/${bot.name}/.browser-output`, "--image-responses", "allow"], tools: ["*"] },
+      routines: { type: "local", command: "node", args: ["/usr/local/lib/metor/metor-routines-mcp.mjs", bot.name], tools: ["*"] },
+    };
+    writeFileSync(join(dir, ".copilot", "mcp-config.json"), JSON.stringify({ mcpServers: { ...copilotServers(bot), ...builtIn } }, null, 2) + "\n");
+  },
+  needsTrustDir: false,
+  // The CLI has no status command; its config.json names the login (the token itself is never read)
+  loginProbe() {
+    if (process.env.COPILOT_GITHUB_TOKEN || process.env.GH_TOKEN || process.env.GITHUB_TOKEN) return { ok: true, detail: "token from the environment" };
+    const c = copilotConfig();
+    const ok = !!(c?.authTokens && Object.keys(c.authTokens).length);
+    const who = (c?.loggedInUsers ?? []).map((u) => u?.login).filter(Boolean).join(", ");
+    return { ok, detail: ok ? `signed in${who ? ` as ${who}` : ""}` : "Sign in required (New bot → GitHub Copilot → Sign in)" };
+  },
+  // GitHub's device-code login, the shape of Codex's. Afterwards the CLI asks whether to keep the token in a
+  // plaintext file (the box has no keychain) – only under a terminal, without one it drops the login: the
+  // setup runner wraps the command in a pseudo-terminal (pty) and answers the question (answer)
+  setup: {
+    mode: "device",
+    command: ["copilot", "login", "--device-code"],
+    pty: true,
+    answer: { when: /plaintext config file\?/i, text: "y" },
+    hint: "Sign in with your GitHub account – any Copilot plan works, Free included. If a bot later answers \"Access denied by policy settings\", enable Copilot CLI and MCP servers in your Copilot settings (for members of an organisation its admin does that).",
+  },
+};
+
 export const isIpcHarness = (id) => HARNESSES[id]?.kind === "ipc-host";
 export const harnessOf = (b) => (typeof b === "string" ? b : b?.harness) ?? "claude-stream";
 export const defaultModel = (id) => HARNESSES[id]?.models.find((m) => m.default)?.id ?? null;
@@ -284,6 +367,11 @@ export function modelLabel(id, model) {
   if (id === "gemini" && model === "default") {   // "Auto" – say which model answered last
     const seen = readModelsFile().gemini?.seen?.default?.id; const p = seen && prettyModel(seen);
     return p ? `Auto · ${p}` : "Auto";
+  }
+  if (id === "copilot") {   // "Auto" – the model that answered last; a pin the CLI did not honour reads as Auto too
+    const seen = readModelsFile().copilot?.seen?.[model]?.id;
+    if (seen && seen !== model) return `Auto · ${copilotLabel(seen)}`;
+    return model === "auto" ? "Auto" : (listed ?? copilotLabel(model));
   }
   return listed ?? prettyModel(model);
 }
