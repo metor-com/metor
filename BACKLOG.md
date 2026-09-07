@@ -37,10 +37,13 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 - **Gemini follow-ups** (built 2026-09-05, ADR-0016): verify the ACP update shapes and session
   replay with a signed-in account; record the model the session reports for the labels; an API-key
   field in the wizard; Gemini in the bot-to-bot bridge and in `scripts/smoke.sh`
-- **OpenCode as fourth runtime** - through the same seam (registry, kind "http" via
-  `opencode serve`); subscription paths: GitHub Copilot (official partnership, device flow) and
-  ChatGPT headless; Anthropic is not permitted there (see
-  [ADR-0011](knowledge/decisions/0011-multi-harness.md))
+- **GitHub Copilot as fourth runtime** (spike 2026-09-07 on the branch `copilot-runtime`,
+  facts in [copilot-facts.md](knowledge/harness/copilot-facts.md)) - the official CLI's ACP
+  server through the same seam as Gemini: registry entry, adapter, `AGENTS.md` as the role file,
+  MCP servers via `--additional-mcp-config`, volume `metor-copilot`; the device-code login
+  needs a pseudo-terminal in the box; one subscription with Claude, GPT, Gemini, Grok and Kimi
+  models. OpenCode is no longer needed as the door to Copilot (ADR-0011 item 2); ChatGPT
+  headless through OpenCode stays an idea
 - Codex polish: quota display (`account/rateLimits/read`), approval cards via app-server approvals
   (`model/list` is live since 2026-09-05)
 - **Claude bots never ask for approval** - observed 2026-09-06: with `permissionMode` `default`
