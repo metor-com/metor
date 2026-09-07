@@ -140,7 +140,18 @@ public final class WebPushCrypto {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("computer." + id, wrap((origin + "\n" + token).getBytes("UTF-8"))).apply();
     }
     public static void clearComputer(Context ctx, String id) {
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("computer." + id).apply();
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("computer." + id).remove("badge." + id).apply();
+    }
+    // The unread count per computer (knowledge/design/several-computers.md): the notifications carry the sum over
+    // every computer the app is connected to. Plain numbers, nothing to protect.
+    public static void setBadge(Context ctx, String id, int count) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt("badge." + id, Math.max(0, count)).apply();
+    }
+    public static int badgeTotal(Context ctx) {
+        int total = 0;
+        for (java.util.Map.Entry<String, ?> e : ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getAll().entrySet())
+            if (e.getKey().startsWith("badge.") && e.getValue() instanceof Integer) total += (Integer) e.getValue();
+        return total;
     }
     public static Computer getComputer(Context ctx, String id) {
         try {

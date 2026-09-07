@@ -21,6 +21,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 @CapacitorPlugin(name = "MetorPush", permissions = { @Permission(alias = "notifications", strings = { "android.permission.POST_NOTIFICATIONS" }) })
 public class MetorPushPlugin extends Plugin {
     static final String EXTRA_BOT = "metor_bot";
+    static final String EXTRA_COMPUTER = "metor_c";   // the computer a push came from (knowledge/design/several-computers.md)
 
     @Override
     public void load() { deliverOpened(getActivity().getIntent()); }
@@ -30,8 +31,8 @@ public class MetorPushPlugin extends Plugin {
 
     private void deliverOpened(Intent intent) {
         if (intent == null || !intent.hasExtra(EXTRA_BOT)) return;
-        JSObject data = new JSObject(); data.put("bot", intent.getStringExtra(EXTRA_BOT));
-        intent.removeExtra(EXTRA_BOT);
+        JSObject data = new JSObject(); data.put("bot", intent.getStringExtra(EXTRA_BOT)); data.put("computer", intent.getStringExtra(EXTRA_COMPUTER));
+        intent.removeExtra(EXTRA_BOT); intent.removeExtra(EXTRA_COMPUTER);
         notifyListeners("opened", data, true);
     }
 
@@ -46,16 +47,24 @@ public class MetorPushPlugin extends Plugin {
     public void clearComputer(PluginCall call) { String id = call.getString("id"); if (id != null) WebPushCrypto.clearComputer(getContext(), id); call.resolve(); }
 
     // Android has no badge of its own: the launcher's dot or count comes from the active notifications. So the
-    // notifications of bots that were read go away (their id is the bot's hash, MetorMessagingService), all of them
-    // when nothing is unread any more.
+    // notifications of bots that were read go away – of that computer (its id travels in the notification's
+    // extras, MetorMessagingService), all of them when nothing is unread there any more. The count itself is
+    // kept per computer for the number the next notification shows (the sum over all computers).
     @PluginMethod
     public void setBadge(PluginCall call) {
         android.app.NotificationManager nm = getContext().getSystemService(android.app.NotificationManager.class);
         int count = call.getInt("count", 0);
-        if (count == 0) nm.cancelAll();
-        else {
-            com.getcapacitor.JSArray read = call.getArray("read");
-            if (read != null) for (int i = 0; i < read.length(); i++) { try { nm.cancel(read.getString(i).hashCode()); } catch (Exception ignored) {} }
+        String computer = call.getString("computer");
+        if (computer != null) WebPushCrypto.setBadge(getContext(), computer, count);
+        java.util.HashSet<String> read = new java.util.HashSet<>();
+        com.getcapacitor.JSArray arr = call.getArray("read");
+        if (arr != null) for (int i = 0; i < arr.length(); i++) { try { read.add(arr.getString(i)); } catch (Exception ignored) {} }
+        if (count == 0 && computer == null) nm.cancelAll();
+        else for (android.service.notification.StatusBarNotification n : nm.getActiveNotifications()) {
+            android.os.Bundle x = n.getNotification().extras;
+            String from = x == null ? null : x.getString(EXTRA_COMPUTER), bot = x == null ? null : x.getString(EXTRA_BOT);
+            if (computer != null && from != null && !from.equals(computer)) continue;   // another computer's
+            if (count == 0 || (bot != null && read.contains(bot))) nm.cancel(n.getId());
         }
         call.resolve();
     }

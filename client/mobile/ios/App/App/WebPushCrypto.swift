@@ -83,6 +83,30 @@ enum PushComputers {
     }
 }
 
+/// The unread count per computer, for the app icon's badge – the sum over every computer the app is
+/// connected to (knowledge/design/several-computers.md). Written by the app from the bot list it
+/// receives and by the notification service extension from the number a push carries; the same
+/// keychain group, so both see the same numbers.
+enum PushBadges {
+    private static let service = "com.metor.mobile.push.badges"
+    static func set(_ computer: String, _ count: Int) {
+        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: computer]
+        SecItemDelete(q as CFDictionary)
+        var add = q; add[kSecValueData as String] = Data(String(max(0, count)).utf8); add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(add as CFDictionary, nil)
+    }
+    static func remove(_ computer: String) {
+        SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: computer] as CFDictionary)
+    }
+    static func total() -> Int {
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service]
+        q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitAll
+        var out: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let items = out as? [Data] else { return 0 }
+        return items.reduce(0) { $0 + (Int(String(decoding: $1, as: UTF8.self)) ?? 0) }
+    }
+}
+
 enum WebPushCrypto {
     /// Decrypts an aes128gcm message: header (salt 16 | rs 4 | idlen 1 | sender public key 65), then records.
     static func decrypt(_ message: Data, keys: WebPushKeys) throws -> Data {

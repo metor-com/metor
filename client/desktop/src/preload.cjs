@@ -6,7 +6,9 @@ contextBridge.exposeInMainWorld("metor", {
   platform: info.platform,
   version: info.version,
   gateway: info.gateway,                                            // { id, name, origin, version, signedIn } | null
-  gateways: () => ipcRenderer.invoke("metor:gateways"),
+  gateways: (opts) => ipcRenderer.invoke("metor:gateways", opts ?? null),   // [{ id, name, origin, version, signedIn, local, unread, reachable }]; { probe: true } asks every computer first
+  rename: (id, name) => ipcRenderer.invoke("metor:rename", id, name),
+  onComputers: (cb) => ipcRenderer.on("metor:computers", (_e, list) => cb(list)),   // the list again whenever the app's own watch learns something
   connect: (args) => ipcRenderer.invoke("metor:connect", args),     // { url, claim } → { ok, error? }
   use: (id) => ipcRenderer.invoke("metor:use", id),
   forget: (id) => ipcRenderer.invoke("metor:forget", id),

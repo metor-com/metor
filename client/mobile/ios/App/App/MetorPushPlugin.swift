@@ -17,7 +17,7 @@ public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
     static let approvalCategory = "metor.approval"   // notification actions Approve / Deny (registered in AppDelegate)
     static let opened = Notification.Name("metor.push.opened")
-    static var pendingBot: String?   // a tap that arrived before the interface was listening
+    static var pendingOpen: [String: String]?   // a tap (bot and computer) that arrived before the interface was listening
     private var pending: CAPPluginCall?
 
     public override func load() {
@@ -25,7 +25,7 @@ public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
         c.addObserver(self, selector: #selector(gotToken(_:)), name: .capacitorDidRegisterForRemoteNotifications, object: nil)
         c.addObserver(self, selector: #selector(failed(_:)), name: .capacitorDidFailToRegisterForRemoteNotifications, object: nil)
         c.addObserver(self, selector: #selector(opened(_:)), name: MetorPushPlugin.opened, object: nil)
-        if let bot = MetorPushPlugin.pendingBot { MetorPushPlugin.pendingBot = nil; notifyListeners("opened", data: ["bot": bot], retainUntilConsumed: true) }
+        if let open = MetorPushPlugin.pendingOpen { MetorPushPlugin.pendingOpen = nil; notifyListeners("opened", data: open, retainUntilConsumed: true) }
     }
 
     @objc func register(_ call: CAPPluginCall) {
@@ -40,25 +40,39 @@ public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let id = call.getString("id"), let origin = call.getString("origin"), let token = call.getString("token") else { call.reject("id, origin and token"); return }
         do { try PushComputers.set(id, .init(origin: origin, token: token)); call.resolve() } catch { call.reject("keychain: \(error)") }
     }
-    @objc func clearComputer(_ call: CAPPluginCall) { if let id = call.getString("id") { PushComputers.remove(id) }; call.resolve() }
+    @objc func clearComputer(_ call: CAPPluginCall) {
+        if let id = call.getString("id") { PushComputers.remove(id); PushBadges.remove(id); MetorPushPlugin.showBadge(PushBadges.total()) }
+        call.resolve()
+    }
 
-    // The badge follows the bot list while the app is open: the unread total, and the notifications of bots that
-    // were read disappear from the notification center (they are grouped by thread "bot:<name>")
+    // The badge follows the bot list while the app is open: the unread total of that computer goes into the
+    // per-computer store and the icon shows the sum over all computers; the notifications of bots that were
+    // read disappear from the notification center (thread "bot:<computer>:<name>", the computer in metor_c)
     @objc func setBadge(_ call: CAPPluginCall) {
         let count = call.getInt("count") ?? 0
+        let computer = call.getString("computer")
         let read = Set((call.getArray("read") as? [String]) ?? [])
+        if let c = computer { PushBadges.set(c, count) }
+        MetorPushPlugin.showBadge(computer == nil ? count : PushBadges.total())
         let center = UNUserNotificationCenter.current()
-        DispatchQueue.main.async {
-            if #available(iOS 16.0, *) { center.setBadgeCount(count) { _ in } } else { UIApplication.shared.applicationIconBadgeNumber = count }
-        }
-        if count == 0 { center.removeAllDeliveredNotifications() }
-        else if !read.isEmpty {
+        if count == 0 && computer == nil { center.removeAllDeliveredNotifications() }
+        else if count == 0 || !read.isEmpty {
             center.getDeliveredNotifications { delivered in
-                let ids = delivered.filter { read.contains($0.request.content.threadIdentifier.replacingOccurrences(of: "bot:", with: "")) }.map { $0.request.identifier }
+                let ids = delivered.filter { n in
+                    let info = n.request.content.userInfo
+                    if let c = computer, let from = info["metor_c"] as? String, from != c { return false }   // another computer's
+                    if count == 0 { return true }
+                    return read.contains((info["metor_bot"] as? String) ?? String(n.request.content.threadIdentifier.split(separator: ":").last ?? ""))
+                }.map { $0.request.identifier }
                 if !ids.isEmpty { center.removeDeliveredNotifications(withIdentifiers: ids) }
             }
         }
         call.resolve()
+    }
+    static func showBadge(_ count: Int) {
+        DispatchQueue.main.async {
+            if #available(iOS 16.0, *) { UNUserNotificationCenter.current().setBadgeCount(count) { _ in } } else { UIApplication.shared.applicationIconBadgeNumber = count }
+        }
     }
 
     @objc func gotToken(_ n: Notification) {
@@ -74,7 +88,7 @@ public class MetorPushPlugin: CAPPlugin, CAPBridgedPlugin {
         pending?.resolve(["reason": "apns: \((n.object as? Error)?.localizedDescription ?? "registration failed")"]); pending = nil
     }
     @objc func opened(_ n: Notification) {
-        notifyListeners("opened", data: ["bot": (n.userInfo?["bot"] as? String) ?? ""], retainUntilConsumed: true)
+        notifyListeners("opened", data: ["bot": (n.userInfo?["bot"] as? String) ?? "", "computer": (n.userInfo?["computer"] as? String) ?? ""], retainUntilConsumed: true)
     }
     // Development builds get sandbox tokens; App Store and TestFlight builds production ones
     static var sandbox: Bool {

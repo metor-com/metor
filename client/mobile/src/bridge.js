@@ -37,7 +37,10 @@ async function load() {
 const save = async () => { await SecureStorage.set(STORE_KEY, db); console.log("metor: store saved", db.computers.length, db.current); };
 const computer = (id) => db.computers.find((c) => c.id === id) ?? null;
 const current = () => computer(db.current);
-const publicInfo = (c, extra = {}) => (c ? { id: c.id, name: c.name, origin: c.origin, version: c.version ?? null, signedIn: !!c.secret, ...extra } : null);
+// What the app has learned about a computer since it started: the unread total (the overview's badge) and whether it answers
+const status = new Map();   // id → { unread, reachable }
+const publicInfo = (c, extra = {}) => (c ? { id: c.id, name: c.label || c.name, short: c.label || c.name, origin: c.origin, version: c.version ?? null, signedIn: !!c.secret, local: false,
+  unread: status.get(c.id)?.unread ?? null, reachable: status.get(c.id)?.reachable ?? null, ...extra } : null);
 const nameFor = (origin) => { try { return new URL(origin).hostname; } catch { return origin; } };
 const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
 const deviceLabel = () => `metor app on ${{ ios: "iPhone", android: "Android" }[platform] ?? platform}`;
@@ -105,9 +108,29 @@ async function forget(id) {
   await save(); if (wasCurrent) reload();
 }
 // The computer answered 401: the session is gone (revoked there) – keep the entry, drop the secret
-async function signedOut() {
-  const c = current(); if (!c?.secret) return;
-  c.secret = null; await clearSessionCookie(c); try { await MetorPush.clearComputer({ id: c.id }); } catch {} await save(); reload();
+async function signedOut(id = db.current) {
+  const c = computer(id); if (!c?.secret) return;
+  c.secret = null; await clearSessionCookie(c); try { await MetorPush.clearComputer({ id: c.id }); } catch {} await save();
+  if (c.id === db.current) reload();
+}
+// Ask a computer for its bot list: does it answer, how much is unread – the overview of the computers
+// (knowledge/design/several-computers.md) probes all of them when it opens. The native side keeps the
+// count per computer for the app icon's badge, the sum over all computers.
+const unreadOf = (list) => list.reduce((n, a) => n + (Number(a.unread) || 0), 0);
+async function probe(c) {
+  if (!c?.secret) { status.set(c.id, { unread: null, reachable: await reachable(c.origin) }); return; }
+  try {
+    const r = await fetchJson(`${c.origin}/bots/api/agents`, { headers: { authorization: `Bearer ${c.secret}` } }, 5000);
+    if (r.status === 401) { status.set(c.id, { unread: null, reachable: true }); await signedOut(c.id); return; }
+    if (r.ok && Array.isArray(r.data)) {
+      status.set(c.id, { unread: unreadOf(r.data), reachable: true });
+      if (c.id !== db.current) MetorPush.setBadge({ computer: c.id, count: unreadOf(r.data), read: r.data.filter((a) => !a.unread).map((a) => a.name) }).catch(() => {});
+    } else status.set(c.id, { ...(status.get(c.id) ?? { unread: null }), reachable: r.ok });
+  } catch { status.set(c.id, { ...(status.get(c.id) ?? { unread: null }), reachable: false }); }
+}
+async function gateways(opts = null) {
+  if (opts?.probe) await Promise.all(db.computers.map(probe));
+  return db.computers.map((x) => publicInfo(x));
 }
 
 // ---------- The session token on every request to the connected computer (the interface is unchanged) ----------
@@ -170,14 +193,23 @@ function badgeFromAgents(text) {
   lastAgents = text;
   let list; try { list = JSON.parse(text); } catch { return; }
   if (!Array.isArray(list)) return;
-  const count = list.reduce((n, a) => n + (Number(a.unread) || 0), 0);
+  const count = unreadOf(list);
   const read = list.filter((a) => !a.unread).map((a) => a.name);
-  MetorPush.setBadge({ count, read }).catch(() => {});
+  status.set(db.current, { unread: count, reachable: true });
+  MetorPush.setBadge({ computer: db.current, count, read }).catch(() => {});   // this computer's count; the icon shows the sum
 }
 
 // ---------- Notifications while the app is open (the gateway's notify events); push comes later, with the relay ----------
-let openBotCallback = null, pendingBot = null, notifyId = 1;
-const openBot = (bot) => { if (!bot) return; if (openBotCallback) openBotCallback(bot); else pendingBot = bot; };
+// A tap names the bot and, from a push, the computer it came from: another computer than the one shown
+// means switching first – the interface loads anew, so the bot to open waits in sessionStorage
+const OPEN_KEY = "metor:open";
+let openBotCallback = null, pendingBot = sessionStorage.getItem(OPEN_KEY) || null, notifyId = 1;
+sessionStorage.removeItem(OPEN_KEY);
+const openBot = (bot, computerId = null) => {
+  if (!bot) return;
+  if (computerId && computerId !== db.current && computer(computerId)?.secret) { sessionStorage.setItem(OPEN_KEY, bot); use(computerId); return; }
+  if (openBotCallback) openBotCallback(bot); else pendingBot = bot;
+};
 let pushEndpoint = null;   // the subscription registered with the current computer, null without native push
 let pushState = { state: "off", error: null };   // what the settings card shows: on | off | denied | unavailable
 let pushInFlight = null;                          // the registration running at start – the card waits for it
@@ -275,8 +307,9 @@ async function enablePush() {
   db.pushEnabled = true; await save();
   return registerPush(current());
 }
-// A tap on a push notification carries the bot (payload of metor-push.mjs); the extension/service put it into the notification
-MetorPush.addListener("opened", (e) => openBot(e?.bot)).catch(() => {});   // no native plugin in a browser
+// A tap on a push notification carries the bot (payload of metor-push.mjs) and the computer (`c` on the subscription's
+// endpoint); the extension/service put both into the notification
+MetorPush.addListener("opened", (e) => openBot(e?.bot, e?.computer || null)).catch(() => {});   // no native plugin in a browser
 
 // ---------- Links: metor://connect?url=…&token=… (also …&code=…) from a pairing link or QR code; metor://open?bot=… ----------
 // A connect link is redeemed once: Android hands the launch link to appUrlOpen as well, at the same
@@ -313,13 +346,15 @@ try {
 const c = current();
 if (c?.secret) await setSessionCookie(c);
 const reach = c?.secret ? await reachable(c.origin) : undefined;
+async function use(id) { if (!computer(id)) return; db.current = id; await save(); await setSessionCookie(computer(id)); reload(); }
 window.metor = {
   platform, version: VERSION,
   gateway: publicInfo(c, reach === undefined ? {} : { reachable: reach }),
-  gateways: async () => db.computers.map((x) => publicInfo(x)),
+  gateways,
   connect: async (args) => { const r = await connect(args ?? {}); if (r.ok) reload(); return r; },
-  use: async (id) => { if (!computer(id)) return; db.current = id; await save(); await setSessionCookie(computer(id)); reload(); },
+  use,
   forget,
+  rename: async (id, name) => { const x = computer(id); if (!x) return; const n = String(name ?? "").trim().slice(0, 60); if (n) x.label = n; else delete x.label; await save(); },   // the user's own name, kept here
   signedOut: () => { signedOut(); },
   notify,
   openComputer,

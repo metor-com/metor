@@ -29,6 +29,21 @@ keystore, the bot list and chat (fetch and SSE with the bearer token), and the b
 terminal in the app's own web view work in the iOS simulator and the Android emulator against a
 local computer, as do pictures and attachments (see *Pictures and files*) and push (ADR-0017).
 
+## Several computers
+
+The app connects to one computer at a time; with two or more known, the head of the bot list names
+the one shown and its arrow leads to the overview of all of them (`#/computers`,
+knowledge/design/several-computers.md): one row per computer with its unread count, a tap switches
+to it (the interface loads anew), the row's menu renames or forgets it, *Connect a bots' computer…*
+below the rows and in the ⋮ menu adds one. The overview asks every computer for its bot list when
+it opens (`gateways({ probe: true })` in the bridge). The app icon's badge is the sum over all
+computers: the native side keeps the last count per computer (iOS: the keychain group the extension
+shares, `PushBadges`; Android: the wrapped preferences), the bridge writes the connected computer's
+count from every bot list, the extension and the messaging service write the number a push carries
+for the computer named by `c` on its endpoint (a push while the app is open applies that number as
+well, `.badge` among the presentation options). A tap on a push from another computer switches to
+that computer first, then opens the bot. With one computer nothing changes.
+
 ## Development
 
 ```sh

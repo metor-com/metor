@@ -25,9 +25,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
-    // A push arriving while the app is open is shown as a banner (the interface skips its own copy)
+    // A push arriving while the app is open is shown as a banner (the interface skips its own copy); its badge
+    // number is applied too – it is the sum over all computers (NotificationService), and a push from a computer
+    // the app is not showing would otherwise leave the icon behind until the shown computer's next bot list
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.banner, .list, .sound])
+        completionHandler([.banner, .list, .sound, .badge])
     }
     // A tap opens the bot the notification is about; Approve / Deny answer the permission card at the computer
     // without opening the app (put there by the notification service extension: metor_bot, metor_ref, metor_c)
@@ -39,8 +41,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             PushComputers.answer(computer: computer, bot: bot, ref: ref, decision: response.actionIdentifier == "approve" ? "allow" : "deny") { _ in completionHandler() }
             return
         }
-        MetorPushPlugin.pendingBot = bot
-        NotificationCenter.default.post(name: MetorPushPlugin.opened, object: nil, userInfo: ["bot": bot])
+        let open = ["bot": bot, "computer": info["metor_c"] as? String ?? ""]   // the computer the push came from: the app switches to it first
+        MetorPushPlugin.pendingOpen = open
+        NotificationCenter.default.post(name: MetorPushPlugin.opened, object: nil, userInfo: open)
         completionHandler()
     }
 

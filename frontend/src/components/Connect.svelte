@@ -1,11 +1,15 @@
 <script>
   // Desktop app (ADR-0015): no bots' computer connected yet, signed out of one, or one that does not
-  // answer. Two steps: first "on this Mac" or "on a server" (one sentence each), then only what that
-  // choice needs. Local (knowledge/design/mac-install.md): none known → set it up; exactly one →
-  // open it (start or re-link first when needed); several → pick one. Remote: the address and a
-  // setup link, pairing link or pairing code (ADR-0012).
+  // answer – or, with `adding`, opened from the shell to connect one more. Two steps: first "on this
+  // Mac" or "on a server" (one sentence each), then only what that choice needs. Local
+  // (knowledge/design/mac-install.md): none known → set it up; exactly one → open it (start or re-link
+  // first when needed); several → the overview. Remote: the address and a setup link, pairing link or
+  // pairing code (ADR-0012). The known computers themselves live in the overview (Computers.svelte).
   import { app } from "../lib/base.js";
-  const g = app?.gateway ?? null;
+  export let adding = false;          // from the shell: connect another computer (the current one is fine)
+  export let onDone = null;           // adding: back to the shell
+  export let onComputers = null;      // the overview of the known computers (two or more)
+  const g = adding ? null : (app?.gateway ?? null);
   const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(origin ?? "");
   const machine = app?.platform === "darwin" ? "this Mac" : "this machine";
   const RUNTIME = { container: "Apple's container runtime", docker: "Docker" };
@@ -18,13 +22,14 @@
   // A phone (client/mobile) cannot run a computer of its own: no choice, no local step, every computer is "on a server"
   const canLocal = !!app?.local;
   let step = g ? (canLocal && isLocal(g.origin) ? "local" : "remote") : (canLocal ? fromHash ?? "choose" : "remote");
-  const choose = () => { step = "choose"; error = null; localError = null; };
+  // Back from a step: to the question, or – when there is none (a phone) – to the shell it came from
+  const choose = () => { if (!canLocal && adding) return onDone?.(); step = "choose"; error = null; localError = null; };
 
-  // ---------- Known computers ----------
+  // ---------- Known computers (the overview lists them; here only their number matters) ----------
   let list = [];
   const locals = () => list.filter((c) => isLocal(c.origin));
-  const remotes = () => list.filter((c) => !canLocal || !isLocal(c.origin));
   async function load() { try { list = (await app.gateways()) ?? []; } catch {} }
+  load();
 
   // ---------- Remote: the form ----------
   let address = g && !isLocal(g.origin) ? g.origin : "", claim = "", busy = false, error = null;
@@ -34,7 +39,6 @@
     catch (e) { error = e.message; }
     busy = false;   // on success the app reloads this window with the computer's interface
   }
-  async function forget(c) { if (!confirm(`Forget "${c.name}"? The app signs out of it.`)) return; await app.forget(c.id); await load(); }
 
   // ---------- Local: the host command through the app ----------
   let local = null, localBusy = false, localError = null, progress = [], doing = null, acted = false;
@@ -57,7 +61,7 @@
     const target = g && isLocal(g.origin) ? mine.find((c) => c.id === g.id) ?? g : mine.length === 1 ? mine[0] : null;
     acted = true;
     if (!mine.length) return run("setup");                         // none yet → create it
-    if (!target) return;                                            // several → the list below
+    if (!target) return;                                            // several → the overview
     if (!target.signedIn) return run("setup", target.id);           // known but signed out → link again
     if (unreachable || local.state === "stopped") return run("up", target.id);   // stopped → start, the app opens it
     app.use(target.id);                                             // running → open
@@ -75,8 +79,9 @@
   {#if step === "choose"}
     <!-- Step 1: where the bots' computer is – one sentence each, nothing else yet -->
     <main class="w-full max-w-md {box}">
-      <h1 class="text-xl font-bold">metor</h1>
-      <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">Where should your bots' computer be?</p>
+      {#if adding}<button type="button" class="text-[13px] text-zinc-500 hover:text-zinc-900" on:click={onDone}>‹ Back</button>{/if}
+      <h1 class="{adding ? 'mt-2 ' : ''}text-xl font-bold">metor</h1>
+      <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">Where should your {adding ? "next " : ""}bots' computer be?</p>
       <div class="mt-5 flex flex-col gap-3">
         <button type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-left hover:border-zinc-400 hover:bg-zinc-50" on:click={() => (step = "local")}>
           <div class="text-sm font-medium">On {machine}</div>
@@ -87,6 +92,7 @@
           <p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Your bots' computer already runs on a server of yours. You connect with its setup link or a pairing code.</p>
         </button>
       </div>
+      {#if list.length >= 2 && onComputers}<button type="button" class="mt-5 text-[13px] text-zinc-600 underline hover:text-zinc-900" on:click={onComputers}>Your bots' computers ({list.length})</button>{/if}
       {#if app?.version}<p class="mt-6 text-xs text-zinc-400">metor app {app.version}</p>{/if}
     </main>
 
@@ -113,20 +119,8 @@
           Uses {RUNTIME[local.runtime] ?? local.runtime}.
         </p>
       {:else if locals().length > 1 && !(g && isLocal(g.origin))}
-        <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">Several on {machine} – which one?</p>
-        <ul class="mt-4 flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-          {#each locals() as c (c.id)}
-            <li class="flex items-center gap-3 px-4 py-3 text-sm">
-              <span class="min-w-0 flex-1">
-                <strong class="block truncate font-medium">{c.name}{#if !c.signedIn}<span class="font-normal text-zinc-400">&nbsp;· signed out</span>{/if}</strong>
-                <span class="block truncate font-mono text-xs text-zinc-500">{c.origin}</span>
-              </span>
-              {#if c.signedIn}<button type="button" class="shrink-0 {small}" on:click={() => app.use(c.id)}>Open</button>
-              {:else}<button type="button" class="shrink-0 {small}" on:click={() => run("setup", c.id)}>Connect</button>{/if}
-              <button type="button" class="shrink-0 {small}" on:click={() => forget(c)}>Forget</button>
-            </li>
-          {/each}
-        </ul>
+        <p class="mt-3 text-[13px] leading-relaxed text-zinc-500">There are several on {machine} – pick one in the overview.</p>
+        {#if onComputers}<button type="button" class="mt-4 {primary}" on:click={onComputers}>Your bots' computers</button>{/if}
       {:else}
         <p class="mt-3 text-[13px] leading-relaxed text-zinc-500">
           {#if unreachable}It does not answer at <code class="font-mono">{g.origin}</code> – it is stopped, or {machine} cannot reach it right now.{/if}
@@ -152,12 +146,15 @@
   {:else}
     <!-- Step 2b: on a server – the address and a one-time secret from there -->
     <main class="w-full max-w-md {box}">
-      {#if canLocal}<button type="button" class="text-[13px] text-zinc-500 hover:text-zinc-900" on:click={choose}>‹ Back</button>{/if}
+      {#if canLocal || adding}<button type="button" class="text-[13px] text-zinc-500 hover:text-zinc-900" on:click={choose}>‹ Back</button>{/if}
       <h1 class="mt-2 text-xl font-bold">The bots' computer on a server</h1>
       {#if unreachable}
         <div class="mt-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
           <div>The bots' computer at <code class="font-mono">{g.origin}</code> does not answer. It is down, or {machine} cannot reach it right now.</div>
-          <button type="button" class="self-start rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={() => app.use(g.id)}>Try again</button>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={() => app.use(g.id)}>Try again</button>
+            {#if list.length >= 2 && onComputers}<button type="button" class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={onComputers}>Your other computers</button>{/if}
+          </div>
         </div>
       {:else if signedOut}
         <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">This app was signed out of <code class="font-mono">{g.origin}</code>. Link it again with a pairing code or a setup link.</p>
@@ -180,25 +177,9 @@
         <li><strong>Setup link</strong>: shown by the installer and by <code class="rounded bg-zinc-100 px-1">metor auth link</code> inside the box. Paste it – the address comes with it.</li>
         <li><strong>Pairing code</strong>: on a device that is signed in, open <em>Settings → Devices → Link a device</em>, then enter the address and the code here.</li>
       </ol>
-      {#await load() then _}
-        {#if remotes().length}
-          <div class="mt-6 flex flex-col gap-2">
-            <div class="text-sm font-medium">Your bots' computers on servers</div>
-            <ul class="flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200">
-              {#each remotes() as c (c.id)}
-                <li class="flex items-center gap-3 px-4 py-3 text-sm">
-                  <span class="min-w-0 flex-1">
-                    <strong class="block truncate font-medium">{c.name}{#if !c.signedIn}<span class="font-normal text-zinc-400">&nbsp;· signed out</span>{/if}</strong>
-                    <span class="block truncate font-mono text-xs text-zinc-500">{c.origin}</span>
-                  </span>
-                  {#if c.signedIn}<button type="button" class="shrink-0 {small}" on:click={() => app.use(c.id)}>Open</button>{/if}
-                  <button type="button" class="shrink-0 {small}" on:click={() => forget(c)}>Forget</button>
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/if}
-      {/await}
+      {#if !unreachable && list.length >= 2 && onComputers}
+        <button type="button" class="mt-5 text-[13px] text-zinc-600 underline hover:text-zinc-900" on:click={onComputers}>Your bots' computers ({list.length})</button>
+      {/if}
     </main>
   {/if}
 </div>

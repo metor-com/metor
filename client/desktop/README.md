@@ -6,6 +6,17 @@ from its own origin (`app://metor`), connects to one or more computers by setup 
 or pairing code, and keeps each session in the OS keychain. Native parts: tray and menus,
 notifications while the app runs, screen capture for the bots, the `metor://` link, the updater.
 
+## Several computers
+
+With two or more computers connected, the head of the bot list names the one shown and its arrow
+leads to the overview of all of them (`#/computers`, knowledge/design/several-computers.md): one
+row per computer with its unread count, a tap loads that computer's interface, the row's menu
+renames it (a name kept in the app), starts or stops the one on this Mac, or forgets it. *Connect
+a bots' computer…* sits below the rows and in the ⋮ menu of the bot list. The main process keeps an
+event stream to every signed-in computer: the unread counts stay live, and a computer no window
+shows still gets heard – its notifications carry its name, a click brings the bot to the front in
+the focused window (or the window that shows that computer). With one computer nothing changes.
+
 ## Development
 
 ```sh
@@ -26,9 +37,10 @@ Useful flags (also for a packaged app): `--connect-screen` (start on the connect
 menu *Connect a bots' computer…*; with `--open=connect/local` or `connect/remote` on that step;
 `--also-connect-screen` with `--open2=…` adds a second such window for tests),
 `--local=setup|up|down` (run that host command at start), `--connect=<setup or pairing link>`,
-`--user-data-dir=<dir>` (a separate profile), `--open=<bot>` (start with that bot's chat),
+`--user-data-dir=<dir>` (a separate profile), `--open=<bot>` (start with that bot's chat; `--open=computers` with the overview),
 `--trace-requests` (log every request to a computer and every notification),
-`--snapshot=<file.png>` with `--snapshot-delay=<ms>` (capture the window after loading and quit).
+`--snapshot=<file.png>` with `--snapshot-delay=<ms>` (capture the window after loading and quit),
+`--window=<W>x<H>` (the window size, for snapshots of small windows).
 Together they make a headless check possible: connect, open a bot, capture, compare.
 
 ## Packaging

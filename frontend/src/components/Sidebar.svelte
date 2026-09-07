@@ -8,12 +8,20 @@
   import Settings from "./Settings.svelte";
   import { settings } from "../lib/settings.js";
   import { whenLabel } from "../lib/when.js";
+  import { app } from "../lib/base.js";
   export let agents = [];
   export let selected = null;
   export let quota = null;
   export let onSelect;
   export let onCreated;
   export let hiddenOnMobile = false;   // mobile: list OR chat (messenger pattern); desktop: always visible
+  // Native clients (ADR-0015) with two or more computers: the head names this computer and leads to
+  // the overview of all of them (knowledge/design/several-computers.md); with one, nothing changes
+  export let computers = [];
+  export let onComputers = null;
+  export let onConnect = null;         // the ⋮ menu's "Connect a bots' computer…" (apps only)
+  $: several = computers.length >= 2 && !!onComputers;
+  $: computerName = computers.find((c) => c.id === app?.gateway?.id)?.short ?? app?.gateway?.short ?? app?.gateway?.name ?? "metor";
   let creating = false, showSettings = false, menuOpen = false;
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
   // Quota bar (Settings → Appearance): always, never, or once a window reaches the chosen usage
@@ -35,25 +43,26 @@
 
 <svelte:window on:click={() => (menuOpen = false)} />
 <aside class="{hiddenOnMobile ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-white md:w-72 md:border-r md:border-zinc-200">
-  <!-- Messenger header: wordmark, the ⋮ menu (Settings) and the round + for a new bot -->
-  <div class="flex shrink-0 items-center justify-between px-4 py-3">
-    <span class="text-2xl font-bold tracking-tight text-zinc-900">metor</span>
-    <div class="flex items-center gap-1">
-      <div class="relative">
-        <button type="button" class="flex size-10 items-center justify-center rounded-full text-zinc-700 hover:bg-zinc-100" aria-label="Menu" title="Menu"
-          on:click|stopPropagation={() => (menuOpen = !menuOpen)}>
-          <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>
-        </button>
-        {#if menuOpen}
-          <div class="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
-            <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
-          </div>
-        {/if}
-      </div>
-      <button type="button" class="flex size-9 items-center justify-center rounded-full bg-zinc-900 text-white shadow-sm hover:bg-zinc-700" aria-label="New bot" title="New bot"
-        on:click={() => (creating = true)}>
-        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+  <!-- Head: with several computers a back button (to the overview), the computer's name and the ⋮ menu;
+       with one computer the wordmark and the menu. "New bot" sits below the last bot in the list. -->
+  <div class="flex shrink-0 items-center gap-1 py-3 {several ? 'pl-2 pr-3' : 'pl-4 pr-3'}">
+    {#if several}
+      <button type="button" class="flex size-10 shrink-0 items-center justify-center rounded-full text-xl text-zinc-600 hover:bg-zinc-100" on:click={onComputers} title="Your bots' computers" aria-label="Back to your bots' computers">←</button>
+      <span class="min-w-0 flex-1 truncate px-1 text-lg font-bold tracking-tight text-zinc-900" title={computerName}>{computerName}</span>
+    {:else}
+      <span class="min-w-0 flex-1 truncate text-2xl font-bold tracking-tight text-zinc-900">metor</span>
+    {/if}
+    <div class="relative shrink-0">
+      <button type="button" class="flex size-10 items-center justify-center rounded-full text-zinc-700 hover:bg-zinc-100" aria-label="Menu" title="Menu"
+        on:click|stopPropagation={() => (menuOpen = !menuOpen)}>
+        <svg class="size-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>
       </button>
+      {#if menuOpen}
+        <div class="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
+          <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
+          {#if onConnect}<button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; onConnect(); }}>Connect a bots' computer…</button>{/if}
+        </div>
+      {/if}
     </div>
   </div>
   <ul class="min-h-0 flex-1 overflow-y-auto p-2">
@@ -85,6 +94,15 @@
       </li>
     {/each}
     {#if !agents.length}<li class="p-3 text-sm text-zinc-400">no bots yet</li>{/if}
+    <!-- Below the last bot; once the list is longer than the sidebar it sticks to the bottom edge -->
+    <li class="sticky -bottom-2 -mx-2 bg-white px-2 pb-2 pt-1">
+      <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 {$settings.compactList ? 'py-2' : 'py-2.5'} text-left text-zinc-600 hover:bg-zinc-50" on:click={() => (creating = true)}>
+        <span class="flex shrink-0 items-center justify-center rounded-full border border-dashed border-zinc-300 text-zinc-400 {$settings.compactList ? 'size-8' : 'size-11'}">
+          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        </span>
+        <span class="text-[15px] font-medium">New bot</span>
+      </button>
+    </li>
   </ul>
   {#if showQuota}
     <div class="m-3 shrink-0 rounded-xl bg-zinc-50 px-3 py-2 text-xs text-zinc-500" title="Usage of the Claude subscription – all Claude bots share this quota (other runtimes have their own quotas)">

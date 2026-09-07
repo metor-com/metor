@@ -7,11 +7,36 @@ import { openEvents } from "./events.js";
 import { settings } from "./settings.js";
 import { app } from "./base.js";
 
-const readHash = () => location.hash.replace(/^#\/?/, "") || null;
+// The hash: `#/<bot>` is the selected bot, `#/computers` the overview of the connected computers
+// (native clients with several of them, knowledge/design/several-computers.md), `#/connect…` the
+// connect screen opened from the shell to add a computer. The two views are history entries, so the
+// back gesture on a phone returns from them; they leave the selected bot alone (on the desktop the
+// chat stays next to the overview).
+const parseHash = () => { const h = location.hash.replace(/^#\/?/, ""); return { bot: h === "computers" || h.startsWith("connect") ? undefined : h || null, computers: h === "computers", connect: h.startsWith("connect") }; };
+const readHash = () => { const h = parseHash(); return h.bot === undefined ? null : h.bot; };
 
 export const agents = writable([]);
 export const pending = writable([]);          // just-created bots, until the agents event delivers them
 export const selected = writable(readHash());
+export const computersOpen = writable(parseHash().computers);   // the overview of the computers instead of the bot list
+export const connectOpen = writable(parseHash().connect);       // the connect screen over the shell ("Connect a bots' computer…")
+// The computers this app is connected to (window.metor.gateways(); a browser knows only its own and
+// gets an empty list). Loaded at start for the head of the bot list, probed by the overview.
+export const computers = writable([]);
+export async function loadComputers(opts = null) {
+  if (!app?.gateways) return [];
+  try { const list = (await app.gateways(opts ?? undefined)) ?? []; computers.set(list); return list; } catch { return get(computers); }
+}
+app?.onComputers?.((list) => { if (Array.isArray(list)) computers.set(list); });   // desktop: live counts from the app's own watch
+export function openComputers() { location.hash = "#/computers"; }
+export function openConnect(step = null) { location.hash = step ? `#/connect/${step}` : "#/connect"; }
+// Leave the overview or the connect screen: back to the selected bot (desktop) or the list (phone),
+// without touching the selection – a plain hash change would deselect the bot
+export function closeView() {
+  const name = get(selected);
+  history.replaceState(null, "", name ? `#/${name}` : location.pathname + location.search);
+  computersOpen.set(false); connectOpen.set(false);
+}
 export const entries = writable([]);          // chat history of the selected bot, patches folded in
 export const partial = writable(null);        // streaming text of the running answer
 
@@ -90,8 +115,11 @@ export const interrupt = () => chatInterrupt(get(selected));
 
 // Start the live connection and follow the hash (back gesture/button on mobile); returns the stop function
 export function connect() {
-  refresh(); reconnect(); const n = get(selected); if (n) loadHistory(n);
-  const onHash = () => { const name = readHash(); if (name !== get(selected)) activate(name); };
+  refresh(); reconnect(); loadComputers(); const n = get(selected); if (n) loadHistory(n);
+  const onHash = () => {
+    const h = parseHash(); computersOpen.set(h.computers); connectOpen.set(h.connect);
+    if (h.bot !== undefined && h.bot !== get(selected)) activate(h.bot);
+  };
   window.addEventListener("hashchange", onHash);
   // App in the background (phone in the pocket, other tab): no stream. The gateway then knows this
   // device is not looking and sends push notifications instead; on return the stream reconnects and refetches.

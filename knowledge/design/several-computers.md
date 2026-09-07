@@ -1,6 +1,8 @@
 # Design sketch: several bots' computers in one app
 
-Status: **draft, not decided** (2026-09-07) · becomes an ADR when started · related: ADR-0012
+Status: **implemented 2026-09-07** (overview, head of the bot list, rename, probe, badge sum,
+notifications with the computer id; the desktop app additionally keeps its own event stream per
+computer, see the end) · related: ADR-0012
 (sign-in by device pairing), ADR-0015 (native clients: "keep several gateways side by side"),
 ADR-0017 (push relay; `?c=<id>` names the sending computer), BACKLOG "phone access to a local
 computer away from home".
@@ -137,3 +139,23 @@ address the right computer (`MetorPush.setComputer` per registration) and do not
   until the second computer exists (the sketch assumes the latter).
 - How the desktop app treats a second window once the overview exists: keep "one computer per
   window" as is, or let every window start on the overview.
+
+## What was built (2026-09-07)
+
+As sketched, with two additions. The desktop app has no push, so a computer no window shows would
+have stayed silent: the main process now keeps one event stream per signed-in computer (`agents`
+for the counts, `notify` for the computers no window shows), which also keeps the overview's badges
+live and names the computer in the notification. And the ⋮ menu of the bot list offers *Connect a
+bots' computer…* in both apps, so a phone can add a second computer at all. Verified with the
+desktop app against a local computer and a server: the overview with both counts, the switch, a
+notification from the computer not shown. The native badge sum and the tap on a push from another
+computer are built for iOS and Android; the real-iPhone check is still open. The open question on
+a second desktop window was answered by leaving it as it was (one computer per window).
+
+After the first review the same day: the overview is the root screen and has no back arrow (a tap
+on the computer shown returns to its list without reloading); the head of the bot list is a
+stand-alone back button, the computer's name truncated in the middle, and the ⋮ menu at the right;
+the round + for a new bot became a *New bot* row below the last bot that sticks to the bottom edge
+of the list once the list is longer than the sidebar (the overview's *Connect a bots' computer…*
+row behaves the same way).
+

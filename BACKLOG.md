@@ -131,12 +131,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   repository `metor-com/homebrew-tap` with the formula and a release sha256; drop the legacy
   6011-6049 port range from the Docker command; phone access to a local computer away from home
   (Cloudflare Tunnel or Tailscale; `metor box update` and the update hint exist since 2026-09-07)
-- **Several bots' computers in one app** (draft, 2026-09-07): an overview of the connected
-  computers with unread badges, a tap opens that computer's bot list, a back chevron in the list's
-  head leads up again (the mailbox pattern); the app icon's badge becomes the sum, a notification
-  tap opens the bot on the computer it came from. Today the desktop app switches only through its
-  menu and the phone app not at all. See
-  [knowledge/design/several-computers.md](knowledge/design/several-computers.md).
+- **Several bots' computers in one app** - built 2026-09-07 (overview with badges, the mailbox
+  pattern, [knowledge/design/several-computers.md](knowledge/design/several-computers.md)).
+  Remaining: the real-iPhone check of the badge sum and the tap on a push from another computer; a
+  warm switch without reloading the interface; "All bots" as the first entry of the overview (one
+  list across computers, needs the interface to talk to every computer at once).
 - **Runtimes out of the image** (idea, 2026-09-07): install the runtimes into a volume and offer
   *Update* per runtime under Settings → Computer, against a list of versions metor has tested
   (published with each release), with a way back to the tested version - new models without a

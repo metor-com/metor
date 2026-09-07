@@ -35,7 +35,19 @@ const decrypt = (v) => { try { return v?.startsWith("enc:") ? safeStorage.decryp
 const secrets = new Map();   // id → session secret, decrypted once
 function secretOf(id) { if (!id) return null; if (!secrets.has(id)) { const c = load().computers.find((x) => x.id === id); secrets.set(id, c?.secret ? decrypt(c.secret) : null); } return secrets.get(id); }
 const computer = (id) => load().computers.find((c) => c.id === id) ?? null;
-const publicInfo = (c) => (c ? { id: c.id, name: isLocal(c.origin) ? nameFor(c.origin) : c.name, origin: c.origin, version: c.version ?? null, signedIn: !!secretOf(c.id) } : null);
+// The session is gone (401 from the computer): keep the entry, drop the secret
+function dropSecret(id) { const c = computer(id); if (c?.secret) { delete c.secret; secrets.set(id, null); save(); } }
+// What the app has learned about a computer: the unread total (the overview's badge) and whether it answers
+const status = new Map();   // id → { unread, reachable }
+const unreadOf = (list) => list.reduce((n, a) => n + (Number(a.unread) || 0), 0);
+function setStatus(id, patch) {
+  const before = status.get(id) ?? { unread: null, reachable: null }, after = { ...before, ...patch };
+  if (before.unread === after.unread && before.reachable === after.reachable) return;
+  status.set(id, after); broadcast("metor:computers", load().computers.map(publicInfo));
+}
+// `short` is the name where the context already says "bots' computer" (the overview, the head of the bot list): "This Mac"
+const publicInfo = (c) => (c ? { id: c.id, name: c.label || (isLocal(c.origin) ? nameFor(c.origin) : c.name), short: c.label || (isLocal(c.origin) ? shortFor(c.origin) : c.name),
+  origin: c.origin, version: c.version ?? null, signedIn: !!secretOf(c.id), local: isLocal(c.origin), unread: status.get(c.id)?.unread ?? null, reachable: status.get(c.id)?.reachable ?? null } : null);
 // Which computer a request goes to – WebSocket URLs (ws:, wss:) belong to the http(s) origin they came from
 function computerForUrl(u) {
   try { const x = new URL(u), secure = x.protocol === "https:" || x.protocol === "wss:"; return load().computers.find((c) => { const o = new URL(c.origin); return o.host === x.host && (o.protocol === "https:") === secure; }) ?? null; }
@@ -50,7 +62,9 @@ const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(ori
 // Anywhere else the claim and then the session secret would cross the internet in the clear
 const PRIVATE_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i;
 const insecureOrigin = (origin) => { try { const u = new URL(origin); return u.protocol === "http:" && !PRIVATE_HOST.test(u.hostname); } catch { return true; } };
-const nameFor = (origin) => { try { const u = new URL(origin); return isLocal(origin) ? `Bots' computer on ${MACHINE}${u.port && u.port !== "6010" ? ` (:${u.port})` : ""}` : u.hostname; } catch { return origin; } };
+const portSuffix = (origin) => { try { const p = new URL(origin).port; return p && p !== "6010" ? ` (:${p})` : ""; } catch { return ""; } };
+const nameFor = (origin) => { try { return isLocal(origin) ? `Bots' computer on ${MACHINE}${portSuffix(origin)}` : new URL(origin).hostname; } catch { return origin; } };
+const shortFor = (origin) => `${MACHINE[0].toUpperCase()}${MACHINE.slice(1)}${portSuffix(origin)}`;
 
 async function fetchJson(url, init = {}, ms = 8000) {
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), ms);
@@ -90,7 +104,79 @@ async function forget(id) {
   const c = computer(id); if (!c) return;
   const s = secretOf(id);
   if (s) { try { await fetchJson(`${c.origin}/bots/api/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${s}` } }, 4000); } catch {} }
-  const d = load(); d.computers = d.computers.filter((x) => x.id !== id); if (d.current === id) d.current = d.computers[0]?.id ?? null; secrets.delete(id); save();
+  const d = load(); d.computers = d.computers.filter((x) => x.id !== id); if (d.current === id) d.current = d.computers[0]?.id ?? null; secrets.delete(id); status.delete(id); save();
+}
+// Ask a computer for its bot list: does it answer, how much is unread (the overview probes all of them when it opens)
+async function probe(c) {
+  const s = secretOf(c.id);
+  if (!s) return setStatus(c.id, { unread: null, reachable: await reachable(c.origin) });
+  try {
+    const r = await fetchJson(`${c.origin}/bots/api/agents`, { headers: { authorization: `Bearer ${s}` } }, 5000);
+    if (r.status === 401) { dropSecret(c.id); refreshMenus(); return setStatus(c.id, { unread: null, reachable: true }); }
+    setStatus(c.id, r.ok && Array.isArray(r.data) ? { unread: unreadOf(r.data), reachable: true } : { reachable: r.ok });
+  } catch { setStatus(c.id, { reachable: false }); }
+}
+
+// ---------- The app's own watch on every signed-in computer ----------
+// One event stream per computer: `agents` for the unread counts (the overview's badges), `notify` for
+// the notifications of a computer no window shows – the renderer handles those of its own computer.
+// The desktop app has no push, so this is how a computer the user is not looking at gets heard.
+const watches = new Map();   // id → { topics, ac }
+function syncWatches() {
+  for (const c of load().computers) {
+    const want = secretOf(c.id) ? ["agents", ...(windowShowing(c.id) ? [] : ["notify"])].join(",") : null;
+    const w = watches.get(c.id);
+    if (w && w.topics === want) continue;
+    if (w) { w.ac.abort(); watches.delete(c.id); }
+    if (want) watch(c.id, want);
+  }
+  for (const [id, w] of watches) if (!computer(id)) { w.ac.abort(); watches.delete(id); }
+}
+async function watch(id, topics) {
+  const ac = new AbortController(); watches.set(id, { topics, ac });
+  let backoff = 2000;
+  while (!ac.signal.aborted) {
+    const c = computer(id), s = secretOf(id); if (!c || !s) break;
+    try {
+      const res = await net.fetch(`${c.origin}/bots/api/events?topics=${topics}`, { headers: { authorization: `Bearer ${s}`, accept: "text/event-stream" }, cache: "no-store", signal: ac.signal });
+      if (res.status === 401) { dropSecret(id); refreshMenus(); break; }
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      backoff = 2000; setStatus(id, { reachable: true });
+      await readEvents(res.body, ac.signal, (event, data) => {
+        if (event === "agents") { try { setStatus(id, { unread: unreadOf(JSON.parse(data)), reachable: true }); } catch {} }
+        else if (event === "notify") { try { notifyFrom(id, JSON.parse(data)); } catch {} }
+      });
+    } catch {}
+    if (ac.signal.aborted) break;
+    setStatus(id, { reachable: false });
+    await new Promise((r) => setTimeout(r, backoff)); backoff = Math.min(backoff * 2, 30_000);
+  }
+  if (watches.get(id)?.ac === ac) watches.delete(id);
+}
+// A minimal server-sent-events reader: `event:` and `data:` lines, a blank line ends an event
+async function readEvents(body, signal, onEvent) {
+  const reader = body.getReader(), dec = new TextDecoder();
+  let buf = "", event = "message", data = [];
+  for (;;) {
+    const { value, done } = await reader.read(); if (done || signal.aborted) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).replace(/\r$/, ""); buf = buf.slice(i + 1);
+      if (line === "") { if (data.length) onEvent(event, data.join("\n")); event = "message"; data = []; continue; }
+      if (line.startsWith(":")) continue;
+      const j = line.indexOf(":"), field = j < 0 ? line : line.slice(0, j), val = j < 0 ? "" : line.slice(j + 1).replace(/^ /, "");
+      if (field === "event") event = val; else if (field === "data") data.push(val);
+    }
+  }
+}
+// A notification from a computer no window shows: named after the computer, a click brings its bot to the front
+function notifyFrom(id, n = {}) {
+  const c = computer(id); if (!c || !Notification.isSupported()) return;
+  if (argv["trace-requests"]) console.log(`notify from ${publicInfo(c).name}: ${n.title} – ${String(n.body ?? "").slice(0, 60)} (${n.bot})`);
+  const note = new Notification({ title: String(n.title ?? "metor").slice(0, 100), body: String(n.body ?? "").slice(0, 300), subtitle: publicInfo(c).name });
+  note.on("click", () => openBot(id, n.bot ? String(n.bot) : null));
+  note.show();
 }
 
 // ---------- Windows: one computer per window (null = the connect screen) ----------
@@ -108,29 +194,31 @@ async function waitReachable(origin, ms = 90_000) {
   while (Date.now() < until) { if (await reachable(origin)) return true; await new Promise((r) => setTimeout(r, 1500)); }
   return false;
 }
-async function loadInterface(win, id) {
+async function loadInterface(win, id, bot = null) {
   const c = computer(id);
   unreachable.delete(win);
   if (c && !(await reachable(c.origin))) unreachable.set(win, c.id);
-  if (!win.isDestroyed()) win.loadURL(UI_URL);
+  if (!win.isDestroyed()) win.loadURL(bot ? `${UI_URL}#/${encodeURIComponent(bot)}` : UI_URL);   // with a bot: its chat open
+  syncWatches();
 }
 function show(win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
-function openWindow(id = null) {
+const WINDOW = /^(\d+)x(\d+)$/.exec(String(argv.window ?? ""));   // --window=WxH: a window size for snapshots
+function openWindow(id = null, bot = null) {
   const win = new BrowserWindow({
-    width: 1280, height: 820, minWidth: 720, minHeight: 480, title: "metor", show: false, backgroundColor: "#f4f4f5",
+    width: WINDOW ? Number(WINDOW[1]) : 1280, height: WINDOW ? Number(WINDOW[2]) : 820, minWidth: 720, minHeight: 480, title: "metor", show: false, backgroundColor: "#f4f4f5",
     webPreferences: { preload: PRELOAD, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: true },
   });
   windows.set(win, id);
   if (id) setCurrent(id);
   win.once("ready-to-show", () => win.show());
-  win.on("closed", () => windows.delete(win));
+  win.on("closed", () => { windows.delete(win); unreachable.delete(win); syncWatches(); });
   // Links open in the system browser; the window itself only ever shows the interface
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: "deny" }; });
   win.webContents.on("will-navigate", (e, url) => { if (!url.startsWith(UI_URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
-  loadInterface(win, id);
+  loadInterface(win, id, bot);
   return win;
 }
-function switchWindow(win, id) { windows.set(win, id); if (id) setCurrent(id); loadInterface(win, id); }
+function switchWindow(win, id, bot = null) { windows.set(win, id); if (id) setCurrent(id); loadInterface(win, id, bot); }
 // The current computer: the one shown last (opened, switched to or focused) – persisted, so the app
 // opens with it again, and ticked in the menus
 function setCurrent(id) { const d = load(); if (d.current !== id) { d.current = id; save(); } }
@@ -146,6 +234,15 @@ function showComputer(win, id) {
   switchWindow(win, id); show(win); return win;
 }
 function focusOrOpen(id) { const w = id && windowShowing(id); if (w) show(w); else openWindow(id); }
+// A bot of that computer to the front (a click on its notification): the window showing the computer, else the
+// focused window switches to it with the bot's chat open, else a new window
+function openBot(id, bot = null) {
+  const w = windowShowing(id);
+  if (w) { show(w); if (bot) w.webContents.send("metor:open-bot", bot); return; }
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows().find((x) => !x.isDestroyed()) ?? null;
+  if (!win) return openWindow(id, bot);
+  switchWindow(win, id, bot); show(win);
+}
 
 // ---------- A local computer through the host command (metor setup / box up / box down) ----------
 // The `metor` wrapper drives Docker or Apple's `container`; the app only calls it. A packaged app
@@ -248,6 +345,7 @@ function refreshMenus() {
     { type: "separator" }, ...computerItems(), { label: "Connect a bots' computer…", click: () => openWindow(null) },
     { type: "separator" }, ...localItems(), { label: "Quit metor", role: "quit" },
   ]));
+  syncWatches();   // called after every change to the computers and the windows – the watches follow
 }
 
 // ---------- Links: metor://connect?url=…&token=… or a pasted setup/pairing link ----------
@@ -274,7 +372,12 @@ on("metor:info", (e) => {
   if (info && unreachable.get(win) === c.id) info.reachable = false;   // the connect screen says so and offers Try again / Start
   e.returnValue = { platform: process.platform, version: app.getVersion(), gateway: info };
 });
-handle("metor:gateways", () => load().computers.map(publicInfo));
+handle("metor:gateways", async (_e, opts) => { if (opts?.probe) await Promise.all(load().computers.map(probe)); return load().computers.map(publicInfo); });
+handle("metor:rename", (_e, id, name) => {   // the user's own name for a computer, kept here, never sent to it
+  const c = computer(id); if (!c) return; const n = String(name ?? "").trim().slice(0, 60);
+  if (n) c.label = n; else delete c.label;
+  save(); refreshMenus(); broadcast("metor:computers", load().computers.map(publicInfo));
+});
 handle("metor:connect", async (e, args) => { const r = await connect(args ?? {}); if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); } return r; });
 handle("metor:use", (e, id) => { if (computer(id)) showComputer(BrowserWindow.fromWebContents(e.sender), id); });
 handle("metor:forget", async (_e, id) => { await forget(id); for (const [w, cid] of windows) if (cid === id) switchWindow(w, null); refreshMenus(); });
@@ -282,7 +385,7 @@ handle("metor:local-status", () => localStatus());
 handle("metor:local", (e, action, id) => localAction(String(action), BrowserWindow.fromWebContents(e.sender), id ? String(id) : null));
 on("metor:signed-out", (e) => {
   const win = BrowserWindow.fromWebContents(e.sender); const c = computer(currentOf(win));
-  if (c?.secret) { delete c.secret; secrets.set(c.id, null); save(); }
+  if (c) dropSecret(c.id);
   win.loadURL(UI_URL); refreshMenus();
 });
 on("metor:notify", (e, n = {}) => {
@@ -340,10 +443,10 @@ app.whenReady().then(async () => {
 
   let id = load().current ?? load().computers[0]?.id ?? null;
   if (argv.connect) { const r = await connect({ claim: String(argv.connect) }); if (r.ok) id = r.id; else console.error(`connect: ${r.error}`); refreshMenus(); }
-  const win = openWindow(argv["connect-screen"] ? null : id);   // --connect-screen: start like "Connect a bots' computer…"
+  // --connect-screen: start like "Connect a bots' computer…"; --open=<bot>: start with that bot's chat open (or --open=computers)
+  const win = openWindow(argv["connect-screen"] ? null : id, argv.open ? String(argv.open) : null);
   if (argv.local) { const r = await localAction(String(argv.local), win); console.log(`local ${argv.local}: ${r.ok ? "ok" : `failed – ${r.error}`}`); }
   else autostartLocal().catch((e) => console.error("autostart:", e.message));
-  if (argv.open) win.loadURL(`${UI_URL}#/${argv.open}`);   // start with that bot's chat open
   let extra = null;   // --also-connect-screen: a second window on the connect screen (with --open2=connect/local|remote), for tests
   if (argv["also-connect-screen"]) { extra = openWindow(null); if (argv.open2) extra.loadURL(`${UI_URL}#/${argv.open2}`); }
   // Development aid: --snapshot=<file.png> captures the window after loading and quits

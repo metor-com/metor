@@ -38,15 +38,21 @@ public class MetorMessagingService extends FirebaseMessagingService {
         } catch (Exception e) { Log.w("metor", "push: " + e.getMessage()); }   // the placeholder shows; nothing readable was in transit
         NotificationManager nm = getSystemService(NotificationManager.class);
         nm.createNotificationChannel(new NotificationChannel(CHANNEL, "metor", NotificationManager.IMPORTANCE_HIGH));
+        // The count is that computer's; the number shown is the sum over every computer the app is connected to
+        if (computer != null) { WebPushCrypto.setBadge(this, computer, badge); badge = WebPushCrypto.badgeTotal(this); }
         Intent open = new Intent(this, MainActivity.class).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (bot != null && !bot.isEmpty()) open.putExtra(MetorPushPlugin.EXTRA_BOT, bot);
-        int id = bot != null ? bot.hashCode() : (int) System.currentTimeMillis();
+        if (computer != null) open.putExtra(MetorPushPlugin.EXTRA_COMPUTER, computer);   // the app switches to that computer before it opens the bot
+        int id = bot != null ? ((computer != null ? computer + ":" : "") + bot).hashCode() : (int) System.currentTimeMillis();
         PendingIntent tap = PendingIntent.getActivity(this, id, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        android.os.Bundle extras = new android.os.Bundle();   // so the app can find this computer's notifications (MetorPushPlugin.setBadge)
+        if (bot != null) extras.putString(MetorPushPlugin.EXTRA_BOT, bot);
+        if (computer != null) extras.putString(MetorPushPlugin.EXTRA_COMPUTER, computer);
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_metor).setContentTitle(title).setContentText(text)   // white "m" on transparent (res/drawable)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
             .setPriority("approval".equals(kind) ? NotificationCompat.PRIORITY_MAX : NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true).setContentIntent(tap)
+            .setAutoCancel(true).setContentIntent(tap).addExtras(extras)
             .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL).setNumber(badge);
         // An approval can be answered from the notification when the permission's ref and the computer are known;
         // both actions ask for the unlock first (setAuthenticationRequired, Android 12+)

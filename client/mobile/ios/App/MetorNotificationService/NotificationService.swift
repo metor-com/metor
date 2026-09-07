@@ -20,10 +20,14 @@ class NotificationService: UNNotificationServiceExtension {
             guard let json = try JSONSerialization.jsonObject(with: plain) as? [String: Any] else { throw Step.noJson }
             content.title = json["title"] as? String ?? "metor"
             content.body = json["body"] as? String ?? ""
-            if let bot = json["bot"] as? String, !bot.isEmpty { content.userInfo["metor_bot"] = bot; content.threadIdentifier = "bot:\(bot)" }
+            let computer = metor["c"] as? String   // which computer sent it (from the subscription's endpoint)
+            if let bot = json["bot"] as? String, !bot.isEmpty { content.userInfo["metor_bot"] = bot; content.threadIdentifier = computer.map { "bot:\($0):\(bot)" } ?? "bot:\(bot)" }
             if let kind = json["kind"] as? String { content.userInfo["metor_kind"] = kind }
-            if let c = metor["c"] as? String { content.userInfo["metor_c"] = c }   // which computer sent it (from the subscription's endpoint)
-            if let badge = json["badge"] as? Int { content.badge = NSNumber(value: badge) }   // unread across bots, the app icon's badge
+            if let c = computer { content.userInfo["metor_c"] = c }
+            // Unread across that computer's bots; the app icon shows the sum over every computer the app is connected to
+            if let badge = json["badge"] as? Int {
+                if let c = computer { PushBadges.set(c, badge); content.badge = NSNumber(value: PushBadges.total()) } else { content.badge = NSNumber(value: badge) }
+            }
             // An approval gets the Approve / Deny actions when it can be answered: the permission's ref and the computer are known
             if json["kind"] as? String == "approval", let ref = json["ref"] as? String, metor["c"] is String {
                 content.userInfo["metor_ref"] = ref
