@@ -6,6 +6,13 @@ import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSyn
 import { join } from "node:path";
 import { claudeServers, copilotServers, geminiServers } from "./metor-connectors.mjs";
 
+// Gemini CLI runs as a Node wrapper (`node /usr/local/bin/gemini`) with a Node child, and neither reacts to
+// SIGTERM – probe pairs lived on for 20 minutes and ate 240 MB each (measured 2026-09-07, the memory creep
+// that froze a 4 GB computer). Spawned detached, the pair is its own process group: this ends the whole group
+export function killGroup(child, signal = "SIGKILL") {
+  try { process.kill(-child.pid, signal); } catch { try { child.kill(signal); } catch {} }
+}
+
 // Port scheme per display – shared by metor.mjs and the adapters
 export const ports = (d) => ({ display: d, vnc: 5900 + d, novnc: 6000 + d, cdp: 9200 + d, ttyd: 7100 + d });
 
@@ -134,9 +141,9 @@ HARNESSES.gemini = {
   listModels() {
     const key = geminiKey(); if (!key) return Promise.resolve(null);
     return new Promise((done) => {
-      const child = spawn("gemini", ["--acp", "--skip-trust"], { cwd: "/tmp", stdio: ["pipe", "pipe", "ignore"], env: { ...process.env, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", GEMINI_API_KEY: key } });
+      const child = spawn("gemini", ["--acp", "--skip-trust"], { cwd: "/tmp", stdio: ["pipe", "pipe", "ignore"], detached: true, env: { ...process.env, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", GEMINI_API_KEY: key } });
       let id = 0, buf = ""; const waiting = new Map();
-      const finish = (v) => { clearTimeout(timer); try { child.kill(); } catch {} done(v); };
+      const finish = (v) => { clearTimeout(timer); killGroup(child); done(v); };   // the probe has nothing to save
       const timer = setTimeout(() => finish(null), 8000);
       const send = (method, params) => new Promise((r) => { const i = ++id; waiting.set(i, r); child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: i, method, params }) + "\n"); });
       child.on("error", () => finish(null));

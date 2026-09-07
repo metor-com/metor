@@ -24,6 +24,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
   the versions of the runtimes the computer carries. `metor box update` pulls the newest image and
   starts the computer again on a Mac. A weekly check proposes runtime updates as pull requests.
 
+### Fixed
+
+- **Gemini bots no longer leak memory**: the Gemini CLI ignores the stop signal, so every model
+  check and every restart of a Gemini bot left two processes behind (about 240 MB each) until the
+  computer ran out of memory. The processes are now ended for good.
+
 ### Changed
 
 - **Codex runs GPT-6 Astra**: the box carries Codex CLI 0.153.4, whose model list (it is the

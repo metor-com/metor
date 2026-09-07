@@ -10,7 +10,7 @@ import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CHAT_HOWTO } from "./metor-host-core.mjs";
-import { geminiKey, recordSeenModel } from "./metor-harness.mjs";
+import { geminiKey, killGroup, recordSeenModel } from "./metor-harness.mjs";
 
 const GEMINI_HOME = process.env.GEMINI_CLI_HOME ?? join(process.env.HOME ?? "/home/box", ".gemini");
 
@@ -24,12 +24,15 @@ export async function run(core) {
   const args = ["--acp", "--approval-mode", "yolo", "--skip-trust", ...(bot.model && bot.model !== "default" ? ["-m", bot.model] : [])];
   const key = geminiKey();   // from the runtime's .env (the assistant stores it there); ACP wants it in the environment
   if (!key) return core.fail(new Error("Gemini needs an API key – sign in under New bot → Gemini CLI → Sign in, then start the bot again"));
-  const child = spawn("gemini", args, { cwd: dir, stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, METOR_BOT: name, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", ...(key ? { GEMINI_API_KEY: key } : {}) } });
+  // detached: the CLI's Node wrapper and its Node child form their own process group, so the shutdown can end
+  // both – they ignore SIGTERM and would live on after the host (the leak measured on 2026-09-07)
+  const child = spawn("gemini", args, { cwd: dir, stdio: ["pipe", "pipe", "pipe"], detached: true, env: { ...process.env, METOR_BOT: name, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", ...(key ? { GEMINI_API_KEY: key } : {}) } });
   let shuttingDown = false;
   child.on("error", (e) => core.fail(e));
   child.on("exit", (code, signal) => { if (!shuttingDown) core.fail(new Error(`gemini --acp exited (code ${code ?? "-"}, signal ${signal ?? "-"})`)); });
   child.stderr.on("data", (d) => { const s = String(d).trim(); if (s) core.log("gemini:", s.slice(0, 300)); });
-  core.onShutdown(() => { shuttingDown = true; try { child.kill("SIGTERM"); } catch {} });
+  // Close the protocol first (an ACP server ends on EOF), then end the group – the host exits half a second later
+  core.onShutdown(() => { shuttingDown = true; try { child.stdin.end(); } catch {} killGroup(child); });
 
   // ---------- JSON-RPC over stdio ----------
   let buf = "", nextId = 1;

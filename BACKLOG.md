@@ -42,7 +42,10 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   the 4 GB default computer (no swap; `container exec` and the gateway stopped answering, only
   killing the VM helped). Wanted: a guard that warns in Settings → Computer and refuses to start
   more bots than the memory carries, a lighter desktop (no browser until a bot needs one), and
-  `METOR_MEMORY` in the Mac docs; the local computer now runs with 6 GB
+  `METOR_MEMORY` in the Mac docs; the local computer now runs with 6 GB. Measured per idle bot:
+  desktop about 400 MB (Chromium 306), runtime 150 (Codex) to 265 MB (Claude, Copilot), MCP
+  servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
+  found the same day is fixed
 - **Copilot follow-ups** (built 2026-09-07, ADR-0021, facts in
   [copilot-facts.md](knowledge/harness/copilot-facts.md)): verify with a paid plan whether
   `--model` sticks over ACP (with Free it fell back to Auto); the built-in GitHub MCP server as a
