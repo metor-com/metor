@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The runtimes the box carries – Claude Agent SDK, Codex CLI, Gemini CLI – are pinned in
+// The runtimes the box carries – Claude Agent SDK, Codex CLI, Gemini CLI, Copilot CLI – are pinned in
 // backend/box/Dockerfile. Their protocols are verified per version (knowledge/harness/), so a
 // bump is a deliberate step, but a forgotten one holds back new models (Codex's model list is the
 // CLI's own catalogue). This prints pinned against npm's latest, and rewrites the pins on request:
@@ -8,7 +8,7 @@
 // .github/workflows/runtimes.yml runs it weekly and opens a pull request with the bump.
 import { readFileSync, writeFileSync } from "node:fs";
 const FILE = new URL("../backend/box/Dockerfile", import.meta.url);
-const PACKAGES = { "@anthropic-ai/claude-agent-sdk": "Claude Agent SDK", "@openai/codex": "Codex CLI", "@google/gemini-cli": "Gemini CLI" };
+const PACKAGES = { "@anthropic-ai/claude-agent-sdk": "Claude Agent SDK", "@openai/codex": "Codex CLI", "@google/gemini-cli": "Gemini CLI", "@github/copilot": "Copilot CLI" };
 let text = readFileSync(FILE, "utf8");
 const pinned = (pkg) => text.match(new RegExp(`${pkg.replace(/[/.]/g, "\\$&")}@([0-9][\\w.+-]*)`))?.[1] ?? null;
 async function latest(pkg) {

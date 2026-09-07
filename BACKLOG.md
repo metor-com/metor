@@ -37,13 +37,18 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 - **Gemini follow-ups** (built 2026-09-05, ADR-0016): verify the ACP update shapes and session
   replay with a signed-in account; record the model the session reports for the labels; an API-key
   field in the wizard; Gemini in the bot-to-bot bridge and in `scripts/smoke.sh`
-- **GitHub Copilot as fourth runtime** (spike 2026-09-07 on the branch `copilot-runtime`,
-  facts in [copilot-facts.md](knowledge/harness/copilot-facts.md)) - the official CLI's ACP
-  server through the same seam as Gemini: registry entry, adapter, `AGENTS.md` as the role file,
-  MCP servers via `--additional-mcp-config`, volume `metor-copilot`; the device-code login
-  needs a pseudo-terminal in the box; one subscription with Claude, GPT, Gemini, Grok and Kimi
-  models. OpenCode is no longer needed as the door to Copilot (ADR-0011 item 2); ChatGPT
-  headless through OpenCode stays an idea
+- **Memory per bot** - measured 2026-09-07 on a Mac: about 550 MB per idle bot (its Chromium with
+  renderers, the desktop chain, the host; a Copilot process alone is 290 MB RSS), so six bots froze
+  the 4 GB default computer (no swap; `container exec` and the gateway stopped answering, only
+  killing the VM helped). Wanted: a guard that warns in Settings → Computer and refuses to start
+  more bots than the memory carries, a lighter desktop (no browser until a bot needs one), and
+  `METOR_MEMORY` in the Mac docs; the local computer now runs with 6 GB
+- **Copilot follow-ups** (built 2026-09-07, ADR-0021, facts in
+  [copilot-facts.md](knowledge/harness/copilot-facts.md)): verify with a paid plan whether
+  `--model` sticks over ACP (with Free it fell back to Auto); the built-in GitHub MCP server as a
+  connector in the directory; Copilot in the bot-to-bot bridge; approval cards through
+  `session/request_permission` (ADR-0019); attachments as ACP image blocks. ChatGPT headless
+  through OpenCode stays an idea (ADR-0011)
 - Codex polish: quota display (`account/rateLimits/read`), approval cards via app-server approvals
   (`model/list` is live since 2026-09-05)
 - **Claude bots never ask for approval** - observed 2026-09-06: with `permissionMode` `default`

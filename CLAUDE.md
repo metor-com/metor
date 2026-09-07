@@ -18,7 +18,7 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
   `harness/bin/metor-gateway.mjs` (port 6010: UI, JSON API + SSE, noVNC and terminal
   proxies) with `metor-auth.mjs` (sign-in by device pairing, ADR-0012),
   `harness/bin/metor-harness.mjs` (runtime registry), `metor-agent-host.mjs` +
-  `metor-host-core.mjs` + `metor-host-claude.mjs` / `metor-host-codex.mjs` (bot hosts),
+  `metor-host-core.mjs` + `metor-host-claude.mjs` / `metor-host-codex.mjs` / `metor-host-gemini.mjs` / `metor-host-copilot.mjs` (bot hosts),
   `metor-routines*.mjs` (routines), `harness/hooks/`, `harness/templates/` (bot instructions);
   `relay/` - the push relay for the phone app (ADR-0017): one file, no dependencies, its own image
   `ghcr.io/metor-com/metor-push`, `deploy/relay.compose.yml`.
@@ -77,8 +77,8 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
 ## Current state
 
 Version 0.3.0 works end-to-end: bots with their own desktop, browser and terminal; chat with
-streaming, tool cards and approvals; attachments both ways; routines; three runtimes (Claude Code,
-Codex, Gemini CLI) with model choice and a setup wizard; connectors (MCP servers); sign-in by device
+streaming, tool cards and approvals; attachments both ways; routines; four runtimes (Claude Code,
+Codex, Gemini CLI, GitHub Copilot) with model choice and a setup wizard; connectors (MCP servers); sign-in by device
 pairing; the phone PWA with push, a native phone app (Capacitor, TestFlight, ADR-0017) and a
 desktop app (Electron); server installation via image +
 compose and `metor setup` on a Mac. What is missing lives in `BACKLOG.md`, what exists per feature

@@ -15,6 +15,8 @@ are marked as such.
 | Harness | [harness/subscription-auth-rules.md](harness/subscription-auth-rules.md) | What is allowed with Claude/ChatGPT subscriptions |
 | Harness | [harness/claude-code-facts.md](harness/claude-code-facts.md) | Verified Claude Code facts: `--bg`, Remote Control, resume semantics, trust, login inside the container |
 | Harness | [harness/codex-facts.md](harness/codex-facts.md) | Verified Codex facts (spikes S18–S21): device login, app-server protocol, resume, MCP per bot, AGENTS.md |
+| Harness | [harness/gemini-facts.md](harness/gemini-facts.md) | Verified Gemini CLI facts: API-key sign-in, ACP session shapes, resume, MCP via settings.json |
+| Harness | [harness/copilot-facts.md](harness/copilot-facts.md) | Verified Copilot CLI facts: device login under a pty, ACP shapes, cancel, resume, MCP via --additional-mcp-config, policies |
 | Design | [design/crew-messaging-groups.md](design/crew-messaging-groups.md) | **Draft**: bot↔bot bridge for all runtimes + group chats (orchestrator with hard caps) |
 | Decisions | [decisions/](decisions/) | ADRs for metor |
 | Archive material | — | Third-party source material and the notes derived from it are kept outside this repository (ADR-0006) |

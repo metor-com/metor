@@ -14,9 +14,10 @@
   export let harness = null, harnessLabel = null;   // the bot's runtime – an expired sign-in is repaired right in the error card
   // The runtime's sign-in is gone. Claude Code answers such a message as if it were a reply ("Not logged in · Please
   // run /login", "Failed to authenticate: OAuth session expired and could not be refreshed"), Gemini refuses an
-  // invalid key, Codex answers 401 – short texts, so a bot talking about authentication does not trigger this.
+  // invalid key, Codex answers 401, Copilot streams "Error: Authorization error … credentials may be expired" or
+  // "Access denied by policy settings" – short texts, so a bot talking about authentication does not trigger this.
   // The chat then offers the runtime's sign-in right there (RuntimeSignIn), below the reply or in the error card.
-  const signInLost = (t) => { const x = String(t ?? "").trim(); return x.length <= 240 && /failed to authenticate|not logged in|please run \/login|oauth session|authentication (failed|error)|invalid api key|api key not valid|unauthori[sz]ed|\b401\b/i.test(x); };
+  const signInLost = (t) => { const x = String(t ?? "").trim(); return x.length <= 240 && /failed to authenticate|not logged in|please run \/login|oauth session|authentication (failed|error|required)|authorization error|access denied by policy|invalid api key|api key not valid|unauthori[sz]ed|\b401\b/i.test(x); };
   let signedInFor = null;   // the entry whose sign-in went through – the hint replaces the box until the next reply
   let text = "";
   let sending = false;

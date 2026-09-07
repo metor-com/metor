@@ -569,7 +569,7 @@ async function checkLatestRelease() {
 }
 setTimeout(checkLatestRelease, 20_000).unref?.(); setInterval(checkLatestRelease, 24 * 3600_000).unref?.();
 const newerThan = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number); for (let i = 0; i < 3; i += 1) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0); return false; };
-const RUNTIME_PACKAGES = { claude: "@anthropic-ai/claude-agent-sdk", codex: "@openai/codex", gemini: "@google/gemini-cli" };
+const RUNTIME_PACKAGES = { claude: "@anthropic-ai/claude-agent-sdk", codex: "@openai/codex", gemini: "@google/gemini-cli", copilot: "@github/copilot" };
 const runtimeVersions = Object.fromEntries(Object.entries(RUNTIME_PACKAGES).map(([id, pkg]) => {
   try { return [id, JSON.parse(readFileSync(`/usr/local/lib/node_modules/${pkg}/package.json`, "utf8")).version]; } catch { return [id, null]; }
 }));

@@ -13,6 +13,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **GitHub Copilot as a fourth runtime**: bots on the Copilot CLI with your GitHub Copilot
+  subscription (any plan, Free included) - sign in from the create dialog with GitHub's device
+  code. The model choice is Auto (Copilot picks per task, the badge shows which model answered) or
+  one of the models Copilot lists. Copilot bots chat, use shell, files, their browser, routines and
+  connectors; assigning tasks to other bots is not available for them yet.
+
 - **Settings → Computer**: metor's version, the newest release (the computer asks GitHub once a
   day, `METOR_UPDATE_CHECK=off` stops that) with the update command for a server or a Mac, and
   the versions of the runtimes the computer carries. `metor box update` pulls the newest image and

@@ -21,11 +21,12 @@ for what is missing and [CHANGELOG.md](CHANGELOG.md) for what is there.
   (up to 25 MB, 10 per message); the bot returns files as cards with preview or download.
 - **Routines**: tell a bot what should happen regularly and it creates the schedule itself; a panel
   lists the schedules, and a routine nobody looks at pauses itself.
-- **Runtime and model per bot**: Claude Code (Fable, Opus, Sonnet, Haiku), Codex (GPT models)
-  or Gemini CLI (free with a key from Google AI Studio), chosen when the bot is created; the Claude quota is
-  shown in the sidebar.
-- **Setup wizard** for a runtime that is not signed in yet: the official Claude Code or Codex login,
-  driven from the UI (link plus code, no terminal needed).
+- **Runtime and model per bot**: Claude Code (Fable, Opus, Sonnet, Haiku), Codex (GPT models),
+  Gemini CLI (free with a key from Google AI Studio) or GitHub Copilot (models from every vendor on
+  one subscription, Free included), chosen when the bot is created; the Claude quota is shown in
+  the sidebar.
+- **Setup wizard** for a runtime that is not signed in yet: the official Claude Code, Codex or
+  Copilot login, driven from the UI (link plus code, no terminal needed).
 - **Sign-in without passwords**: the first browser gets in with a setup link, further phones and
   browsers are linked by QR code or pairing code, and every signed-in device can be removed again.
 - **Bot-to-bot assignments** (Claude bots) and watch links a bot can send when it needs help.
@@ -49,7 +50,7 @@ checkout, `metor setup` does all of the steps below with the published image (se
 git clone https://github.com/metor-com/metor.git && cd metor
 export PATH="$PWD/backend/harness/bin:$PATH"
 metor box build                               # builds the image metor-box:dev
-metor box up                                  # starts the container metor-box (volumes: metor-workspace, metor-claude, metor-codex, metor-gemini)
+metor box up                                  # starts the container metor-box (volumes: metor-workspace, metor-claude, metor-codex, metor-gemini, metor-copilot)
 metor auth link                               # prints the one-time sign-in link for your browser
 ```
 
@@ -91,7 +92,7 @@ docs/       user documentation
   [subscription rules](knowledge/harness/subscription-auth-rules.md)).
 - Inside the box everything is allowed - the shell, the browser and the files never ask. Approval
   cards sit at the boundary: today for connectors marked "Ask before each use" with Claude Code
-  bots; the same for Codex and Gemini and a choice of connectors per bot are planned
+  bots; the same for Codex, Gemini and Copilot and a choice of connectors per bot are planned
   ([ADR-0004](knowledge/decisions/0004-bot-policy.md),
   [ADR-0019](knowledge/decisions/0019-boundary-approvals.md)). A bot signed in to a site in its
   browser acts there without a card - keep sensitive accounts behind an asking connector.

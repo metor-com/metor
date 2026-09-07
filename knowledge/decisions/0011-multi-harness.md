@@ -40,3 +40,6 @@ Status: accepted (2026-09-01) · Context: slice 7 · Related: ADR-0004, ADR-0006
 - The token-refresh race on the shared `~/.codex` is accepted in stage 1 (symptom → host status:error
   with a clear message); escalation path: CODEX_HOME per bot.
 - New volume `metor-codex:/home/box/.codex` (backup note in INSTALL.md).
+- Addendum 2026-09-07: GitHub Copilot comes directly through its own CLI's ACP server (ADR-0021) –
+  OpenCode is no longer the door to Copilot; item 2 keeps its rule (every vendor through its official
+  harness), which Copilot's CLI satisfies.
