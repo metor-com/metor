@@ -51,6 +51,20 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   computer) and starts Docker Desktop, even while Apple's runtime already runs (seen 2026-09-07
   on a second Mac). Wanted: the app's setup screen offers the choice, or a running Apple runtime
   wins; `~/.config/metor/runtime` or `METOR_RUNTIME=container` is the workaround
+- **One image layer per runtime** - today all runtimes sit in one 855 MB npm layer of the image, so a
+  bump of a single runtime makes every computer download the whole layer (an update of metor's own
+  code is under 1 MB). One `RUN npm install -g` per runtime in `backend/box/Dockerfile` (Playwright
+  MCP, Agent SDK, Codex, Gemini, Copilot) shrinks a bump to that runtime's size (Copilot about
+  160 MB compressed); `scripts/runtime-versions.mjs` keeps working, the pins move to their own lines
+- **Runtimes on demand** (after the layer split, with an ADR) - the image carries only base, desktop
+  and Playwright (about 550 MB compressed instead of 1.4 GB); the registry installs a runtime at its
+  first use from npm or claude.ai into its own volume with metor's pinned version, the create dialog
+  shows "Install (size)" next to "Sign in"; after an image update metor compares the installed version
+  with the pin and reinstalls; the weekly bump then changes pins in the registry instead of the
+  Dockerfile. An installed but unused runtime costs no memory, only disk (unpacked: Copilot 302 MB,
+  Codex 279 MB, Claude SDK and CLI 459 MB, Gemini 98 MB) - the gain is download and disk for people
+  with one runtime; the price: network to npm and claude.ai at run time, half a minute at the first
+  bot of a runtime, and an update path that metor has to own
 - **Copilot follow-ups** (built 2026-09-07, ADR-0021, facts in
   [copilot-facts.md](knowledge/harness/copilot-facts.md)): verify with a paid plan whether
   `--model` sticks over ACP (with Free it fell back to Auto); the built-in GitHub MCP server as a
