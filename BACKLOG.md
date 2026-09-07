@@ -46,6 +46,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   desktop about 400 MB (Chromium 306), runtime 150 (Codex) to 265 MB (Claude, Copilot), MCP
   servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
   found the same day is fixed
+- **Runtime choice when both are installed** - on a Mac with Docker Desktop and Apple's
+  `container`, the host command picks Docker (a stopped Docker cannot say whether it holds the
+  computer) and starts Docker Desktop, even while Apple's runtime already runs (seen 2026-09-07
+  on a second Mac). Wanted: the app's setup screen offers the choice, or a running Apple runtime
+  wins; `~/.config/metor/runtime` or `METOR_RUNTIME=container` is the workaround
 - **Copilot follow-ups** (built 2026-09-07, ADR-0021, facts in
   [copilot-facts.md](knowledge/harness/copilot-facts.md)): verify with a paid plan whether
   `--model` sticks over ACP (with Free it fell back to Auto); the built-in GitHub MCP server as a
