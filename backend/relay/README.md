@@ -66,7 +66,9 @@ A platform without credentials answers 503 on its route; the other keeps working
 
 In production: the image `ghcr.io/metor-com/metor-push` (built by the `relay-image` workflow) with
 [deploy/relay.compose.yml](../../deploy/relay.compose.yml) – secrets as files in a root-only
-directory mounted read-only, the relay on the loopback interface, a TLS proxy in front:
+directory mounted read-only, the relay on the loopback interface, a TLS proxy in front (or, for
+several relays behind one load balancer, `METOR_PUSH_BIND=<private ip>` and the balancer's
+health check on `/health`; the relay is stateless, so every instance can serve every push):
 
 ```
 push.example.com {

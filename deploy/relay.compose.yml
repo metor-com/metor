@@ -7,6 +7,9 @@
 # Key id, team id and the bundle id are plain identifiers and come from a .env next to this file.
 # The relay listens on the loopback interface only; a TLS proxy in front terminates https for
 # the relay address, e.g. in Caddy:   push.example.com { reverse_proxy 127.0.0.1:6020 }
+# Behind a load balancer that reaches the host over a private network (several relays, one
+# address): METOR_PUSH_BIND=<private ip> in the .env – the relay reads the caller from
+# X-Forwarded-For, which HTTP load balancers set, so its per-address limit still sees the callers.
 services:
   push:
     image: ${METOR_PUSH_IMAGE:-ghcr.io/metor-com/metor-push:latest}
@@ -23,4 +26,4 @@ services:
     volumes:
       - ${METOR_PUSH_SECRETS:-/etc/metor-push}:/secrets:ro
     ports:
-      - "127.0.0.1:6020:6020"
+      - "${METOR_PUSH_BIND:-127.0.0.1}:6020:6020"
