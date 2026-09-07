@@ -2,7 +2,7 @@
 // connection (one SSE stream) and the selected bot's chat entries and streaming text. Components
 // read the stores and call the functions; App.svelte only wires layout and view state.
 import { writable, derived, get } from "svelte/store";
-import { listAgents, chatHistory, agentAction, chatInterrupt, chatRead } from "./api.js";
+import { listAgents, chatHistory, agentAction, chatInterrupt, chatRead, fileUrl } from "./api.js";
 import { openEvents } from "./events.js";
 import { settings } from "./settings.js";
 import { app } from "./base.js";
@@ -12,7 +12,12 @@ import { app } from "./base.js";
 // connect screen opened from the shell to add a computer. The two views are history entries, so the
 // back gesture on a phone returns from them; they leave the selected bot alone (on the desktop the
 // chat stays next to the overview).
-const parseHash = () => { const h = location.hash.replace(/^#\/?/, ""); return { bot: h === "computers" || h.startsWith("connect") ? undefined : h || null, computers: h === "computers", connect: h.startsWith("connect") }; };
+// `#/<bot>?doc=<path>` opens that bot with one of its files in the document pane (a link to a file)
+const parseHash = () => {
+  const [h, query = ""] = location.hash.replace(/^#\/?/, "").split("?");
+  return { bot: h === "computers" || h.startsWith("connect") ? undefined : h || null, computers: h === "computers", connect: h.startsWith("connect"),
+    doc: new URLSearchParams(query).get("doc") };
+};
 const readHash = () => { const h = parseHash(); return h.bot === undefined ? null : h.bot; };
 
 export const agents = writable([]);
@@ -37,6 +42,12 @@ export function closeView() {
   history.replaceState(null, "", name ? `#/${name}` : location.pathname + location.search);
   computersOpen.set(false); connectOpen.set(false);
 }
+// A file a bot made, shown next to the chat (App.svelte's document pane) instead of a new tab: in the
+// desktop app a new tab would be the system browser, which has no session. { url, name, bot }
+export const shownDocument = writable(null);
+export function openDocument(url, name) { shownDocument.set({ url, name: name || url.split("/").pop(), bot: get(selected) }); }
+const openDocumentFromHash = (h) => { if (h.doc && h.bot) openDocument(fileUrl(h.bot, h.doc), h.doc.split("/").pop()); };
+export function closeDocument() { shownDocument.set(null); }
 export const entries = writable([]);          // chat history of the selected bot, patches folded in
 export const partial = writable(null);        // streaming text of the running answer
 
@@ -116,9 +127,11 @@ export const interrupt = () => chatInterrupt(get(selected));
 // Start the live connection and follow the hash (back gesture/button on mobile); returns the stop function
 export function connect() {
   refresh(); reconnect(); loadComputers(); const n = get(selected); if (n) loadHistory(n);
+  openDocumentFromHash(parseHash());
   const onHash = () => {
     const h = parseHash(); computersOpen.set(h.computers); connectOpen.set(h.connect);
     if (h.bot !== undefined && h.bot !== get(selected)) activate(h.bot);
+    openDocumentFromHash(h);
   };
   window.addEventListener("hashchange", onHash);
   // App in the background (phone in the pocket, other tab): no stream. The gateway then knows this

@@ -198,7 +198,7 @@ async function loadInterface(win, id, bot = null) {
   const c = computer(id);
   unreachable.delete(win);
   if (c && !(await reachable(c.origin))) unreachable.set(win, c.id);
-  if (!win.isDestroyed()) win.loadURL(bot ? `${UI_URL}#/${encodeURIComponent(bot)}` : UI_URL);   // with a bot: its chat open
+  if (!win.isDestroyed()) win.loadURL(bot ? `${UI_URL}#/${bot}` : UI_URL);   // with a bot: its chat open (bot names are [a-z0-9-]; --open may add ?doc=<file>)
   syncWatches();
 }
 function show(win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
@@ -212,11 +212,23 @@ function openWindow(id = null, bot = null) {
   if (id) setCurrent(id);
   win.once("ready-to-show", () => win.show());
   win.on("closed", () => { windows.delete(win); unreachable.delete(win); syncWatches(); });
-  // Links open in the system browser; the window itself only ever shows the interface
-  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: "deny" }; });
-  win.webContents.on("will-navigate", (e, url) => { if (!url.startsWith(UI_URL)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });
+  // The window itself only ever shows the interface: links go to openLink (a window of the app for a
+  // connected computer, the system browser for everything else)
+  win.webContents.setWindowOpenHandler(({ url }) => { openLink(url); return { action: "deny" }; });
+  win.webContents.on("will-navigate", (e, url) => { if (!url.startsWith(UI_URL)) { e.preventDefault(); openLink(url); } });
   loadInterface(win, id, bot);
   return win;
+}
+// A link: to a connected computer (a file a bot made, a page it wrote, its desktop) it opens in a plain
+// window of the app, because the session token travels only with the app's requests – the system
+// browser would show "not signed in". Any other link goes to the system browser.
+function openLink(url) {
+  if (!/^https?:/.test(String(url))) return;
+  if (!computerForUrl(url)) { shell.openExternal(url); return; }
+  const w = new BrowserWindow({ width: 1000, height: 760, title: "metor", backgroundColor: "#ffffff",
+    webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+  w.webContents.setWindowOpenHandler(({ url: u }) => { openLink(u); return { action: "deny" }; });
+  w.loadURL(url);
 }
 function switchWindow(win, id, bot = null) { windows.set(win, id); if (id) setCurrent(id); loadInterface(win, id, bot); }
 // The current computer: the one shown last (opened, switched to or focused) – persisted, so the app
@@ -382,6 +394,10 @@ handle("metor:connect", async (e, args) => { const r = await connect(args ?? {})
 handle("metor:use", (e, id) => { if (computer(id)) showComputer(BrowserWindow.fromWebContents(e.sender), id); });
 handle("metor:forget", async (_e, id) => { await forget(id); for (const [w, cid] of windows) if (cid === id) switchWindow(w, null); refreshMenus(); });
 handle("metor:local-status", () => localStatus());
+// Download a file of a connected computer: Chromium's download with the session's request hook (the token),
+// Electron's save dialog. The interface cannot do it with a plain link – across origins the download
+// attribute is ignored and the link would navigate instead.
+handle("metor:download", (e, url) => { if (computerForUrl(String(url))) e.sender.downloadURL(String(url)); });
 handle("metor:local", (e, action, id) => localAction(String(action), BrowserWindow.fromWebContents(e.sender), id ? String(id) : null));
 on("metor:signed-out", (e) => {
   const win = BrowserWindow.fromWebContents(e.sender); const c = computer(currentOf(win));

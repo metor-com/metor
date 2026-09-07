@@ -8,6 +8,7 @@
 // the system viewer. In a browser and in the desktop app (its main process adds the token to every
 // request) nothing changes: the URL goes into the picture, the link opens as before.
 import { app } from "./base.js";
+import { openDocument } from "./session.js";
 
 const fetched = !!app?.fetchMedia;
 const cache = new Map();   // picture URL → promise of an object URL, kept for the session (the newest 300)
@@ -35,10 +36,13 @@ export function picture(img, url) {
   return { update: apply, destroy: () => { want = null; } };
 }
 
-// A link to a file: inside the app the tap goes to the app (download with the token, system viewer);
-// elsewhere the link works as it is (a new tab on the same origin, with the session cookie)
+// A link to a file: inside the phone app the tap goes to the app (download with the token, system
+// viewer); in a browser and in the desktop app the file opens in the document pane next to the chat
+// (session.js). A middle click or "open in new tab" still gets the link itself.
 export function openFile(e, url, name) {
-  if (!app?.openFile) return;
+  if (e.button !== undefined && e.button !== 0) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey) return;
   e.preventDefault();
-  app.openFile(url, name).catch((err) => alert(`Could not open ${name}: ${err?.message ?? err}`));
+  if (app?.openFile) return app.openFile(url, name).catch((err) => alert(`Could not open ${name}: ${err?.message ?? err}`));
+  openDocument(url, name);
 }

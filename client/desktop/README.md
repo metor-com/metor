@@ -6,6 +6,16 @@ from its own origin (`app://metor`), connects to one or more computers by setup 
 or pairing code, and keeps each session in the OS keychain. Native parts: tray and menus,
 notifications while the app runs, screen capture for the bots, the `metor://` link, the updater.
 
+## Files a bot made
+
+A click on an attachment or on a file in the file browser opens it in the pane next to the chat
+(`DocumentPanel.svelte`): the main process adds the token to the frame's request as it does for
+the bot's screen and terminal, and *Download* goes through `window.metor.download` to Chromium's
+download with Electron's save dialog (a plain download link would navigate instead, the origins
+differ). Links to a connected computer open in a plain window of the app (`openLink` in
+`main.mjs`), every other link in the system browser – which has no session, so it must never
+get a link to the computer. `--open=<bot>?doc=<file>` starts with that document open.
+
 ## Several computers
 
 With two or more computers connected, the head of the bot list names the one shown and its arrow

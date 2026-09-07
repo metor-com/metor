@@ -29,6 +29,9 @@ keystore, the bot list and chat (fetch and SSE with the bearer token), and the b
 terminal in the app's own web view work in the iOS simulator and the Android emulator against a
 local computer, as do pictures and attachments (see *Pictures and files*) and push (ADR-0017).
 
+The document pane of the browser and the desktop app (a file next to the chat) is not used in
+the app: a file goes to the system viewer as described above, which has share and save.
+
 ## Several computers
 
 The app connects to one computer at a time; with two or more known, the head of the bot list names

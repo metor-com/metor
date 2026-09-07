@@ -9,9 +9,10 @@
   import ComputerPanel from "./components/ComputerPanel.svelte";
   import Connect from "./components/Connect.svelte";
   import Computers from "./components/Computers.svelte";
+  import DocumentPanel from "./components/DocumentPanel.svelte";
   import { app } from "./lib/base.js";
   import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect, refresh,
-    computers, computersOpen, connectOpen, openComputers, openConnect, closeView } from "./lib/session.js";
+    computers, computersOpen, connectOpen, openComputers, openConnect, closeView, shownDocument, closeDocument } from "./lib/session.js";
   import AvatarDialog from "./components/AvatarDialog.svelte";
   import { isDesktop } from "./lib/viewport.js";
   import { initPush } from "./lib/push.js";
@@ -20,8 +21,14 @@
   // The pane next to the chat: the bot's computer or its routines (one at a time), toggled from the
   // header. Settings → Behaviour decides whether a bot opens with the computer on desktop.
   let pane = $isDesktop && $settings.defaultView !== "chat" ? "computer" : null;
-  const toggle = (which) => (pane = pane === which ? null : which);
+  const toggle = (which) => { if (pane === "document") closeDocument(); pane = pane === which ? null : which; };
   $: if (!$isDesktop && $selected) pane = null;   // a phone opens every bot with the chat; the header buttons bring computer or routines
+  // A file a bot made (a click on an attachment or in the file browser) takes the pane as the document
+  // view; closing it brings back whatever the pane showed before. A different bot closes it.
+  let paneBefore = null;
+  function onDocument(d) { if (d) { if (pane !== "document") { paneBefore = pane; pane = "document"; } } else if (pane === "document") pane = paneBefore; }
+  $: onDocument($shownDocument);
+  $: if ($shownDocument && $shownDocument.bot !== $selected) closeDocument();
   $: zoom = ZOOM[$settings.textSize] ?? 1;   // Settings → Appearance → text size
 
   // Desktop: chat and computer side by side, the divider between them is draggable (share kept per
@@ -88,7 +95,8 @@
             on:pointerdown|preventDefault={startDrag}></div>
         {/if}
         {#if pane === "computer"}<ComputerPanel bot={$selected} />
-        {:else if pane === "routines"}{#key $selected}<RoutinesPanel bot={$selected} title={$current.title ?? $selected} />{/key}{/if}
+        {:else if pane === "routines"}{#key $selected}<RoutinesPanel bot={$selected} title={$current.title ?? $selected} />{/key}
+        {:else if pane === "document" && $shownDocument}<DocumentPanel doc={$shownDocument} onClose={closeDocument} />{/if}
       </section>
     {:else}
       <div class="m-auto max-w-sm px-6 text-center text-zinc-500">

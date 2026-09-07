@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("metor", {
   use: (id) => ipcRenderer.invoke("metor:use", id),
   forget: (id) => ipcRenderer.invoke("metor:forget", id),
   signedOut: () => ipcRenderer.send("metor:signed-out"),
+  download: (url) => ipcRenderer.invoke("metor:download", url),   // a file of a connected computer, with the save dialog
   notify: (n) => ipcRenderer.send("metor:notify", { title: n?.title, body: n?.body, bot: n?.bot }),
   onOpenBot: (cb) => ipcRenderer.on("metor:open-bot", (_e, bot) => cb(bot)),
   // A computer on this machine through the bundled host command (Docker or Apple's container runtime)

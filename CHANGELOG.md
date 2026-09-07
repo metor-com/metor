@@ -13,6 +13,15 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **Documents open next to the chat**: a click on a file a bot made - an attachment in the chat or
+  a file in the file browser - shows it in the pane next to the chat (instead of the chat on a
+  phone) with a toolbar: the name, *Download*, close. Pictures, text and Markdown, pages, PDFs and
+  media have a preview; Office files and archives offer the download. Before, the file opened in a
+  new tab, which in the desktop app was the system browser without a session ("not signed in").
+  The desktop app now opens links to a connected computer in a window of its own for the same
+  reason. The phone app keeps opening files in the system viewer. A link of the form
+  `#/<bot>?doc=<file>` opens a bot with that document.
+
 - **Several bots' computers in the desktop and phone app**: with two or more connected, the head
   of the bot list names the computer shown and leads to an overview of all of them with their
   unread counts, like the mailboxes of a mail app - a tap opens that computer's bots, the row's
