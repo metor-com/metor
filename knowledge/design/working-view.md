@@ -1,6 +1,6 @@
 # Design sketch: what the chat shows while a bot works
 
-Status: **draft, not decided** (2026-09-08) · becomes an ADR when started · related: ADR-0008
+Status: **in progress** (2026-09-08: step 1 built, the rest is draft) · becomes an ADR when the rest is started · related: ADR-0008
 (the interface), ADR-0011 (runtimes), ADR-0015 (native clients), GLOSSARY ("Bot", "Runtime").
 
 ## Starting point
@@ -108,7 +108,7 @@ separate key, to be verified per host when it is built.
 ## Order of work
 
 1. Grouping, folding, the live line and *Show steps* in the interface – works with today's
-   entries (name and detail), no host change.
+   entries (name and detail), no host change. **Built 2026-09-08.**
 2. `step` in the four hosts (`metor-host-claude.mjs`, `-codex`, `-gemini`, `-copilot`) and the
    dictionary in the interface.
 3. The sentence in `CHAT_HOWTO`.

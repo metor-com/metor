@@ -1,9 +1,10 @@
 <script>
+  import { t } from "../lib/i18n.js";
   // Three dots lighting up one after another: the bot is thinking or writing (bot list)
   export let cls = "text-zinc-500";
 </script>
 
-<span class="typing inline-flex h-5 items-center gap-[3px] {cls}" role="status" aria-label="working">
+<span class="typing inline-flex h-5 items-center gap-[3px] {cls}" role="status" aria-label={t("working")}>
   <span></span><span></span><span></span>
 </span>
 

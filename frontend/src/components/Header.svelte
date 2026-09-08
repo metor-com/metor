@@ -10,6 +10,7 @@
   export let onAct;                // ("start" | "stop" | "rm") => void
   export let onPicture;            // () => void – opens the picture dialog (initials, colour, image)
   import Avatar from "./Avatar.svelte";
+  import { settings, update } from "../lib/settings.js";   // Show steps / Hide steps: the per-device choice (knowledge/design/working-view.md)
   export let onInterrupt;          // stop the running turn
 
   let menuOpen = false;
@@ -49,6 +50,8 @@
     </button>
     {#if menuOpen}
       <div class="absolute right-0 top-full z-20 mt-1.5 w-44 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
+        <button class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={viaMenu(() => update({ showSteps: !$settings.showSteps }))}>{$settings.showSteps ? "Hide steps" : "Show steps"}</button>
+        <div class="my-1 border-t border-zinc-100" role="separator"></div>
         {#if agent.status === "stopped"}
           <button class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={viaMenu(() => onAct("start"))}>Start</button>
         {:else}

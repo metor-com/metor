@@ -12,6 +12,7 @@ export const DEFAULTS = {
   splitRatio: 0.5,         // share of the width the chat takes when the computer is shown (the divider is draggable)
   quota: "always",         // Claude quota bar in the bot list: always | threshold | never
   quotaThreshold: 80,      // with "threshold": show it from this usage (%) of the 5-hour or weekly window
+  showSteps: false,       // chat: every step a bot took as a card (Show steps in the chat's ⋮ menu) instead of one folded line per run
 };
 export const ZOOM = { small: 0.9, default: 1, large: 1.15 };
 

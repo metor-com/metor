@@ -13,6 +13,12 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 ### Added
 
+- **The chat folds a bot's work**: while a bot works, a bubble with the three dots names the step
+  it is on; once the reply is there, the steps that led to it fold into one line (*14 steps*)
+  that a tap unfolds - in old chats too, nothing is dropped. *Show steps* in the chat's ⋮ menu
+  unfolds them everywhere on this device. These few words come in the device's language (German
+  or English), the first ones in the interface (knowledge/design/working-view.md).
+
 - **Documents open next to the chat**: a click on a file a bot made - an attachment in the chat or
   a file in the file browser - shows it in the pane next to the chat (instead of the chat on a
   phone) with a toolbar: the name, *Download*, close. Pictures, text and Markdown, pages, PDFs and

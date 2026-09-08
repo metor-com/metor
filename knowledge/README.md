@@ -20,7 +20,7 @@ are marked as such.
 | Design | [design/crew-messaging-groups.md](design/crew-messaging-groups.md) | **Draft**: bot↔bot bridge for all runtimes + group chats (orchestrator with hard caps) |
 | Design | [design/several-computers.md](design/several-computers.md) | Several bots' computers in the desktop and phone app – the overview behind the back arrow, the warm switch (built 2026-09-07/08) |
 | Design | [design/file-transfer.md](design/file-transfer.md) | **Draft**: whole directories in and out of a bot's directory through the gateway – archive and tar routes, transfer strip, resume later |
-| Design | [design/working-view.md](design/working-view.md) | **Draft**: what the chat shows while a bot works – steps folded into one line, a live line in the user's language, thinking live only |
+| Design | [design/working-view.md](design/working-view.md) | **In progress** (step 1 built 2026-09-08): what the chat shows while a bot works – steps folded into one line, a live line in the user's language, thinking live only |
 | Decisions | [decisions/](decisions/) | ADRs for metor |
 | Archive material | — | Third-party source material and the notes derived from it are kept outside this repository (ADR-0006) |
 

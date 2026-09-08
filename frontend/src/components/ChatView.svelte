@@ -3,7 +3,10 @@
   import { picture, openFile } from "../lib/media.js";   // pictures and files inside the phone app (session by fetch, system viewer)
   import RuntimeSignIn from "./RuntimeSignIn.svelte";
   import Ticks from "./Ticks.svelte";
+  import Typing from "./Typing.svelte";
   import { renderMarkdown } from "../lib/markdown.js";
+  import { settings } from "../lib/settings.js";
+  import { t } from "../lib/i18n.js";
   export let bot;
   export let title = null;   // what people see; bot stays the id for API calls
   export let entries = [];
@@ -23,10 +26,43 @@
   let sending = false;
   let listEl, fileInput;
   let openTools = {};   // expanded tool entries (id → true)
+  let openGroups = {};  // unfolded groups of steps (group id → true/false); unset means the Show steps choice
   let pending = [];     // attachments before sending: {file, name, size, image, preview}
   const toggleTool = (id) => (openTools = { ...openTools, [id]: !openTools[id] });
+  const toggleGroup = (id) => (openGroups = { ...openGroups, [id]: !(openGroups[id] ?? $settings.showSteps) });
+  $: $settings.showSteps, (openGroups = {});   // Show steps / Hide steps applies to every group again
 
-  $: entries, partial, scrollDown();
+  // The steps a bot took are kept one by one in the history; the chat shows them folded
+  // (knowledge/design/working-view.md): consecutive tool entries form one group – "14 steps", a tap
+  // unfolds the cards – and every other entry (a message, a reply, an approval, an error) ends it.
+  $: rows = (() => {
+    const out = []; let group = null;
+    for (const e of entries) {
+      if (e.kind !== "tool") { group = null; out.push(e); continue; }
+      if (!group) { group = { id: `steps:${e.id}`, items: [] }; out.push(group); }
+      group.items.push(e);
+    }
+    return out;
+  })();
+  // While the bot works and no reply streams yet, a bubble with the three dots and the current step
+  // stands at the end – not while it waits for an approval, and after a reply only once the bot has
+  // been busy for a moment longer (the status arrives a beat after the reply; without the grace the
+  // dots would flash after every answer). The steps of that run stay hidden until the reply is there,
+  // unless Show steps is on or the step line in the bubble is tapped.
+  let settled = true, settledFor = null, settleTimer = null;
+  $: {
+    const last = entries[entries.length - 1], id = last?.id ?? null;
+    if (id !== settledFor) {
+      settledFor = id; clearTimeout(settleTimer);
+      if (last?.role === "assistant" && last.kind === "text") { settled = false; settleTimer = setTimeout(() => (settled = true), 1500); } else settled = true;
+    }
+  }
+  $: awaitingApproval = entries[entries.length - 1]?.kind === "permission" && entries[entries.length - 1]?.permission?.status === "pending";
+  $: working = status === "busy" && !partial && settled && !awaitingApproval;
+  $: liveGroup = working && rows[rows.length - 1]?.items ? rows[rows.length - 1] : null;
+  $: currentStep = liveGroup ? liveGroup.items[liveGroup.items.length - 1] : null;
+
+  $: entries, partial, working, scrollDown();
   function scrollDown() { requestAnimationFrame(() => { if (listEl) listEl.scrollTop = listEl.scrollHeight; }); }
 
   // ---------- Attachments: file dialog, paste (screenshots!), drag and drop ----------
@@ -56,7 +92,7 @@
   function onPickFiles(e) { addFiles(e.target.files); e.target.value = ""; }
   $: if (bot) clearPendingOnSwitch(bot);
   let lastBot = null;
-  function clearPendingOnSwitch(b) { if (b !== lastBot) { lastBot = b; clearPending(); } }
+  function clearPendingOnSwitch(b) { if (b !== lastBot) { lastBot = b; clearPending(); openTools = {}; openGroups = {}; } }
 
   async function send() {
     const t = text.trim();
@@ -95,21 +131,35 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="flex min-h-0 min-w-0 flex-1 flex-col" on:dragover|preventDefault on:drop={onDrop}>
   <div class="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overflow-x-hidden px-3 py-3 md:px-4 md:py-4" bind:this={listEl}>
-    {#each entries as e, i (e.id)}
-      {#if e.kind === "tool"}
-        <div class="min-w-0 px-1.5">
-          <button class="flex w-full min-w-0 items-baseline gap-2 text-left text-[12.5px] text-zinc-400 hover:text-zinc-600" on:click={() => toggleTool(e.id)}>
-            <span class="shrink-0 font-semibold">{openTools[e.id] ? "▾" : "▸"} ⚙ {e.tool?.name ?? e.text}</span>
-            {#if e.tool?.detail && !openTools[e.id]}<span class="min-w-0 truncate font-mono text-[11.5px]">{e.tool.detail}</span>{/if}
-          </button>
-          {#if openTools[e.id]}
-            <div class="mt-1 max-w-[42rem] rounded-lg bg-zinc-100 px-3 py-2 text-[11.5px]">
-              {#if e.tool?.detail}<pre class="overflow-x-auto whitespace-pre-wrap text-zinc-600">{e.tool.detail}</pre>{/if}
-              {#if e.tool?.result}<pre class="mt-1.5 overflow-x-auto border-t border-zinc-200 pt-1.5 whitespace-pre-wrap text-zinc-500">{e.tool.result}</pre>
-              {:else}<p class="mt-1 text-zinc-400">(no result recorded)</p>{/if}
-            </div>
-          {/if}
-        </div>
+    {#each rows as e, i (e.id)}
+      {#if e.items}
+        {@const open = openGroups[e.id] ?? $settings.showSteps}
+        {#if e !== liveGroup || open}
+          <div class="min-w-0 px-1.5">
+            {#if e !== liveGroup}
+              <button class="text-[12.5px] text-zinc-400 hover:text-zinc-600" on:click={() => toggleGroup(e.id)}>{open ? "▾" : "▸"} {t("steps", e.items.length)}</button>
+            {/if}
+            {#if open}
+              <div class="flex flex-col gap-1.5 {e !== liveGroup ? 'mt-1.5' : ''}">
+                {#each e.items as s (s.id)}
+                  <div class="min-w-0">
+                    <button class="flex w-full min-w-0 items-baseline gap-2 text-left text-[12.5px] text-zinc-400 hover:text-zinc-600" on:click={() => toggleTool(s.id)}>
+                      <span class="shrink-0 font-semibold">{openTools[s.id] ? "▾" : "▸"} ⚙ {s.tool?.name ?? s.text}</span>
+                      {#if s.tool?.detail && !openTools[s.id]}<span class="min-w-0 truncate font-mono text-[11.5px]">{s.tool.detail}</span>{/if}
+                    </button>
+                    {#if openTools[s.id]}
+                      <div class="mt-1 max-w-[42rem] rounded-lg bg-zinc-100 px-3 py-2 text-[11.5px]">
+                        {#if s.tool?.detail}<pre class="overflow-x-auto whitespace-pre-wrap text-zinc-600">{s.tool.detail}</pre>{/if}
+                        {#if s.tool?.result}<pre class="mt-1.5 overflow-x-auto border-t border-zinc-200 pt-1.5 whitespace-pre-wrap text-zinc-500">{s.tool.result}</pre>
+                        {:else}<p class="mt-1 text-zinc-400">(no result recorded)</p>{/if}
+                      </div>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
       {:else if e.kind === "permission"}
         <div class="max-w-[42rem] rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
           <div class="font-semibold">Approval: {e.permission?.title ?? e.permission?.tool ?? "?"}</div>
@@ -129,9 +179,9 @@
         <div class="max-w-[42rem] rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-900">
           <div class="font-semibold">The bot stopped with an error</div>
           <pre class="mt-1 font-sans text-[13px] break-words whitespace-pre-wrap text-red-800 [overflow-wrap:anywhere]">{e.text}</pre>
-          {#if status === "stopped" && i === entries.length - 1 && onStart && harness && signInLost(e.text)}
+          {#if status === "stopped" && i === rows.length - 1 && onStart && harness && signInLost(e.text)}
             <div class="mt-2.5 text-zinc-900"><RuntimeSignIn {harness} label={harnessLabel} intro={`The sign-in of ${harnessLabel ?? harness} has expired – sign in again, the bot then starts by itself.`} onDone={onStart} /></div>
-          {:else if status === "stopped" && i === entries.length - 1 && onStart}
+          {:else if status === "stopped" && i === rows.length - 1 && onStart}
             <div class="mt-2.5"><button class="rounded-lg bg-zinc-900 px-3.5 py-1.5 text-sm text-white hover:bg-zinc-700" on:click={onStart}>▶ Start again</button></div>
           {/if}
           <div class="mt-1.5 text-[11px] text-red-700/70">{time(e.ts)}</div>
@@ -164,7 +214,7 @@
         <div class="flex min-w-0">
           <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[42rem]">
             {#if e.text}<div class="chat-md">{@html renderMarkdown(e.text)}</div>{/if}
-            {#if harness && i === entries.length - 1 && !partial && signInLost(e.text)}
+            {#if harness && i === rows.length - 1 && !partial && signInLost(e.text)}
               {#if signedInFor === e.id}
                 <p class="mt-2 text-[13px] text-emerald-700">Signed in again – send your message once more.</p>
               {:else}
@@ -191,7 +241,20 @@
       <div class="flex min-w-0">
         <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 opacity-85 sm:max-w-[42rem]">
           <div class="chat-md">{@html renderMarkdown(partial)}</div>
-          <div class="mt-1 text-[11px] text-zinc-400">typing…</div>
+          <div class="mt-1 text-[11px] text-zinc-400">{t("typing")}</div>
+        </div>
+      </div>
+    {:else if working}
+      <!-- The bot is at work: the dots, and the step it is on – a tap shows this run's steps so far -->
+      <div class="flex min-w-0">
+        <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[42rem]">
+          <Typing cls="text-zinc-500" />
+          {#if currentStep}
+            <button class="mt-1 flex w-full min-w-0 items-baseline gap-2 text-left text-[12px] text-zinc-400 hover:text-zinc-600" title={t("showSteps")} on:click={() => toggleGroup(liveGroup.id)}>
+              <span class="shrink-0">⚙ {currentStep.tool?.name ?? currentStep.text}</span>
+              {#if currentStep.tool?.detail}<span class="min-w-0 truncate font-mono text-[11px]">{currentStep.tool.detail}</span>{/if}
+            </button>
+          {/if}
         </div>
       </div>
     {/if}
