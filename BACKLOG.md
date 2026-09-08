@@ -17,6 +17,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 5. PWA follow-ups (ADR-0013 built 2026-09-04): remove the ntfy stopgap (`METOR_NTFY_URL`) after
    one release; a per-event choice (approvals only / everything) in the notifications card; the
    badge count on the app icon (Badging API) for the PWA – the phone app has it (ADR-0017)
+6. **What the chat shows while a bot works** (draft, 2026-09-08): the steps between a question
+   and the reply fold into one line (*14 steps*, a tap unfolds them, also in old chats; *Show
+   steps* in the chat's ⋮ menu unfolds all), a live line names the current step in the user's
+   language, one sentence in the prompt asks the model for the user's language, thinking live
+   only. See [knowledge/design/working-view.md](knowledge/design/working-view.md).
 
 ## Routine polish (ADR-0010 "consequences")
 
