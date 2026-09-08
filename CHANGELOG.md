@@ -19,7 +19,8 @@ On a release the section is renamed to the version number and dated. Ideas and o
   unfolds them everywhere on this device. The line says what the bot does, in the device's
   language (German or English): *Sucht im Web nach „…"*, *Liest CLAUDE.md*, *Führt `ls -la` aus*
   - the first translated words in the interface; where the runtime describes a command in its
-  own words (Claude Code, Copilot), that description is shown. Steps recorded before this
+  own words (Claude Code, Copilot), that description is shown, and the bots are asked to write
+  it, like their texts between steps, in the language you write in. Steps recorded before this
   change keep their tool name (knowledge/design/working-view.md).
 
 - **Documents open next to the chat**: a click on a file a bot made - an attachment in the chat or

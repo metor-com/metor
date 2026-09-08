@@ -1,6 +1,6 @@
 # Design sketch: what the chat shows while a bot works
 
-Status: **in progress** (2026-09-08: steps 1 and 2 built, the rest is draft) · becomes an ADR when the rest is started · related: ADR-0008
+Status: **in progress** (2026-09-08: steps 1 to 3 built, thinking is draft) · becomes an ADR when the rest is started · related: ADR-0008
 (the interface), ADR-0011 (runtimes), ADR-0015 (native clients), GLOSSARY ("Bot", "Runtime").
 
 ## Starting point
@@ -107,6 +107,12 @@ language, the way Claude Code's own language setting works. An explicit language
 computer is not planned; only if a user writes to bots in one language and wants the interface's
 lines in another would it be needed, and that can wait for a request.
 
+Found when built (2026-09-08): a gentle sentence was not enough for the command description –
+the shell tool's own schema asks for it in English, and the model followed the schema ("List
+directory contents" to a German user). The sentence now names the description field and says
+"even where a tool's own instructions ask for English"; with that a fresh session answered
+"Liste Verzeichnisinhalt auf".
+
 ### Thinking
 
 Stays out of the history: it is large, worthless once the reply is there, and the runtimes give
@@ -123,7 +129,7 @@ separate key, to be verified per host when it is built.
    entries (name and detail), no host change. **Built 2026-09-08.**
 2. `step` in the four hosts (`metor-host-claude.mjs`, `-codex`, `-gemini`, `-copilot`) and the
    dictionary in the interface. **Built 2026-09-08.**
-3. The sentence in `CHAT_HOWTO`.
+3. The sentence in `CHAT_HOWTO`. **Built 2026-09-08.**
 4. Thinking in the working bubble.
 
 ## Open questions
