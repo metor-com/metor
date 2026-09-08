@@ -23,13 +23,14 @@ On a release the section is renamed to the version number and dated. Ideas and o
   `#/<bot>?doc=<file>` opens a bot with that document.
 
 - **Several bots' computers in the desktop and phone app**: with two or more connected, the head
-  of the bot list names the computer shown and leads to an overview of all of them with their
-  unread counts, like the mailboxes of a mail app - a tap opens that computer's bots, the row's
-  menu renames, starts, stops or forgets it, and *Connect a bots' computer…* adds one (also from
-  the ⋮ menu, which the phone app lacked). The app icon's badge counts across all computers, a
-  notification opens the bot on the computer it came from, and the desktop app hears computers it
-  is not showing. With one computer nothing changes, except that the round + for a new bot
-  becomes a *New bot* row below the last bot (it stays at the bottom edge once the list is long).
+  of the bot list names the computer shown, and its back arrow leads to an overview of all of them
+  with their unread counts, like the mailboxes of a mail app - a tap opens that computer's bots.
+  Below the computers: *Add new computer* and *Manage computers* (rename, order, start or stop the
+  one on this Mac, forget). The ⋮ menu of the bot list offers *Connect a bots' computer…* above
+  *Settings*, so a phone can connect a second computer at all. The app icon's badge counts across
+  all computers, a notification opens the bot on the computer it came from, and the desktop app
+  hears computers it is not showing. With one computer nothing changes but the menu entry and the
+  round + for a new bot, which now floats at the bottom right of the bot list.
 
 - **GitHub Copilot as a fourth runtime**: bots on the Copilot CLI with your GitHub Copilot
   subscription (any plan, Free included) - sign in from the create dialog with GitHub's device

@@ -11,8 +11,8 @@ import { app } from "./base.js";
 // (native clients with several of them, knowledge/design/several-computers.md), `#/connect…` the
 // connect screen opened from the shell to add a computer. The two views are history entries, so the
 // back gesture on a phone returns from them; they leave the selected bot alone (on the desktop the
-// chat stays next to the overview).
-// `#/<bot>?doc=<path>` opens that bot with one of its files in the document pane (a link to a file)
+// chat stays next to the overview). `#/<bot>?doc=<path>` opens that bot with one of its files in the
+// document pane (a link to a file).
 const parseHash = () => {
   const [h, query = ""] = location.hash.replace(/^#\/?/, "").split("?");
   return { bot: h === "computers" || h.startsWith("connect") ? undefined : h || null, computers: h === "computers", connect: h.startsWith("connect"),
@@ -26,7 +26,7 @@ export const selected = writable(readHash());
 export const computersOpen = writable(parseHash().computers);   // the overview of the computers instead of the bot list
 export const connectOpen = writable(parseHash().connect);       // the connect screen over the shell ("Connect a bots' computer…")
 // The computers this app is connected to (window.metor.gateways(); a browser knows only its own and
-// gets an empty list). Loaded at start for the head of the bot list, probed by the overview.
+// gets an empty list): the head of the bot list, the overview, the manage dialog
 export const computers = writable([]);
 export async function loadComputers(opts = null) {
   if (!app?.gateways) return [];
@@ -126,7 +126,8 @@ export const interrupt = () => chatInterrupt(get(selected));
 
 // Start the live connection and follow the hash (back gesture/button on mobile); returns the stop function
 export function connect() {
-  refresh(); reconnect(); loadComputers(); const n = get(selected); if (n) loadHistory(n);
+  refresh(); reconnect(); const n = get(selected); if (n) loadHistory(n);
+  loadComputers(app?.onComputers ? null : { probe: true });   // the desktop's own watch keeps the counts; a phone asks once at start
   openDocumentFromHash(parseHash());
   const onHash = () => {
     const h = parseHash(); computersOpen.set(h.computers); connectOpen.set(h.connect);

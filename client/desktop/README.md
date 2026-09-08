@@ -18,14 +18,15 @@ get a link to the computer. `--open=<bot>?doc=<file>` starts with that document 
 
 ## Several computers
 
-With two or more computers connected, the head of the bot list names the one shown and its arrow
-leads to the overview of all of them (`#/computers`, knowledge/design/several-computers.md): one
-row per computer with its unread count, a tap loads that computer's interface, the row's menu
-renames it (a name kept in the app), starts or stops the one on this Mac, or forgets it. *Connect
-a bots' computer…* sits below the rows and in the ⋮ menu of the bot list. The main process keeps an
-event stream to every signed-in computer: the unread counts stay live, and a computer no window
-shows still gets heard – its notifications carry its name, a click brings the bot to the front in
-the focused window (or the window that shows that computer). With one computer nothing changes.
+With two or more computers connected, the head of the bot list names the one shown and its back
+arrow leads to the overview of all of them (`#/computers`, knowledge/design/several-computers.md):
+one row per computer with its unread count, a tap loads that computer's interface; below the
+rows *Add new computer* (the connect screen) and *Manage computers* (a dialog to rename – a name
+kept in the app – order, start or stop the one on this Mac, or forget). The ⋮ menu of the bot
+list offers *Connect a bots' computer…* above *Settings*. The main process keeps an event stream
+to every signed-in computer: the counts stay live, and a computer no window shows still gets
+heard – its notifications carry its name, a click brings the bot to the front in the focused
+window (or the window that shows that computer). With one computer nothing changes.
 
 ## Development
 

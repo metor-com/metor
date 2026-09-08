@@ -8,8 +8,8 @@
   import ChatView from "./components/ChatView.svelte";
   import ComputerPanel from "./components/ComputerPanel.svelte";
   import Connect from "./components/Connect.svelte";
-  import Computers from "./components/Computers.svelte";
   import DocumentPanel from "./components/DocumentPanel.svelte";
+  import ComputersOverview from "./components/ComputersOverview.svelte";
   import { app } from "./lib/base.js";
   import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect, refresh,
     computers, computersOpen, connectOpen, openComputers, openConnect, closeView, shownDocument, closeDocument } from "./lib/session.js";
@@ -50,19 +50,13 @@
   // Desktop app (ADR-0015) without a computer, or signed out of it: the connect screen instead of the shell
   const needsConnect = !!app && (!app.gateway?.signedIn || app.gateway.reachable === false);
   onMount(() => { if (needsConnect) return; initPush(); return connect(); });
-  // Native clients with several computers (knowledge/design/several-computers.md): the overview of them takes
-  // the sidebar's place (#/computers); "Connect a bots' computer…" shows the connect screen over the shell
-  // (#/connect…); from the connect screen the overview stands on its own (no shell to return to)
-  let standaloneComputers = false;
+  // Native clients (knowledge/design/several-computers.md): the overview of the computers takes the sidebar's
+  // place (#/computers); "Connect a bots' computer…" shows the connect screen over the shell (#/connect…)
   const connectStep = () => (app?.local ? null : "remote");   // a phone cannot run a computer of its own: straight to "on a server"
 </script>
 
 {#if needsConnect || $connectOpen}
-  {#if standaloneComputers}
-    <Computers standalone onBack={() => (standaloneComputers = false)} onConnect={() => (standaloneComputers = false)} />
-  {:else}
-    <Connect adding={$connectOpen && !needsConnect} onDone={closeView} onComputers={() => (standaloneComputers = true)} />
-  {/if}
+  <Connect adding={$connectOpen && !needsConnect} onDone={closeView} />
 {:else}
 
 <!-- Fixed app shell: the page itself NEVER scrolls (no horizontal drifting of the sidebar).
@@ -73,7 +67,7 @@
 <div class="flex overflow-hidden bg-zinc-100 font-sans text-[15px] text-zinc-900 antialiased"
   style="zoom: {zoom}; height: calc(100dvh / {zoom}); padding-top: calc(env(safe-area-inset-top) / {zoom}); padding-bottom: calc(env(safe-area-inset-bottom) / {zoom}); padding-left: calc(env(safe-area-inset-left) / {zoom}); padding-right: calc(env(safe-area-inset-right) / {zoom})">
   {#if $computersOpen}
-    <Computers hiddenOnMobile={!!$selected} onBack={closeView} onConnect={(step) => openConnect(step ?? connectStep())} />
+    <ComputersOverview hiddenOnMobile={!!$selected} onBack={closeView} onConnect={(step) => openConnect(step ?? connectStep())} />
   {:else}
     <Sidebar agents={$shown} selected={$selected} quota={$quota} hiddenOnMobile={!!$selected} onSelect={select} onCreated={created}
       computers={$computers} onComputers={app ? openComputers : null} onConnect={app ? () => openConnect(connectStep()) : null} />
@@ -101,7 +95,7 @@
     {:else}
       <div class="m-auto max-w-sm px-6 text-center text-zinc-500">
         <h2 class="mb-2 text-xl font-bold text-zinc-900">metor</h2>
-        <p>Pick a bot on the left or create one with "New bot" below the list. The bot's chat and computer will appear here.</p>
+        <p>Pick a bot on the left or create one with the + button. The bot's chat and computer will appear here.</p>
         <button class="mt-4 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 md:hidden" on:click={() => select(null)}>Back to bots</button>
       </div>
     {/if}

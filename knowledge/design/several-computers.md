@@ -152,10 +152,11 @@ notification from the computer not shown. The native badge sum and the tap on a 
 computer are built for iOS and Android; the real-iPhone check is still open. The open question on
 a second desktop window was answered by leaving it as it was (one computer per window).
 
-After the first review the same day: the overview is the root screen and has no back arrow (a tap
-on the computer shown returns to its list without reloading); the head of the bot list is a
-stand-alone back button, the computer's name truncated in the middle, and the ⋮ menu at the right;
-the round + for a new bot became a *New bot* row below the last bot that sticks to the bottom edge
-of the list once the list is longer than the sidebar (the overview's *Connect a bots' computer…*
-row behaves the same way).
-
+After four reviews (2026-09-07/08) the shape is: the head of the bot list names the computer
+shown, centred next to a back arrow that leads to the **overview** – the root screen, no arrow of
+its own: one row per computer with its unread count (a tap switches; the one shown returns to its
+list without reloading), below them *Add new computer* (the connect screen) and *Manage computers*
+(a dialog: rename, order, start or stop the local one, forget – the same list serves the connect
+screen). The ⋮ menu of the bot list holds *Connect a bots' computer…* and *Settings*, the round +
+for a new bot floats at the bottom right of the list. Tried and dropped on the way: a "New bot" row below the
+list, floating buttons at the bottom, and a computers menu instead of the overview.

@@ -393,6 +393,10 @@ handle("metor:rename", (_e, id, name) => {   // the user's own name for a comput
 handle("metor:connect", async (e, args) => { const r = await connect(args ?? {}); if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); } return r; });
 handle("metor:use", (e, id) => { if (computer(id)) showComputer(BrowserWindow.fromWebContents(e.sender), id); });
 handle("metor:forget", async (_e, id) => { await forget(id); for (const [w, cid] of windows) if (cid === id) switchWindow(w, null); refreshMenus(); });
+handle("metor:reorder", (_e, ids) => {   // the order of the computers menu, the user's own
+  const order = Array.isArray(ids) ? ids.map(String) : [], pos = (c) => { const i = order.indexOf(c.id); return i < 0 ? order.length : i; };
+  const d = load(); d.computers.sort((a, b) => pos(a) - pos(b)); save(); refreshMenus(); broadcast("metor:computers", d.computers.map(publicInfo));
+});
 handle("metor:local-status", () => localStatus());
 // Download a file of a connected computer: Chromium's download with the session's request hook (the token),
 // Electron's save dialog. The interface cannot do it with a plain link – across origins the download

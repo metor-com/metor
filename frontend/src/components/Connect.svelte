@@ -4,11 +4,11 @@
   // Mac" or "on a server" (one sentence each), then only what that choice needs. Local
   // (knowledge/design/mac-install.md): none known → set it up; exactly one → open it (start or re-link
   // first when needed); several → the overview. Remote: the address and a setup link, pairing link or
-  // pairing code (ADR-0012). The known computers themselves live in the overview (Computers.svelte).
+  // pairing code (ADR-0012). The known computers are listed below the form (Computers.svelte).
   import { app } from "../lib/base.js";
+  import Computers from "./Computers.svelte";   // the known computers: open another one, sign in again, forget
   export let adding = false;          // from the shell: connect another computer (the current one is fine)
   export let onDone = null;           // adding: back to the shell
-  export let onComputers = null;      // the overview of the known computers (two or more)
   const g = adding ? null : (app?.gateway ?? null);
   const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(origin ?? "");
   const machine = app?.platform === "darwin" ? "this Mac" : "this machine";
@@ -92,7 +92,9 @@
           <p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Your bots' computer already runs on a server of yours. You connect with its setup link or a pairing code.</p>
         </button>
       </div>
-      {#if list.length >= 2 && onComputers}<button type="button" class="mt-5 text-[13px] text-zinc-600 underline hover:text-zinc-900" on:click={onComputers}>Your bots' computers ({list.length})</button>{/if}
+      {#if list.length}
+        <div class="mt-6"><div class="mb-1 text-sm font-medium">Your bots' computers</div><Computers /></div>
+      {/if}
       {#if app?.version}<p class="mt-6 text-xs text-zinc-400">metor app {app.version}</p>{/if}
     </main>
 
@@ -119,8 +121,8 @@
           Uses {RUNTIME[local.runtime] ?? local.runtime}.
         </p>
       {:else if locals().length > 1 && !(g && isLocal(g.origin))}
-        <p class="mt-3 text-[13px] leading-relaxed text-zinc-500">There are several on {machine} – pick one in the overview.</p>
-        {#if onComputers}<button type="button" class="mt-4 {primary}" on:click={onComputers}>Your bots' computers</button>{/if}
+        <p class="mt-3 text-[13px] leading-relaxed text-zinc-500">There are several on {machine} – pick one.</p>
+        <div class="mt-3"><Computers /></div>
       {:else}
         <p class="mt-3 text-[13px] leading-relaxed text-zinc-500">
           {#if unreachable}It does not answer at <code class="font-mono">{g.origin}</code> – it is stopped, or {machine} cannot reach it right now.{/if}
@@ -151,10 +153,7 @@
       {#if unreachable}
         <div class="mt-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
           <div>The bots' computer at <code class="font-mono">{g.origin}</code> does not answer. It is down, or {machine} cannot reach it right now.</div>
-          <div class="flex flex-wrap gap-2">
-            <button type="button" class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={() => app.use(g.id)}>Try again</button>
-            {#if list.length >= 2 && onComputers}<button type="button" class="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={onComputers}>Your other computers</button>{/if}
-          </div>
+          <button type="button" class="self-start rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={() => app.use(g.id)}>Try again</button>
         </div>
       {:else if signedOut}
         <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">This app was signed out of <code class="font-mono">{g.origin}</code>. Link it again with a pairing code or a setup link.</p>
@@ -177,8 +176,8 @@
         <li><strong>Setup link</strong>: shown by the installer and by <code class="rounded bg-zinc-100 px-1">metor auth link</code> inside the box. Paste it – the address comes with it.</li>
         <li><strong>Pairing code</strong>: on a device that is signed in, open <em>Settings → Devices → Link a device</em>, then enter the address and the code here.</li>
       </ol>
-      {#if !unreachable && list.length >= 2 && onComputers}
-        <button type="button" class="mt-5 text-[13px] text-zinc-600 underline hover:text-zinc-900" on:click={onComputers}>Your bots' computers ({list.length})</button>
+      {#if list.length && !adding}
+        <div class="mt-6"><div class="mb-1 text-sm font-medium">Your bots' computers</div><Computers /></div>
       {/if}
     </main>
   {/if}
