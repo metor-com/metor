@@ -136,6 +136,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   Remaining: the real-iPhone check of the badge sum and the tap on a push from another computer; a
   warm switch without reloading the interface; "All bots" as the first entry of the overview (one
   list across computers, needs the interface to talk to every computer at once).
+- **Whole directories in and out of a bot's directory** (draft, 2026-09-08): download a folder
+  as zip or tar and upload a folder as a tar stream through the gateway, from the bot's ⋮ menu,
+  the file browser and `metor bot pull|push`, with a transfer strip (progress, cancel) in the
+  clients; resume by manifest later. Until then: `container cp` locally, `rsync` + `docker cp`
+  on a server. See [knowledge/design/file-transfer.md](knowledge/design/file-transfer.md).
 - **Runtimes out of the image** (idea, 2026-09-07): install the runtimes into a volume and offer
   *Update* per runtime under Settings → Computer, against a list of versions metor has tested
   (published with each release), with a way back to the tested version - new models without a
