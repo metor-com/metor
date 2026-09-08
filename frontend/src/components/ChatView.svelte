@@ -12,6 +12,7 @@
   export let title = null;   // what people see; bot stays the id for API calls
   export let entries = [];
   export let partial = null;
+  export let thought = null;   // the model's thinking while it works – shown in the working bubble with Show steps on
   export let onLocalEntry;
   export let status = null;   // the bot's status (the error card offers Start while it is stopped)
   export let onStart = null;
@@ -256,6 +257,12 @@
               <span class="shrink-0">⚙</span>
               <StepLine tool={currentStep.tool} text={currentStep.text} />
             </button>
+          {/if}
+          {#if thought && $settings.showSteps}
+            <!-- the thinking's tail, newest lines at the bottom, the rest clipped above -->
+            <div class="mt-1.5 flex max-h-24 flex-col justify-end overflow-hidden border-t border-zinc-100 pt-1.5">
+              <div class="text-[11.5px] leading-snug whitespace-pre-wrap text-zinc-400 [overflow-wrap:anywhere]">{thought.slice(-600)}</div>
+            </div>
           {/if}
         </div>
       </div>

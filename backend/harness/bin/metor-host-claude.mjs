@@ -75,9 +75,12 @@ export async function run(core) {
     } else if (m.type === "stream_event") {
       const ev = m.event;
       if (ev?.type === "content_block_delta" && ev.delta?.type === "text_delta") core.partialAppend(ev.delta.text);
+      else if (ev?.type === "content_block_start" && ev.content_block?.type === "thinking") core.thoughtStart();   // the thinking, live only
+      else if (ev?.type === "content_block_delta" && ev.delta?.type === "thinking_delta") core.thoughtAppend(ev.delta.thinking ?? "");
     } else if (m.type === "assistant") {
       for (const c of m.message?.content ?? []) {
-        if (c.type === "text") core.emitText(c.text);
+        if (c.type === "thinking" && c.thinking) { core.thoughtStart(); core.thoughtAppend(c.thinking); }   // the whole block, when it did not stream
+        else if (c.type === "text") core.emitText(c.text);
         else if (c.type === "tool_use") {
           const entryId = core.emitTool(c.name, toolDetail(c.name, c.input), stepFor(c.name, c.input ?? {}));
           toolEntries.set(c.id, entryId);

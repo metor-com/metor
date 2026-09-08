@@ -17,11 +17,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 5. PWA follow-ups (ADR-0013 built 2026-09-04): remove the ntfy stopgap (`METOR_NTFY_URL`) after
    one release; a per-event choice (approvals only / everything) in the notifications card; the
    badge count on the app icon (Badging API) for the PWA – the phone app has it (ADR-0017)
-6. **What the chat shows while a bot works** (steps 1 and 2 built 2026-09-08, the rest is draft): the steps between a question
-   and the reply fold into one line (*14 steps*, a tap unfolds them, also in old chats; *Show
-   steps* in the chat's ⋮ menu unfolds all), a live line names the current step in the user's
-   language, one sentence in the prompt asks the model for the user's language, thinking live
-   only. See [knowledge/design/working-view.md](knowledge/design/working-view.md).
+6. **Working view follow-ups** (the view itself is built, 2026-09-08 – see
+   [knowledge/design/working-view.md](knowledge/design/working-view.md)): the folded line could
+   name the kinds (*14 steps · web, files*) and a duration; the interface's few translated words
+   (steps, typing, the step lines) are the seed of a whole-interface translation, still open;
+   a live check of the step lines and the thinking with Gemini CLI and Copilot.
 
 ## Routine polish (ADR-0010 "consequences")
 

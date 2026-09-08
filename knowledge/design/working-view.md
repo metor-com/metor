@@ -1,6 +1,6 @@
 # Design sketch: what the chat shows while a bot works
 
-Status: **in progress** (2026-09-08: steps 1 to 3 built, thinking is draft) · becomes an ADR when the rest is started · related: ADR-0008
+Status: **built** (2026-09-08, all four steps; open questions below) · becomes an ADR when the rest is started · related: ADR-0008
 (the interface), ADR-0011 (runtimes), ADR-0015 (native clients), GLOSSARY ("Bot", "Runtime").
 
 ## Starting point
@@ -130,7 +130,17 @@ separate key, to be verified per host when it is built.
 2. `step` in the four hosts (`metor-host-claude.mjs`, `-codex`, `-gemini`, `-copilot`) and the
    dictionary in the interface. **Built 2026-09-08.**
 3. The sentence in `CHAT_HOWTO`. **Built 2026-09-08.**
-4. Thinking in the working bubble.
+4. Thinking in the working bubble. **Built 2026-09-08**: `partial.json` carries `thought` next to
+   `text` (host core `thoughtStart`/`thoughtAppend`, kept to its tail, cleared when the reply
+   streams), the gateway passes it in the partial entry, the interface keeps it in a store and
+   shows the last lines in the working bubble while *Show steps* is on. Sources: Claude Code's
+   `thinking` content blocks (`thinking_delta`, or the whole block when it did not stream),
+   Codex's `item/reasoning/*` deltas and the completed reasoning item, the `agent_thought_chunk`
+   updates of Gemini CLI and Copilot. Verified live with Gemini CLI (its thoughts reach
+   `partial.json` and the bubble). Claude Code produced no thinking block in any test turn
+   (short questions, "ultrathink", a planning task – the model reasoned in plain text instead;
+   the SDK is driven without a thinking budget), Codex streamed no reasoning either – both paths
+   are built from the documented shapes and wait for a turn that thinks; Copilot untested.
 
 ## Open questions
 

@@ -54,7 +54,7 @@ export async function run(core) {
     if (!u || loading) return;
     switch (u.sessionUpdate) {
       case "agent_message_chunk": { const t = text(u.content); if (t) { turnText += t; core.partialAppend(t); } break; }
-      case "agent_thought_chunk": break;                                       // reasoning stays invisible, as with the other runtimes
+      case "agent_thought_chunk": { const t = text(u.content); if (t) core.thoughtAppend(t); break; }   // the thinking, live only
       case "tool_call": {
         // Shell calls carry their command; MCP tools only their input object (an empty text must not hide it)
         const detail = String(u.rawInput?.command || u.rawInput?.description || text(u.content ?? []) || JSON.stringify(u.rawInput ?? {})).replace(/\s+/g, " ").slice(0, 200);

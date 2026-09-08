@@ -10,7 +10,7 @@
   import DocumentPanel from "./components/DocumentPanel.svelte";
   import ComputersOverview from "./components/ComputersOverview.svelte";
   import { app, gateway } from "./lib/base.js";
-  import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect, refresh,
+  import { shown, current, quota, selected, entries, partial, thought, select, created, applyEntry, act, remove, interrupt, connect, refresh,
     computers, computersOpen, connectOpen, openComputers, openConnect, closeView, shownDocument, closeDocument, switchComputer, disconnect, sortAgents } from "./lib/session.js";
   import AvatarDialog from "./components/AvatarDialog.svelte";
   import { isDesktop } from "./lib/viewport.js";
@@ -112,7 +112,7 @@
       <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={paneEl}>
         {#if $isDesktop || !pane}
           <div class="flex min-h-0 min-w-0 flex-col" style={$isDesktop && pane ? `flex: 0 0 ${ratio * 100}%` : "flex: 1 1 0%"}>
-            <ChatView bot={$selected} title={$current.title ?? $selected} entries={$entries} partial={$partial} onLocalEntry={applyEntry} status={$current.status} onStart={() => onAct("start")} harness={$current.harness} harnessLabel={$current.harnessLabel} />
+            <ChatView bot={$selected} title={$current.title ?? $selected} entries={$entries} partial={$partial} thought={$thought} onLocalEntry={applyEntry} status={$current.status} onStart={() => onAct("start")} harness={$current.harness} harnessLabel={$current.harnessLabel} />
           </div>
         {/if}
         {#if $isDesktop && pane}

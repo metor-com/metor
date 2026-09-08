@@ -50,6 +50,7 @@ const openDocumentFromHash = (h) => { if (h.doc && h.bot) openDocument(fileUrl(h
 export function closeDocument() { shownDocument.set(null); }
 export const entries = writable([]);          // chat history of the selected bot, patches folded in
 export const partial = writable(null);        // streaming text of the running answer
+export const thought = writable(null);        // the model's thinking while it works – live only, never in the history
 
 // Messenger order (Settings → Behaviour): newest chat activity first; otherwise the gateway's alphabetical
 // order. Also for another computer's list that slides in before a switch (App.svelte), so nothing jumps
@@ -94,7 +95,7 @@ function markRead(name) {
 function activate(name) {
   selected.set(name);
   entries.set([]);
-  partial.set(null);
+  partial.set(null); thought.set(null);
   reconnect();
   if (name) { loadHistory(name); markRead(name); }
 }
@@ -105,7 +106,7 @@ export function select(name) {
 }
 // Apply a live event or a locally produced entry (ChatView adds the user's own message this way)
 export function applyEntry(entry) {
-  if (entry.type === "partial") { partial.set(entry.text); return; }
+  if (entry.type === "partial") { partial.set(entry.text); thought.set(entry.thought ?? null); return; }
   if (entry.type === "status") {
     entries.update((list) => list.map((e) => (e.id === entry.ref ? { ...e, status: entry.status, error: entry.error } : e)));
   } else if (entry.type === "patch") {
@@ -131,7 +132,7 @@ export async function switchComputer(c, list = null) {
   const info = await app.use(c.id);
   if (!info) return false;
   closeEvents?.(); closeEvents = null;
-  selected.set(null); entries.set([]); partial.set(null); pending.set([]); shownDocument.set(null);
+  selected.set(null); entries.set([]); partial.set(null); thought.set(null); pending.set([]); shownDocument.set(null);
   agents.set(Array.isArray(list) ? list : []);
   history.replaceState(null, "", location.pathname + location.search);
   computersOpen.set(false); connectOpen.set(false);

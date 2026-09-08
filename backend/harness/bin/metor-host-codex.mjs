@@ -71,7 +71,13 @@ export async function run(core) {
       return;
     }
     if (item.type === "webSearch") { core.emitTool("WebSearch", String(item.query ?? "").slice(0, 200), stepOf("web-search", item.query)); return; }
-    // reasoning, userMessage, plan …: invisible
+    if (item.type === "reasoning") {   // the thinking's summary, live only – replaces what the deltas built up
+      const parts = [...(Array.isArray(item.summary) ? item.summary : []), ...(Array.isArray(item.content) ? item.content : []), item.text];
+      const t = parts.map((x) => (typeof x === "string" ? x : x?.text ?? "")).filter(Boolean).join("\n");
+      if (t) { core.thoughtStart(); core.thoughtAppend(t); }
+      return;
+    }
+    // userMessage, plan …: invisible
   }
 
   child.stdout.on("data", (d) => {
@@ -93,6 +99,8 @@ export async function run(core) {
       }
       const p = m.params ?? {};
       if (m.method === "item/agentMessage/delta") core.partialAppend(String(p.delta ?? p.text ?? ""));
+      // The reasoning as it is written (item/reasoning/summaryTextDelta, summaryPartAdded, textDelta), live only
+      else if (/^item\/reasoning\//.test(m.method)) core.thoughtAppend(m.method.endsWith("summaryPartAdded") ? "\n\n" : String(p.delta ?? p.text ?? ""));
       else if (m.method === "item/completed") onItemCompleted(p.item);
       else if (m.method === "turn/completed") { core.partialClear(); core.saveState({ status: "idle" }); turnDone?.(); }
       else if (m.method === "error") core.log("codex error:", JSON.stringify(p).slice(0, 300));

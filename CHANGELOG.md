@@ -21,7 +21,9 @@ On a release the section is renamed to the version number and dated. Ideas and o
   - the first translated words in the interface; where the runtime describes a command in its
   own words (Claude Code, Copilot), that description is shown, and the bots are asked to write
   it, like their texts between steps, in the language you write in. Steps recorded before this
-  change keep their tool name (knowledge/design/working-view.md).
+  change keep their tool name. With *Show steps* on, the bubble also shows the bot's thinking
+  as it happens (all four runtimes) - live only, it is never kept in the history
+  (knowledge/design/working-view.md).
 
 - **Documents open next to the chat**: a click on a file a bot made - an attachment in the chat or
   a file in the file browser - shows it in the pane next to the chat (instead of the chat on a

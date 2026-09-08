@@ -157,12 +157,17 @@ export function createCore(name) {
   function writePartial(force = false) {
     if (!force && Date.now() - lastPartialWrite < 250) { partialDirty = true; return; }
     lastPartialWrite = Date.now(); partialDirty = false;
-    try { writeFileSync(partialFile, JSON.stringify({ ts: now(), text: partialText || null }) + "\n"); } catch {}
+    try { writeFileSync(partialFile, JSON.stringify({ ts: now(), text: partialText || null, thought: thoughtText || null }) + "\n"); } catch {}
   }
   const partialTimer = setInterval(() => { if (partialDirty) writePartial(true); }, 300);
   writePartial(true); // clear the old state from the last run
-  const partialAppend = (delta) => { partialText += delta; writePartial(); };
-  const partialClear = () => { partialText = ""; writePartial(true); };
+  const partialAppend = (delta) => { partialText += delta; if (thoughtText) thoughtText = ""; writePartial(); };   // the reply replaces the thought
+  const partialClear = () => { partialText = ""; thoughtText = ""; writePartial(true); };
+  // The model's thinking, live only (knowledge/design/working-view.md): never in the history, shown in the
+  // working bubble while Show steps is on. A new thinking block replaces the last; kept to its tail.
+  let thoughtText = "";
+  const thoughtStart = () => { thoughtText = ""; };
+  const thoughtAppend = (delta) => { thoughtText = (thoughtText + delta).slice(-2000); writePartial(); };
 
   // ---------- Bot→user attachments: [File:] markers + automatically detected mentioned paths ----------
   const IMG_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
@@ -233,7 +238,7 @@ export function createCore(name) {
     setInterruptHandler(fn) { onInterrupt = fn; },
     askPermission,
     partialAppend, partialClear,
-    extractFiles, emitText, emitTool, patchTool,
+    extractFiles, emitText, emitTool, patchTool, thoughtStart, thoughtAppend,
     onShutdown(fn) { cleanups.push(fn); },
     ready() { saveState({ status: "idle", error: null }); log(`Host for ${name} started (harness ${bot.harness ?? "claude-stream"}, resume: ${state.sessionId ?? "-"})`); },
     // The error is the bot's last message: the list shows it in red, the chat as a card with a Start button

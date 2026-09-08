@@ -160,7 +160,7 @@ export function createStreamChat({ botsDir } = {}) {
       if (pRaw !== partials.get(bot)) {
         partials.set(bot, pRaw);
         let p = null; try { p = JSON.parse(pRaw); } catch {}
-        for (const cb of listeners) { try { cb({ bot, entry: { type: "partial", text: p?.text ?? null } }); } catch {} }
+        for (const cb of listeners) { try { cb({ bot, entry: { type: "partial", text: p?.text ?? null, thought: p?.thought ?? null } }); } catch {} }
       }
       const file = join(botsDir, bot, ".metor", "chat.jsonl");
       let size; try { size = statSync(file).size; } catch { continue; }
