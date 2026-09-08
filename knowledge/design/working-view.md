@@ -1,6 +1,6 @@
 # Design sketch: what the chat shows while a bot works
 
-Status: **in progress** (2026-09-08: step 1 built, the rest is draft) · becomes an ADR when the rest is started · related: ADR-0008
+Status: **in progress** (2026-09-08: steps 1 and 2 built, the rest is draft) · becomes an ADR when the rest is started · related: ADR-0008
 (the interface), ADR-0011 (runtimes), ADR-0015 (native clients), GLOSSARY ("Bot", "Runtime").
 
 ## Starting point
@@ -58,8 +58,10 @@ tool: { name: "WebSearch", detail: "…", step: { kind: "web-search", subject: "
 `kind` comes from a short list that is the same for every runtime – `command`, `read-file`,
 `edit-file`, `search-files`, `web-search`, `read-page`, `delegate`, `connector`, `other` –
 and `subject` is the one thing worth naming: the command, the file's name, the query, the
-page's host, the sub-task's description, the connector and tool. The interface holds a
-dictionary per language and renders *verb + subject*:
+page's host, the sub-task's description, the connector and tool. A third field, `text`, carries
+the model's own one-line description when the runtime has one (Claude Code's Bash tool, Copilot's
+shell); the interface shows it as it is, which is where the sentence in the prompt (below) pays
+off. The interface holds a dictionary per language and renders *verb + subject*:
 
 | kind | English | German |
 |---|---|---|
@@ -77,6 +79,16 @@ The subject stays in the language it is in – a bot searching English sources s
 English, and the command is the command. Entries without `step` (older history, unknown tools)
 fall back to today's line, name and detail. The device's language comes from the browser or the
 app (`navigator.language`); German and English to begin with, everything else English.
+
+Where the kinds come from (`stepOf`, `acpStep` in `metor-host-core.mjs`): Claude Code's tools by
+name (Bash, Read, Edit/Write, Glob/Grep, WebSearch, WebFetch, Agent, `mcp__<server>__<tool>`),
+Codex's items by type (command, file change, web search, MCP call), and for Gemini CLI and Copilot
+the ACP kind of the call (`execute`, `read`, `edit`/`delete`/`move`, `search`, `fetch`) with the
+first location or the raw input as the subject. Gemini's web search has no kind of its own; its
+title ("Searching the web for: …") tells it. Verified live with Claude Code (web search, shell
+with the model's description, read); the ACP mapping against the recorded shapes of Gemini CLI
+and Copilot (knowledge/harness/*-facts.md) – a Gemini turn on 2026-09-08 hung without any
+update, so its live check is still open.
 
 This is the first translated text in the interface, on purpose limited to these lines and the
 few status words around them (*typing…*, *14 steps*). Translating the whole interface is a
@@ -110,7 +122,7 @@ separate key, to be verified per host when it is built.
 1. Grouping, folding, the live line and *Show steps* in the interface – works with today's
    entries (name and detail), no host change. **Built 2026-09-08.**
 2. `step` in the four hosts (`metor-host-claude.mjs`, `-codex`, `-gemini`, `-copilot`) and the
-   dictionary in the interface.
+   dictionary in the interface. **Built 2026-09-08.**
 3. The sentence in `CHAT_HOWTO`.
 4. Thinking in the working bubble.
 

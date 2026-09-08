@@ -6,7 +6,7 @@
 // CHAT_HOWTO via developerInstructions. Sandbox danger-full-access + approvalPolicy never:
 // the box is the boundary (ADR-0004) – Codex has no approval cards in stage 1.
 import { spawn } from "node:child_process";
-import { CHAT_HOWTO } from "./metor-host-core.mjs";
+import { CHAT_HOWTO, stepOf, fileName } from "./metor-host-core.mjs";
 import { ports } from "./metor-harness.mjs";
 import { codexOverrides } from "./metor-connectors.mjs";
 
@@ -53,20 +53,24 @@ export async function run(core) {
     if (item.type === "agentMessage") { core.emitText(item.text ?? ""); return; }   // commentary AND final_answer
     if (item.type === "mcpToolCall") {
       const detail = `${item.server}/${item.tool} ${JSON.stringify(item.arguments ?? {})}`.slice(0, 200);
-      const id = core.emitTool(`${item.server}: ${item.tool}`, detail);
+      const id = core.emitTool(`${item.server}: ${item.tool}`, detail, stepOf("connector", `${item.server}: ${item.tool}`));
       const result = item.error ? `Error: ${JSON.stringify(item.error).slice(0, 400)}`
         : (item.result?.content ?? []).map((c) => c?.text ?? `[${c?.type}]`).join(" ");
       if (result) core.patchTool(id, result);
       return;
     }
     if (item.type === "commandExecution") {
-      const id = core.emitTool("Shell", String(item.command ?? "").slice(0, 200));
+      const id = core.emitTool("Shell", String(item.command ?? "").slice(0, 200), stepOf("command", item.command));
       const out = item.aggregatedOutput ?? item.output ?? "";
       core.patchTool(id, `${out}`.slice(0, 1100) + (item.exitCode != null ? `\n(exit ${item.exitCode})` : ""));
       return;
     }
-    if (item.type === "fileChange") { core.emitTool("File change", JSON.stringify(item.changes ?? item.path ?? "").slice(0, 200)); return; }
-    if (item.type === "webSearch") { core.emitTool("WebSearch", String(item.query ?? "").slice(0, 200)); return; }
+    if (item.type === "fileChange") {
+      const files = (Array.isArray(item.changes) ? item.changes.map((c) => fileName(c?.path)) : [fileName(item.path)]).filter(Boolean);
+      core.emitTool("File change", JSON.stringify(item.changes ?? item.path ?? "").slice(0, 200), stepOf("edit-file", files.slice(0, 2).join(", ") + (files.length > 2 ? ` +${files.length - 2}` : "")));
+      return;
+    }
+    if (item.type === "webSearch") { core.emitTool("WebSearch", String(item.query ?? "").slice(0, 200), stepOf("web-search", item.query)); return; }
     // reasoning, userMessage, plan …: invisible
   }
 

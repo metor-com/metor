@@ -4,6 +4,7 @@
   import RuntimeSignIn from "./RuntimeSignIn.svelte";
   import Ticks from "./Ticks.svelte";
   import Typing from "./Typing.svelte";
+  import StepLine from "./StepLine.svelte";
   import { renderMarkdown } from "../lib/markdown.js";
   import { settings } from "../lib/settings.js";
   import { t } from "../lib/i18n.js";
@@ -144,11 +145,12 @@
                 {#each e.items as s (s.id)}
                   <div class="min-w-0">
                     <button class="flex w-full min-w-0 items-baseline gap-2 text-left text-[12.5px] text-zinc-400 hover:text-zinc-600" on:click={() => toggleTool(s.id)}>
-                      <span class="shrink-0 font-semibold">{openTools[s.id] ? "▾" : "▸"} ⚙ {s.tool?.name ?? s.text}</span>
-                      {#if s.tool?.detail && !openTools[s.id]}<span class="min-w-0 truncate font-mono text-[11.5px]">{s.tool.detail}</span>{/if}
+                      <span class="shrink-0 font-semibold">{openTools[s.id] ? "▾" : "▸"} ⚙</span>
+                      <StepLine tool={s.tool} text={s.text} showDetail={!openTools[s.id]} />
                     </button>
                     {#if openTools[s.id]}
                       <div class="mt-1 max-w-[42rem] rounded-lg bg-zinc-100 px-3 py-2 text-[11.5px]">
+                        {#if s.tool?.step && s.tool?.name}<div class="mb-1 font-semibold text-zinc-500">{s.tool.name}</div>{/if}
                         {#if s.tool?.detail}<pre class="overflow-x-auto whitespace-pre-wrap text-zinc-600">{s.tool.detail}</pre>{/if}
                         {#if s.tool?.result}<pre class="mt-1.5 overflow-x-auto border-t border-zinc-200 pt-1.5 whitespace-pre-wrap text-zinc-500">{s.tool.result}</pre>
                         {:else}<p class="mt-1 text-zinc-400">(no result recorded)</p>{/if}
@@ -251,8 +253,8 @@
           <Typing cls="text-zinc-500" />
           {#if currentStep}
             <button class="mt-1 flex w-full min-w-0 items-baseline gap-2 text-left text-[12px] text-zinc-400 hover:text-zinc-600" title={t("showSteps")} on:click={() => toggleGroup(liveGroup.id)}>
-              <span class="shrink-0">⚙ {currentStep.tool?.name ?? currentStep.text}</span>
-              {#if currentStep.tool?.detail}<span class="min-w-0 truncate font-mono text-[11px]">{currentStep.tool.detail}</span>{/if}
+              <span class="shrink-0">⚙</span>
+              <StepLine tool={currentStep.tool} text={currentStep.text} />
             </button>
           {/if}
         </div>

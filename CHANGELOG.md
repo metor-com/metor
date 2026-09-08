@@ -16,8 +16,11 @@ On a release the section is renamed to the version number and dated. Ideas and o
 - **The chat folds a bot's work**: while a bot works, a bubble with the three dots names the step
   it is on; once the reply is there, the steps that led to it fold into one line (*14 steps*)
   that a tap unfolds - in old chats too, nothing is dropped. *Show steps* in the chat's ⋮ menu
-  unfolds them everywhere on this device. These few words come in the device's language (German
-  or English), the first ones in the interface (knowledge/design/working-view.md).
+  unfolds them everywhere on this device. The line says what the bot does, in the device's
+  language (German or English): *Sucht im Web nach „…"*, *Liest CLAUDE.md*, *Führt `ls -la` aus*
+  - the first translated words in the interface; where the runtime describes a command in its
+  own words (Claude Code, Copilot), that description is shown. Steps recorded before this
+  change keep their tool name (knowledge/design/working-view.md).
 
 - **Documents open next to the chat**: a click on a file a bot made - an attachment in the chat or
   a file in the file browser - shows it in the pane next to the chat (instead of the chat on a

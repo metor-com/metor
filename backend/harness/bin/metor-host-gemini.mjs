@@ -9,7 +9,7 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CHAT_HOWTO } from "./metor-host-core.mjs";
+import { CHAT_HOWTO, acpStep } from "./metor-host-core.mjs";
 import { geminiKey, killGroup, recordSeenModel } from "./metor-harness.mjs";
 
 const GEMINI_HOME = process.env.GEMINI_CLI_HOME ?? join(process.env.HOME ?? "/home/box", ".gemini");
@@ -54,7 +54,7 @@ export async function run(core) {
       case "tool_call": {
         if (u.kind === "think") break;                                         // the CLI's internal topic/plan bookkeeping – not a tool for the user
         const detail = (text(u.content ?? []) || JSON.stringify(u.rawInput ?? {})).replace(/\s+/g, " ").slice(0, 200);
-        toolEntries.set(u.toolCallId, core.emitTool(u.title ?? u.kind ?? "Tool", detail));
+        toolEntries.set(u.toolCallId, core.emitTool(u.title ?? u.kind ?? "Tool", detail, acpStep(u)));
         break;
       }
       case "tool_call_update": {

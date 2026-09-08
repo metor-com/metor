@@ -10,7 +10,7 @@
 import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CHAT_HOWTO } from "./metor-host-core.mjs";
+import { CHAT_HOWTO, acpStep } from "./metor-host-core.mjs";
 import { COPILOT_HOME, recordSeenModel } from "./metor-harness.mjs";
 
 export async function run(core) {
@@ -58,7 +58,7 @@ export async function run(core) {
       case "tool_call": {
         // Shell calls carry their command; MCP tools only their input object (an empty text must not hide it)
         const detail = String(u.rawInput?.command || u.rawInput?.description || text(u.content ?? []) || JSON.stringify(u.rawInput ?? {})).replace(/\s+/g, " ").slice(0, 200);
-        toolEntries.set(u.toolCallId, core.emitTool(u.title ?? u.kind ?? "Tool", detail));
+        toolEntries.set(u.toolCallId, core.emitTool(u.title ?? u.kind ?? "Tool", detail, acpStep(u)));
         break;
       }
       case "tool_call_update": {

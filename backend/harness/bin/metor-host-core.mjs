@@ -17,6 +17,36 @@ export const CHAT_HOWTO = `Chatting with the user (metor interface):
 - Showing files: write "[File: path/to/file]" (relative to your directory) on its own line in your reply – the chat renders it as a card with preview/download and removes the marker from the text. Use this for results, screenshots and exports instead of quoting long files. File paths you mention in the text (e.g. in backticks) are additionally offered as cards automatically.
 - The user's attachments reach you as "[Attachment: /path]" lines (the files are under uploads/); look at images with your file-reading tool.`;
 
+// ---------- A step's summary for the chat (knowledge/design/working-view.md) ----------
+// What a tool does, as one of a few kinds every runtime shares, and the one thing worth naming – the
+// interface says it in the user's language. `text` is the model's own one-line description when the
+// runtime has one (Claude Code's Bash, Copilot's shell); the interface shows it as it is.
+const STEP_KINDS = new Set(["command", "read-file", "edit-file", "search-files", "web-search", "read-page", "delegate", "connector", "other"]);
+const oneLine = (s, max) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+const unquote = (s) => s.replace(/^["“„']+|["”“']+$/g, "");
+export const fileName = (p) => oneLine(p, 400).replace(/\/+$/, "").split("/").pop();
+export const hostOf = (u) => { try { return new URL(String(u)).host; } catch { return oneLine(u, 80); } };
+export function stepOf(kind, subject, text) {
+  const s = oneLine(subject, 120), t = oneLine(text, 120);
+  return { kind: STEP_KINDS.has(kind) ? kind : "other", ...(s ? { subject: s } : {}), ...(t ? { text: t } : {}) };
+}
+// ACP tool calls (Gemini CLI, Copilot) carry a kind of their own – read, edit, delete, move, search,
+// execute, fetch, other – plus locations and the raw input; the title is the last resort. Gemini's web
+// search is told by its title ("Searching the web for: …"), it has no kind of its own.
+export function acpStep(u) {
+  const input = u.rawInput ?? {}, title = oneLine(u.title, 120);
+  const location = fileName(u.locations?.[0]?.path ?? input.file_path ?? input.path ?? input.absolute_path ?? "");
+  const webQuery = () => unquote(oneLine(input.query ?? title.replace(/^[^:]*:\s*/, ""), 120));
+  switch (u.kind) {
+    case "execute": return stepOf("command", input.command ?? title, input.description);
+    case "read": return stepOf("read-file", location || title);
+    case "edit": case "delete": case "move": return stepOf("edit-file", location || title);
+    case "search": return /\bweb\b/i.test(title) ? stepOf("web-search", webQuery()) : stepOf("search-files", input.pattern ?? input.query ?? title);
+    case "fetch": return stepOf("read-page", input.url ? hostOf(input.url) : title);
+    default: return /^Searching the web for/i.test(title) ? stepOf("web-search", webQuery()) : stepOf("other", title);
+  }
+}
+
 export function createCore(name) {
   const dir = join(BOTS_DIR, name);
   const metorDir = join(dir, ".metor");
@@ -174,10 +204,10 @@ export function createCore(name) {
     chat({ v: 2, id: randomUUID(), ts: now(), role: "assistant", kind: "text", text, ...(attachments ? { attachments } : {}), ...extra });
     partialClear();
   }
-  // Tool activity → entry (returns the id for later result patches)
-  function emitTool(toolName, detail) {
+  // Tool activity → entry (returns the id for later result patches); `step` is the summary from stepOf
+  function emitTool(toolName, detail, step = null) {
     const id = randomUUID();
-    chat({ v: 2, id, ts: now(), role: "assistant", kind: "tool", text: `Tool: ${toolName}`, tool: { name: toolName, detail } });
+    chat({ v: 2, id, ts: now(), role: "assistant", kind: "tool", text: `Tool: ${toolName}`, tool: { name: toolName, detail, ...(step ? { step } : {}) } });
     return id;
   }
   function patchTool(ref, result) { chat({ v: 2, type: "patch", ref, ts: now(), tool: { result: String(result ?? "").slice(0, 1200) } }); }

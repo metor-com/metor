@@ -6,13 +6,29 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import { recordSeenModel } from "./metor-harness.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CHAT_HOWTO } from "./metor-host-core.mjs";
+import { CHAT_HOWTO, stepOf, fileName, hostOf } from "./metor-host-core.mjs";
 import { claudeAllowedTools } from "./metor-connectors.mjs";
 
 export async function run(core) {
   const { name, dir, bot } = core;
   let watchUrl = ""; try { watchUrl = readFileSync(join(core.metorDir, "watch-url"), "utf8").trim(); } catch {}
   const toolDetail = (n, input) => n === "Bash" ? String(input?.command ?? "").slice(0, 200) : JSON.stringify(input ?? {}).slice(0, 200);
+  // The step's summary for the chat (knowledge/design/working-view.md): Claude Code's tools by name;
+  // a connector's tool arrives as mcp__<server>__<tool>
+  function stepFor(n, input = {}) {
+    const mcp = /^mcp__(.+?)__(.+)$/.exec(n);
+    if (mcp) return stepOf("connector", `${mcp[1]}: ${mcp[2]}`);
+    switch (n) {
+      case "Bash": return stepOf("command", input.command, input.description);
+      case "Read": case "NotebookRead": return stepOf("read-file", fileName(input.file_path ?? input.notebook_path));
+      case "Edit": case "MultiEdit": case "Write": case "NotebookEdit": return stepOf("edit-file", fileName(input.file_path ?? input.notebook_path));
+      case "Glob": case "Grep": return stepOf("search-files", input.pattern);
+      case "WebSearch": return stepOf("web-search", input.query);
+      case "WebFetch": return stepOf("read-page", hostOf(input.url));
+      case "Agent": case "Task": return stepOf("delegate", input.description ?? input.prompt);
+      default: return stepOf("other", n);
+    }
+  }
 
   async function canUseTool(toolName, input, { title, decisionReason, signal } = {}) {
     const decision = await core.askPermission(toolName, { title, reason: decisionReason, input, signal });
@@ -63,7 +79,7 @@ export async function run(core) {
       for (const c of m.message?.content ?? []) {
         if (c.type === "text") core.emitText(c.text);
         else if (c.type === "tool_use") {
-          const entryId = core.emitTool(c.name, toolDetail(c.name, c.input));
+          const entryId = core.emitTool(c.name, toolDetail(c.name, c.input), stepFor(c.name, c.input ?? {}));
           toolEntries.set(c.id, entryId);
           if (toolEntries.size > 200) toolEntries.delete(toolEntries.keys().next().value);
         }
