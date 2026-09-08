@@ -354,7 +354,6 @@ window.metor = {
   connect: async (args) => { const r = await connect(args ?? {}); if (r.ok) reload(); return r; },
   use,
   forget,
-  reorder: async (ids) => { const order = Array.isArray(ids) ? ids.map(String) : [], pos = (x) => { const i = order.indexOf(x.id); return i < 0 ? order.length : i; }; db.computers.sort((a, b) => pos(a) - pos(b)); await save(); },
   rename: async (id, name) => { const x = computer(id); if (!x) return; const n = String(name ?? "").trim().slice(0, 60); if (n) x.label = n; else delete x.label; await save(); },   // the user's own name, kept here
   signedOut: () => { signedOut(); },
   notify,

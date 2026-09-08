@@ -9,22 +9,31 @@
   import { settings } from "../lib/settings.js";
   import { whenLabel } from "../lib/when.js";
   import { app } from "../lib/base.js";
+  import { loadComputers } from "../lib/session.js";
   export let agents = [];
   export let selected = null;
   export let quota = null;
   export let onSelect;
   export let onCreated;
   export let hiddenOnMobile = false;   // mobile: list OR chat (messenger pattern); desktop: always visible
-  // Native clients (ADR-0015, knowledge/design/several-computers.md) with two or more computers: the head
-  // names the computer shown, centred next to a back arrow that leads to the overview of all of them;
-  // with one, the wordmark. The ⋮ menu: "Connect a bots' computer…" (apps only) and Settings.
+  // Native clients (ADR-0015, knowledge/design/several-computers.md): the head names the computer shown,
+  // centred next to a back arrow that leads to the overview of all computers; the ⋮ menu holds what
+  // concerns this computer – rename, remove. A browser (one computer, no overview) shows the wordmark
+  // and a ⋮ menu with Settings.
   export let computers = [];
   export let onComputers = null;
-  export let onConnect = null;
   const currentId = app?.gateway?.id ?? null;
-  $: several = computers.length >= 2 && !!onComputers;
+  $: inApp = !!app && !!onComputers;
   $: computerName = computers.find((c) => c.id === currentId)?.short ?? app?.gateway?.short ?? app?.gateway?.name ?? "metor";
   let creating = false, showSettings = false, menuOpen = false;
+  async function renameComputer() {
+    const c = computers.find((x) => x.id === currentId); const name = prompt("Name of this computer", c?.name ?? computerName); if (name == null) return;
+    try { await app.rename(currentId, name.trim()); await loadComputers(); } catch (e) { alert(e.message); }
+  }
+  async function removeComputer() {
+    if (!confirm(`Remove "${computerName}" from this app? The app signs out of it; the computer and its bots stay as they are.`)) return;
+    try { await app.forget(currentId); } catch (e) { alert(e.message); }   // the app shows the connect screen
+  }
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
   // Quota bar (Settings → Appearance): always, never, or once a window reaches the chosen usage
   $: showQuota = !!quota && pct(quota.fiveHour) != null && ($settings.quota === "always"
@@ -45,10 +54,10 @@
 
 <svelte:window on:click={() => (menuOpen = false)} />
 <aside class="{hiddenOnMobile ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-white md:w-72 md:border-r md:border-zinc-200">
-  <!-- Head: the wordmark, or – with several computers – the back arrow to the overview and the computer's
-       name centred; at the right the ⋮ menu. The round + for a new bot floats bottom right over the list. -->
-  <div class="{several ? 'grid grid-cols-[2.5rem_1fr_2.5rem]' : 'flex justify-between'} shrink-0 items-center gap-1 py-3 {several ? 'pl-2' : 'pl-4'} pr-3">
-    {#if several}
+  <!-- Head: in an app the back arrow to the overview and the computer's name centred, in a browser the
+       wordmark; at the right the ⋮ menu. The round + for a new bot floats bottom right over the list. -->
+  <div class="{inApp ? 'grid grid-cols-[2.5rem_1fr_2.5rem]' : 'flex justify-between'} shrink-0 items-center gap-1 py-3 {inApp ? 'pl-2' : 'pl-4'} pr-3">
+    {#if inApp}
       <button type="button" class="flex size-10 items-center justify-center rounded-full text-xl text-zinc-600 hover:bg-zinc-100" on:click={onComputers} title="Your bots' computers" aria-label="Back to your bots' computers">←</button>
       <span class="min-w-0 truncate text-center text-lg font-bold tracking-tight text-zinc-900" title={computerName}>{computerName}</span>
     {:else}
@@ -62,8 +71,12 @@
         </button>
         {#if menuOpen}
           <div class="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
-            {#if onConnect}<button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; onConnect(); }}>Connect a bots' computer…</button>{/if}
-            <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
+            {#if inApp}
+              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; renameComputer(); }}>Rename computer…</button>
+              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; removeComputer(); }}>Remove computer</button>
+            {:else}
+              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
+            {/if}
           </div>
         {/if}
       </div>

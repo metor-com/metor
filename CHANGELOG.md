@@ -22,15 +22,14 @@ On a release the section is renamed to the version number and dated. Ideas and o
   reason. The phone app keeps opening files in the system viewer. A link of the form
   `#/<bot>?doc=<file>` opens a bot with that document.
 
-- **Several bots' computers in the desktop and phone app**: with two or more connected, the head
-  of the bot list names the computer shown, and its back arrow leads to an overview of all of them
-  with their unread counts, like the mailboxes of a mail app - a tap opens that computer's bots.
-  Below the computers: *Add new computer* and *Manage computers* (rename, order, start or stop the
-  one on this Mac, forget). The ⋮ menu of the bot list offers *Connect a bots' computer…* above
-  *Settings*, so a phone can connect a second computer at all. The app icon's badge counts across
-  all computers, a notification opens the bot on the computer it came from, and the desktop app
-  hears computers it is not showing. With one computer nothing changes but the menu entry and the
-  round + for a new bot, which now floats at the bottom right of the bot list.
+- **Several bots' computers in the desktop and phone app**: the head of the bot list names the
+  computer shown, and its back arrow leads to the overview of all connected computers with their
+  unread counts, like the mailboxes of a mail app - a tap opens that computer's bots, *Add new
+  computer* below the rows connects one more (so a phone can do that at all), and the ⋮ menu of
+  the overview opens the Settings. Inside a computer the ⋮ menu renames or removes it. The app
+  icon's badge counts across all computers, a notification opens the bot on the computer it came
+  from, and the desktop app hears computers it is not showing. The round + for a new bot floats
+  at the bottom right of the bot list.
 
 - **GitHub Copilot as a fourth runtime**: bots on the Copilot CLI with your GitHub Copilot
   subscription (any plan, Free included) - sign in from the create dialog with GitHub's device

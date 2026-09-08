@@ -1,9 +1,8 @@
 <script>
-  // The bots' computers this app is connected to (knowledge/design/several-computers.md): one row per
-  // computer with its state and unread count. A tap opens it (the app loads its interface); the row's
-  // menu renames it, moves it up or down (the order of the computers menu), starts or stops the one on
-  // this machine, or forgets it. Shown in the "Manage computers…" dialog and on the connect screen.
-  // A browser never gets here – it is served by one computer and knows no other.
+  // The bots' computers this app is connected to (knowledge/design/several-computers.md), on the connect
+  // screen – where the overview cannot be reached: one row per computer with its state and unread
+  // count. A tap opens it (the app loads its interface); the row's actions rename it, start or stop the
+  // one on this machine, or forget it. A browser never gets here – it is served by one computer.
   import { app } from "../lib/base.js";
   import { computers, loadComputers } from "../lib/session.js";
   export let onDone = null;            // a tap on the computer shown already (the dialog closes)
@@ -41,20 +40,13 @@
     if (!confirm(`Forget "${c.name}"? The app signs out of it.`)) return;
     try { await app.forget(c.id); await loadComputers(); } catch (e) { error = e.message; }
   }
-  // The order of the computers (the menu, this list) is the app's own; up and down swap with the neighbour
-  async function move(c, dir) {
-    const ids = $computers.map((x) => x.id); const i = ids.indexOf(c.id), j = i + dir;
-    if (i < 0 || j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]];
-    try { await app.reorder(ids); await loadComputers(); } catch (e) { error = e.message; }
-  }
   const menu = (fn) => (c) => { menuFor = null; fn(c); };
   const action = "rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-50";
 </script>
 
 <svelte:window on:click={() => (menuFor = null)} />
 <ul class="flex flex-col">
-  {#each $computers as c, i (c.id)}
+  {#each $computers as c (c.id)}
     {@const s = state(c)}
     <li class="flex flex-col rounded-xl {c.id === currentId ? 'bg-zinc-100' : 'hover:bg-zinc-50'}">
       <div class="flex items-center">
@@ -78,8 +70,6 @@
         <!-- The actions, unfolded below the row (a floating menu would be cut off by the dialog's scroll area) -->
         <div class="flex flex-wrap gap-1.5 px-3 pb-2.5" role="group" on:click|stopPropagation>
           <button type="button" class={action} on:click={() => menu(rename)(c)}>Rename</button>
-          {#if i > 0}<button type="button" class={action} on:click={() => menu((x) => move(x, -1))(c)}>Move up</button>{/if}
-          {#if i < $computers.length - 1}<button type="button" class={action} on:click={() => menu((x) => move(x, 1))(c)}>Move down</button>{/if}
           {#if c.local && app?.local && local?.computer?.id === c.id}
             {#if local.state === "running"}<button type="button" class={action} on:click={() => menu((x) => run("down", x.id))(c)}>Stop</button>
             {:else if local.state === "stopped"}<button type="button" class={action} on:click={() => menu((x) => run("up", x.id))(c)}>Start</button>{/if}

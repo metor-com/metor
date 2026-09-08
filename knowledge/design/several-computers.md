@@ -152,11 +152,13 @@ notification from the computer not shown. The native badge sum and the tap on a 
 computer are built for iOS and Android; the real-iPhone check is still open. The open question on
 a second desktop window was answered by leaving it as it was (one computer per window).
 
-After four reviews (2026-09-07/08) the shape is: the head of the bot list names the computer
-shown, centred next to a back arrow that leads to the **overview** – the root screen, no arrow of
-its own: one row per computer with its unread count (a tap switches; the one shown returns to its
-list without reloading), below them *Add new computer* (the connect screen) and *Manage computers*
-(a dialog: rename, order, start or stop the local one, forget – the same list serves the connect
-screen). The ⋮ menu of the bot list holds *Connect a bots' computer…* and *Settings*, the round +
-for a new bot floats at the bottom right of the list. Tried and dropped on the way: a "New bot" row below the
-list, floating buttons at the bottom, and a computers menu instead of the overview.
+After five reviews (2026-09-07/08) the shape is: in the apps the head of the bot list always names
+the computer shown, centred next to a back arrow that leads to the **overview** – the root screen,
+no arrow of its own: one row per computer with its unread count (a tap switches; the one shown
+returns to its list without reloading), below them *Add new computer* (the connect screen), and a
+⋮ menu at the top that opens the Settings. Inside a computer the ⋮ menu holds only what concerns
+it: *Rename computer…* and *Remove computer*. The round + for a new bot floats at the bottom right
+of the list. The connect screen keeps a list of the known computers, because the overview cannot
+be reached from there. Tried and dropped on the way: an overview only with two or more computers,
+a "New bot" row below the list, floating buttons at the bottom left, a computers menu instead of
+the overview, and a "Manage computers" dialog with ordering.

@@ -51,7 +51,7 @@
   const needsConnect = !!app && (!app.gateway?.signedIn || app.gateway.reachable === false);
   onMount(() => { if (needsConnect) return; initPush(); return connect(); });
   // Native clients (knowledge/design/several-computers.md): the overview of the computers takes the sidebar's
-  // place (#/computers); "Connect a bots' computer…" shows the connect screen over the shell (#/connect…)
+  // place (#/computers); "Add new computer" shows the connect screen over the shell (#/connect…)
   const connectStep = () => (app?.local ? null : "remote");   // a phone cannot run a computer of its own: straight to "on a server"
 </script>
 
@@ -70,7 +70,7 @@
     <ComputersOverview hiddenOnMobile={!!$selected} onBack={closeView} onConnect={(step) => openConnect(step ?? connectStep())} />
   {:else}
     <Sidebar agents={$shown} selected={$selected} quota={$quota} hiddenOnMobile={!!$selected} onSelect={select} onCreated={created}
-      computers={$computers} onComputers={app ? openComputers : null} onConnect={app ? () => openConnect(connectStep()) : null} />
+      computers={$computers} onComputers={app ? openComputers : null} />
   {/if}
 
   <main class="{$selected ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col">
