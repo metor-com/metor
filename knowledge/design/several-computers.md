@@ -155,9 +155,9 @@ a second desktop window was answered by leaving it as it was (one computer per w
 After five reviews (2026-09-07/08) the shape is: in the apps the head of the bot list always names
 the computer shown, centred next to a back arrow that leads to the **overview** – the root screen,
 no arrow of its own: one row per computer with its unread count (a tap switches; the one shown
-returns to its list without reloading), below them *Add new computer* (the connect screen), and a
+returns to its list without reloading), below them *Connect a computer…* (the connect screen), and a
 ⋮ menu at the top that opens the Settings. Inside a computer the ⋮ menu holds only what concerns
-it: *Rename computer…* and *Remove computer*. The round + for a new bot floats at the bottom right
+it: *Rename computer…* and *Forget computer* (the app signs out; the computer and its bots stay). The round + for a new bot floats at the bottom right
 of the list. The connect screen keeps a list of the known computers, because the overview cannot
 be reached from there. Tried and dropped on the way: an overview only with two or more computers,
 a "New bot" row below the list, floating buttons at the bottom left, a computers menu instead of

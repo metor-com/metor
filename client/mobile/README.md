@@ -38,8 +38,8 @@ The app connects to one computer at a time; the head of the bot list names it an
 leads to the overview of all known computers (`#/computers`, knowledge/design/several-computers.md):
 one row per computer with its unread count, a tap switches to it without a reload (`use(id)` in
 the bridge changes token and cookie, registers push there and answers with the computer's state);
-below the rows *Add new computer*; the ⋮ menu of the overview opens the Settings. Inside a
-computer the ⋮ menu renames or removes it. The overview asks every computer for its bot list when
+below the rows *Connect a computer…*; the ⋮ menu of the overview opens the Settings. Inside a
+computer the ⋮ menu renames or forgets it. The overview asks every computer for its bot list when
 it opens (`gateways({ probe: true })` in the bridge, which also keeps each list for the switch:
 the interface shows it the moment it switches; `fetch` carries the token of whichever known
 computer a URL belongs to; pictures once fetched stay as data URLs in sessionStorage for the

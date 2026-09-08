@@ -30,8 +30,8 @@
     const c = computers.find((x) => x.id === currentId); const name = prompt("Name of this computer", c?.name ?? computerName); if (name == null) return;
     try { await app.rename(currentId, name.trim()); await loadComputers(); } catch (e) { alert(e.message); }
   }
-  async function removeComputer() {
-    if (!confirm(`Remove "${computerName}" from this app? The app signs out of it; the computer and its bots stay as they are.`)) return;
+  async function forgetComputer() {
+    if (!confirm(`Forget "${computerName}"? The app signs out of it; the computer and its bots stay as they are.`)) return;
     try { await app.forget(currentId); } catch (e) { alert(e.message); }   // the app shows the connect screen
   }
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
@@ -73,7 +73,7 @@
           <div class="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
             {#if inApp}
               <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; renameComputer(); }}>Rename computer…</button>
-              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; removeComputer(); }}>Remove computer</button>
+              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; forgetComputer(); }}>Forget computer</button>
             {:else}
               <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
             {/if}

@@ -24,9 +24,9 @@ On a release the section is renamed to the version number and dated. Ideas and o
 
 - **Several bots' computers in the desktop and phone app**: the head of the bot list names the
   computer shown, and its back arrow leads to the overview of all connected computers with their
-  unread counts, like the mailboxes of a mail app - a tap opens that computer's bots, *Add new
-  computer* below the rows connects one more (so a phone can do that at all), and the ⋮ menu of
-  the overview opens the Settings. Inside a computer the ⋮ menu renames or removes it. The app
+  unread counts, like the mailboxes of a mail app - a tap opens that computer's bots, *Connect a
+  computer…* below the rows connects one more (so a phone can do that at all), and the ⋮ menu of
+  the overview opens the Settings. Inside a computer the ⋮ menu renames or forgets it. The app
   icon's badge counts across all computers, a notification opens the bot on the computer it came
   from, and the desktop app hears computers it is not showing. The round + for a new bot floats
   at the bottom right of the bot list. The views move like on a phone: overview, bot list and

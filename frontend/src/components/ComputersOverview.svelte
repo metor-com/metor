@@ -2,7 +2,7 @@
   // The overview of the bots' computers this app is connected to (knowledge/design/several-computers.md,
   // the mailbox pattern): the root screen behind the back arrow of the bot list. One row per computer
   // with its unread count, a tap opens that computer's bot list (the app loads its interface); below the
-  // rows "Add new computer" (the connect screen); the computer opened last is not marked – the overview
+  // rows "Connect a computer…" (the connect screen); the computer opened last is not marked – the overview
   // is the root, not a switch. The ⋮ menu at the top opens the Settings. Renaming
   // and removing a computer live in its own ⋮ menu (Sidebar.svelte). A browser never gets here.
   import { app, gateway } from "../lib/base.js";
@@ -65,7 +65,7 @@
         <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed border-zinc-300 text-zinc-400">
           <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
         </span>
-        <span class="text-[15px]">Add new computer</span>
+        <span class="text-[15px]">Connect a computer…</span>
       </button>
     </li>
   </ul>

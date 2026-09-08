@@ -17,7 +17,7 @@ Rule: code terms do not change when marketing renames things.
 
 | Term | UI | Code | Prompt | Meaning |
 |---|---|---|---|---|
-| **Computer** | "the bots' computer" (never "your computer"); inside a bot's view "the bot's computer" | `box` (`box/`, `METOR_BOX_*`) | "the box", "your own computer" | The one persistent Linux environment per user in which all bots run (a container under Docker or Apple's `container`; a VM later). Since it can run on the user's own Mac (2026-09-05), the interface always says whose computer it is – the possessive keeps it apart from the user's device |
+| **Computer** | "the bots' computer" (never "your computer"); inside a bot's view "the bot's computer" | `box` (`box/`, `METOR_BOX_*`) | "the box", "your own computer" | The one persistent Linux environment per user in which all bots run (a container under Docker or Apple's `container`; a VM later). Since it can run on the user's own Mac (2026-09-05), the interface always says whose computer it is – the possessive keeps it apart from the user's device. Bare "computer" is allowed only in the labels of the overview of computers and the menus below it ("Connect a computer…", "Rename computer…", "Forget computer"), where the heading "Your bots' computers" carries the possessive; "forget", never "remove", because the app only drops its connection (2026-09-08) |
 | **Desktop** | Desktop | `display`, `.desktop/` | "your desktop" | Screen + browser window of a bot on the shared computer |
 | **Workspace** | Files | `/workspace` | "the workspace" | Shared working directory of all bots |
 | **Bot directory** | — | `/workspace/bots/<name>/` | — | A bot's home: role file, `bot.json`, `.metor/` (state, histories), files |
