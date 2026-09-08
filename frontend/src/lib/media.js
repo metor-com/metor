@@ -12,10 +12,24 @@ import { openDocument } from "./session.js";
 
 const fetched = !!app?.fetchMedia;
 const cache = new Map();   // picture URL → promise of an object URL, kept for the session (the newest 300)
+// The pictures survive a reload of the interface (the switch to another computer) as data URLs in
+// sessionStorage, so the list that slides in and the page that follows show them at first paint
+const STORE = "metor:pictures", KEEP = 40, MAX_BYTES = 150_000;
+let stored = {}; try { stored = JSON.parse(sessionStorage.getItem(STORE) || "{}"); } catch {}
+for (const [u, d] of Object.entries(stored)) cache.set(u, Promise.resolve(d));
+function keep(url, blob) {
+  if (!fetched || blob.size > MAX_BYTES) return;
+  const r = new FileReader();
+  r.onload = () => {
+    stored[url] = r.result; const keys = Object.keys(stored); while (keys.length > KEEP) delete stored[keys.shift()];
+    try { sessionStorage.setItem(STORE, JSON.stringify(stored)); } catch { stored = { [url]: r.result }; try { sessionStorage.setItem(STORE, JSON.stringify(stored)); } catch {} }
+  };
+  r.readAsDataURL(blob);
+}
 function objectUrl(url) {
   let p = cache.get(url);
   if (!p) {
-    p = fetch(url).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((b) => URL.createObjectURL(b));
+    p = fetch(url).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((b) => { keep(url, b); return URL.createObjectURL(b); });
     cache.set(url, p);
     p.catch(() => cache.delete(url));   // the next render tries again
     if (cache.size > 300) { const [old, q] = cache.entries().next().value; cache.delete(old); q.then((o) => URL.revokeObjectURL(o)).catch(() => {}); }

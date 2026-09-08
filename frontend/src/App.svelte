@@ -12,11 +12,12 @@
   import ComputersOverview from "./components/ComputersOverview.svelte";
   import { app } from "./lib/base.js";
   import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect, refresh,
-    computers, computersOpen, connectOpen, openComputers, openConnect, closeView, shownDocument, closeDocument } from "./lib/session.js";
+    computers, computersOpen, connectOpen, openComputers, openConnect, closeView, shownDocument, closeDocument, preloadFor, sortAgents } from "./lib/session.js";
   import AvatarDialog from "./components/AvatarDialog.svelte";
   import { isDesktop } from "./lib/viewport.js";
   import { initPush } from "./lib/push.js";
   import { settings, ZOOM, update as updateSettings } from "./lib/settings.js";
+  import { swap, reducedMotion } from "./lib/transition.js";
 
   // The pane next to the chat: the bot's computer or its routines (one at a time), toggled from the
   // header. Settings → Behaviour decides whether a bot opens with the computer on desktop.
@@ -53,6 +54,22 @@
   // Native clients (knowledge/design/several-computers.md): the overview of the computers takes the sidebar's
   // place (#/computers); "Add new computer" shows the connect screen over the shell (#/connect…)
   const connectStep = () => (app?.local ? null : "remote");   // a phone cannot run a computer of its own: straight to "on a server"
+  // The views move like on a phone (lib/transition.js): overview → bot list → chat is forward, the way back
+  // is back. The level of the view shown decides the direction; on the desktop the chat stands still.
+  const level = (overview, bot, desktop) => (overview ? 0 : bot && !desktop ? 2 : 1);
+  let direction = "forward", prevLevel = level($computersOpen, $selected, $isDesktop);
+  $: { const l = level($computersOpen, $selected, $isDesktop); if (l !== prevLevel) { direction = l > prevLevel ? "forward" : "back"; prevLevel = l; } }
+  // Another computer: its bot list – known from the overview's probe – slides in as the overview leaves,
+  // then the interface loads anew and shows that same list at first paint (session.js takes it from the
+  // preload), so the switch reads as one movement
+  let switching = null;   // { name, agents } while the target's list stands in for the real one
+  function switchTo(c) {
+    preloadFor(c);
+    if (reducedMotion() || !c.agents) { app.use(c.id); return; }
+    switching = { name: c.short ?? c.name, agents: sortAgents(c.agents.map((a) => ({ ...a, origin: c.origin })), $settings) };   // the order the real list will have; pictures from that computer
+    closeView();
+    setTimeout(() => app.use(c.id), 320);
+  }
 </script>
 
 {#if needsConnect || $connectOpen}
@@ -64,16 +81,27 @@
      desktop (md:) shows both side by side as before. Installed as an app (viewport-fit=cover),
      the safe-area insets keep the header below the notch and the composer above the home indicator. -->
 <!-- Text size = CSS zoom on the shell; height and insets are divided by it so the shell still fills exactly the viewport -->
-<div class="flex overflow-hidden bg-zinc-100 font-sans text-[15px] text-zinc-900 antialiased"
+<div class="relative flex overflow-hidden bg-zinc-100 font-sans text-[15px] text-zinc-900 antialiased"
   style="zoom: {zoom}; height: calc(100dvh / {zoom}); padding-top: calc(env(safe-area-inset-top) / {zoom}); padding-bottom: calc(env(safe-area-inset-bottom) / {zoom}); padding-left: calc(env(safe-area-inset-left) / {zoom}); padding-right: calc(env(safe-area-inset-right) / {zoom})">
-  {#if $computersOpen}
-    <ComputersOverview hiddenOnMobile={!!$selected} onBack={closeView} onConnect={(step) => openConnect(step ?? connectStep())} />
-  {:else}
-    <Sidebar agents={$shown} selected={$selected} quota={$quota} hiddenOnMobile={!!$selected} onSelect={select} onCreated={created}
-      computers={$computers} onComputers={app ? openComputers : null} />
+  <!-- The column: the computers overview or the bot list; on a phone it makes room for the chat -->
+  {#if !$selected || $isDesktop}
+    <div class="relative flex w-full shrink-0 overflow-hidden bg-white md:w-72 md:border-r md:border-zinc-200"
+      in:swap={{ dir: direction, enabled: !$isDesktop }} out:swap={{ dir: direction, enabled: !$isDesktop, out: true }}>
+      {#if $computersOpen}
+        <div class="flex h-full w-full flex-col" in:swap={{ dir: direction }} out:swap={{ dir: direction, out: true }}>
+          <ComputersOverview onBack={closeView} onOpen={switchTo} onConnect={(step) => openConnect(step ?? connectStep())} />
+        </div>
+      {:else}
+        <div class="flex h-full w-full flex-col" in:swap={{ dir: direction }} out:swap={{ dir: direction, out: true }}>
+          <Sidebar agents={switching ? switching.agents : $shown} title={switching?.name ?? null} selected={$selected} quota={$quota} onSelect={select} onCreated={created}
+            computers={$computers} onComputers={app ? openComputers : null} />
+        </div>
+      {/if}
+    </div>
   {/if}
 
-  <main class="{$selected ? 'flex' : 'hidden md:flex'} min-w-0 flex-1 flex-col">
+  {#if $selected || $isDesktop}
+  <main class="flex min-w-0 flex-1 flex-col" in:swap={{ dir: direction, enabled: !$isDesktop }} out:swap={{ dir: direction, enabled: !$isDesktop, out: true }}>
     {#if $current}
       <Header agent={$current} {pane}
         onToggleComputer={() => toggle("computer")} onToggleRoutines={() => toggle("routines")} onBack={() => select(null)}
@@ -100,6 +128,7 @@
       </div>
     {/if}
   </main>
+  {/if}
 </div>
 {#if pictureOpen && $current}
   <AvatarDialog agent={$current} onDone={() => { pictureOpen = false; refresh(); }} />

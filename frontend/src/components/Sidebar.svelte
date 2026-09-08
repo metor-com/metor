@@ -15,7 +15,7 @@
   export let quota = null;
   export let onSelect;
   export let onCreated;
-  export let hiddenOnMobile = false;   // mobile: list OR chat (messenger pattern); desktop: always visible
+  export let title = null;             // App.svelte: another computer's name while its list slides in before the switch
   // Native clients (ADR-0015, knowledge/design/several-computers.md): the head names the computer shown,
   // centred next to a back arrow that leads to the overview of all computers; the ⋮ menu holds what
   // concerns this computer – rename, remove. A browser (one computer, no overview) shows the wordmark
@@ -24,7 +24,7 @@
   export let onComputers = null;
   const currentId = app?.gateway?.id ?? null;
   $: inApp = !!app && !!onComputers;
-  $: computerName = computers.find((c) => c.id === currentId)?.short ?? app?.gateway?.short ?? app?.gateway?.name ?? "metor";
+  $: computerName = title ?? computers.find((c) => c.id === currentId)?.short ?? app?.gateway?.short ?? app?.gateway?.name ?? "metor";
   let creating = false, showSettings = false, menuOpen = false;
   async function renameComputer() {
     const c = computers.find((x) => x.id === currentId); const name = prompt("Name of this computer", c?.name ?? computerName); if (name == null) return;
@@ -53,7 +53,7 @@
 </script>
 
 <svelte:window on:click={() => (menuOpen = false)} />
-<aside class="{hiddenOnMobile ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-white md:w-72 md:border-r md:border-zinc-200">
+<aside class="flex h-full w-full flex-col bg-white">
   <!-- Head: in an app the back arrow to the overview and the computer's name centred, in a browser the
        wordmark; at the right the ⋮ menu. The round + for a new bot floats bottom right over the list. -->
   <div class="{inApp ? 'grid grid-cols-[2.5rem_1fr_2.5rem]' : 'flex justify-between'} shrink-0 items-center gap-1 py-3 {inApp ? 'pl-2' : 'pl-4'} pr-3">

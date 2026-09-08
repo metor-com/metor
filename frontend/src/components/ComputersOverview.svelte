@@ -9,8 +9,8 @@
   import { computers, loadComputers } from "../lib/session.js";
   import Settings from "./Settings.svelte";
   export let onBack;                   // a tap on the computer shown: back to its bot list
+  export let onOpen;                   // (computer) → another computer: its list slides in, then the interface loads anew
   export let onConnect;                // (step) → the connect screen
-  export let hiddenOnMobile = false;
   const currentId = app?.gateway?.id ?? null;
   let probing = false, menuOpen = false, showSettings = false;
   // The stored list at once, then every computer asked for its bot list (unread count, does it answer)
@@ -20,13 +20,13 @@
   function open(c) {
     if (c.id === currentId) return onBack();
     if (!c.signedIn) { if (c.local && app?.local) { app.local.run("setup", c.id); return; } return onConnect("remote"); }
-    app.use(c.id);   // a computer that does not answer lands on the connect screen, which offers Try again (and Start for a local one)
+    onOpen(c);   // a computer that does not answer lands on the connect screen, which offers Try again (and Start for a local one)
   }
   const row = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left";
 </script>
 
 <svelte:window on:click={() => (menuOpen = false)} />
-<aside class="{hiddenOnMobile ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col bg-white md:w-72 md:border-r md:border-zinc-200">
+<aside class="flex h-full w-full flex-col bg-white">
   <div class="flex shrink-0 items-center justify-between gap-2 py-3 pl-4 pr-3">
     <span class="text-2xl font-bold tracking-tight text-zinc-900">metor</span>
     <div class="relative">

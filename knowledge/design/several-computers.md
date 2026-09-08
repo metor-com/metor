@@ -162,3 +162,15 @@ of the list. The connect screen keeps a list of the known computers, because the
 be reached from there. Tried and dropped on the way: an overview only with two or more computers,
 a "New bot" row below the list, floating buttons at the bottom left, a computers menu instead of
 the overview, and a "Manage computers" dialog with ordering.
+
+**Movement (2026-09-08).** The views slide as on a phone (`frontend/src/lib/transition.js`, a Svelte
+transition on transform and opacity only, reduced motion honoured): forward the arriving view comes
+in from the right over the leaving one, which moves a third to the left and dims; back the reverse.
+Opening another computer still reloads the interface, but its bot list – known from the overview's
+probe – slides in first and travels along in sessionStorage, so the new page shows it at first
+paint, in the order the settings ask for, and with the bots' pictures: the list that slides in
+names its computer, so the pictures come from there (the bridge adds that computer's token; the
+desktop's main process already does), and the phone app keeps fetched pictures as data URLs in
+sessionStorage across the reload. What remains of the reload is the app bundle's own load behind
+the animation. The warm switch without a reload stays a later refinement.
+

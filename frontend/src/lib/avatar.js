@@ -17,5 +17,7 @@ export function textOn(hex) {
   const n = parseInt(String(hex ?? "#000000").slice(1), 16); const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
   return 0.299 * r + 0.587 * g + 0.114 * b > 170 ? "#18181b" : "#ffffff";
 }
-export const imageUrl = (a) => (a?.avatarAt ? url(`/bots/api/agents/${a.name}/avatar?v=${a.avatarAt}`) : null);
+// A bot of another computer (its list slides in before a switch, App.svelte) names its origin, so the
+// picture comes from there – the same absolute URL the new page will build, which the cache then knows
+export const imageUrl = (a) => (a?.avatarAt ? (a.origin ? `${a.origin}/bots/api/agents/${a.name}/avatar?v=${a.avatarAt}` : url(`/bots/api/agents/${a.name}/avatar?v=${a.avatarAt}`)) : null);
 export const lookOf = (a) => ({ initials: a?.avatar?.initials || initialsOf(a?.title ?? a?.name) || "?", color: a?.avatar?.color || colorFor(a?.name ?? a?.title) });

@@ -37,17 +37,19 @@ function secretOf(id) { if (!id) return null; if (!secrets.has(id)) { const c = 
 const computer = (id) => load().computers.find((c) => c.id === id) ?? null;
 // The session is gone (401 from the computer): keep the entry, drop the secret
 function dropSecret(id) { const c = computer(id); if (c?.secret) { delete c.secret; secrets.set(id, null); save(); } }
-// What the app has learned about a computer: the unread total (the overview's badge) and whether it answers
-const status = new Map();   // id → { unread, reachable }
+// What the app has learned about a computer: the unread total (the overview's badge), whether it answers,
+// and its last bot list (the interface shows it at first paint after a switch)
+const status = new Map();   // id → { unread, reachable, agents }
 const unreadOf = (list) => list.reduce((n, a) => n + (Number(a.unread) || 0), 0);
 function setStatus(id, patch) {
-  const before = status.get(id) ?? { unread: null, reachable: null }, after = { ...before, ...patch };
-  if (before.unread === after.unread && before.reachable === after.reachable) return;
+  const before = status.get(id) ?? { unread: null, reachable: null, agents: null }, after = { ...before, ...patch };
+  if (before.unread === after.unread && before.reachable === after.reachable && before.agents === after.agents) return;
   status.set(id, after); broadcast("metor:computers", load().computers.map(publicInfo));
 }
 // `short` is the name where the context already says "bots' computer" (the overview, the head of the bot list): "This Mac"
 const publicInfo = (c) => (c ? { id: c.id, name: c.label || (isLocal(c.origin) ? nameFor(c.origin) : c.name), short: c.label || (isLocal(c.origin) ? shortFor(c.origin) : c.name),
-  origin: c.origin, version: c.version ?? null, signedIn: !!secretOf(c.id), local: isLocal(c.origin), unread: status.get(c.id)?.unread ?? null, reachable: status.get(c.id)?.reachable ?? null } : null);
+  origin: c.origin, version: c.version ?? null, signedIn: !!secretOf(c.id), local: isLocal(c.origin), unread: status.get(c.id)?.unread ?? null, reachable: status.get(c.id)?.reachable ?? null,
+  agents: status.get(c.id)?.agents ?? null } : null);
 // Which computer a request goes to – WebSocket URLs (ws:, wss:) belong to the http(s) origin they came from
 function computerForUrl(u) {
   try { const x = new URL(u), secure = x.protocol === "https:" || x.protocol === "wss:"; return load().computers.find((c) => { const o = new URL(c.origin); return o.host === x.host && (o.protocol === "https:") === secure; }) ?? null; }
@@ -113,7 +115,7 @@ async function probe(c) {
   try {
     const r = await fetchJson(`${c.origin}/bots/api/agents`, { headers: { authorization: `Bearer ${s}` } }, 5000);
     if (r.status === 401) { dropSecret(c.id); refreshMenus(); return setStatus(c.id, { unread: null, reachable: true }); }
-    setStatus(c.id, r.ok && Array.isArray(r.data) ? { unread: unreadOf(r.data), reachable: true } : { reachable: r.ok });
+    setStatus(c.id, r.ok && Array.isArray(r.data) ? { unread: unreadOf(r.data), reachable: true, agents: r.data } : { reachable: r.ok });
   } catch { setStatus(c.id, { reachable: false }); }
 }
 
@@ -143,7 +145,7 @@ async function watch(id, topics) {
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
       backoff = 2000; setStatus(id, { reachable: true });
       await readEvents(res.body, ac.signal, (event, data) => {
-        if (event === "agents") { try { setStatus(id, { unread: unreadOf(JSON.parse(data)), reachable: true }); } catch {} }
+        if (event === "agents") { try { const list = JSON.parse(data); setStatus(id, { unread: unreadOf(list), reachable: true, agents: list }); } catch {} }
         else if (event === "notify") { try { notifyFrom(id, JSON.parse(data)); } catch {} }
       });
     } catch {}

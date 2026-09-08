@@ -25,7 +25,9 @@ with its unread count, a tap loads that computer's interface; below the rows *Ad
 renames it (a name kept in the app) or removes it (the app signs out of it). The main process
 keeps an event stream to every signed-in computer: the counts stay live, and a computer no window
 shows still gets heard – its notifications carry its name, a click brings the bot to the front in
-the focused window (or the window that shows that computer).
+the focused window (or the window that shows that computer). `gateways()` carries each computer's last bot
+list (`agents`), which the interface hands to the new page through sessionStorage when it
+switches, so the list is there at first paint.
 
 ## Development
 

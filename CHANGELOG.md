@@ -29,7 +29,10 @@ On a release the section is renamed to the version number and dated. Ideas and o
   the overview opens the Settings. Inside a computer the ⋮ menu renames or removes it. The app
   icon's badge counts across all computers, a notification opens the bot on the computer it came
   from, and the desktop app hears computers it is not showing. The round + for a new bot floats
-  at the bottom right of the bot list.
+  at the bottom right of the bot list. The views move like on a phone: overview, bot list and
+  chat slide in from the right and back out to the right; when you open another computer its
+  bot list slides in right away, pictures included, and is already there when the interface has
+  loaded anew.
 
 - **GitHub Copilot as a fourth runtime**: bots on the Copilot CLI with your GitHub Copilot
   subscription (any plan, Free included) - sign in from the create dialog with GitHub's device

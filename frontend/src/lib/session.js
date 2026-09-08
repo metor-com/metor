@@ -20,7 +20,16 @@ const parseHash = () => {
 };
 const readHash = () => { const h = parseHash(); return h.bot === undefined ? null : h.bot; };
 
-export const agents = writable([]);
+// Switching to another computer loads the interface anew; the bot list the overview already knows
+// (its probe) travels along in sessionStorage, so the new page shows it at first paint and the stream
+// replaces it a moment later – no empty list between the two views (App.svelte switchTo)
+const PRELOAD = "metor:preload";
+export function preloadFor(c) { try { sessionStorage.setItem(PRELOAD, JSON.stringify({ id: c.id, at: Date.now(), agents: c.agents ?? null })); } catch {} }
+function preloaded() {
+  try { const p = JSON.parse(sessionStorage.getItem(PRELOAD) || "null"); sessionStorage.removeItem(PRELOAD);
+    return p && p.id === app?.gateway?.id && Date.now() - p.at < 30_000 && Array.isArray(p.agents) ? p.agents : []; } catch { return []; }
+}
+export const agents = writable(preloaded());
 export const pending = writable([]);          // just-created bots, until the agents event delivers them
 export const selected = writable(readHash());
 export const computersOpen = writable(parseHash().computers);   // the overview of the computers instead of the bot list
@@ -51,11 +60,10 @@ export function closeDocument() { shownDocument.set(null); }
 export const entries = writable([]);          // chat history of the selected bot, patches folded in
 export const partial = writable(null);        // streaming text of the running answer
 
-export const shown = derived([agents, pending, settings], ([a, p, s]) => {
-  const list = [...a, ...p.filter((x) => !a.some((y) => y.name === x.name))];
-  // Messenger order (Settings → Behaviour): newest chat activity first; otherwise the gateway's alphabetical order
-  return s.sortByActivity ? [...list].sort((x, y) => (y.lastActivityAt ?? 0) - (x.lastActivityAt ?? 0) || x.name.localeCompare(y.name)) : list;
-});
+// Messenger order (Settings → Behaviour): newest chat activity first; otherwise the gateway's alphabetical
+// order. Also for another computer's list that slides in before a switch (App.svelte), so nothing jumps
+export const sortAgents = (list, s) => (s.sortByActivity ? [...list].sort((x, y) => (y.lastActivityAt ?? 0) - (x.lastActivityAt ?? 0) || x.name.localeCompare(y.name)) : list);
+export const shown = derived([agents, pending, settings], ([a, p, s]) => sortAgents([...a, ...p.filter((x) => !a.some((y) => y.name === x.name))], s));
 export const current = derived([shown, selected], ([s, n]) => s.find((a) => a.name === n) ?? null);
 export const quota = derived(shown, (s) => s.find((a) => a.quota)?.quota ?? null);   // identical account-wide – the first value is enough
 
