@@ -5,13 +5,13 @@
   // rows "Add new computer" (the connect screen); the computer opened last is not marked – the overview
   // is the root, not a switch. The ⋮ menu at the top opens the Settings. Renaming
   // and removing a computer live in its own ⋮ menu (Sidebar.svelte). A browser never gets here.
-  import { app } from "../lib/base.js";
+  import { app, gateway } from "../lib/base.js";
   import { computers, loadComputers } from "../lib/session.js";
   import Settings from "./Settings.svelte";
   export let onBack;                   // a tap on the computer shown: back to its bot list
   export let onOpen;                   // (computer) → another computer: its list slides in, then the interface loads anew
   export let onConnect;                // (step) → the connect screen
-  const currentId = app?.gateway?.id ?? null;
+  $: currentId = $gateway?.id ?? null;   // follows a warm switch
   let probing = false, menuOpen = false, showSettings = false;
   // The stored list at once, then every computer asked for its bot list (unread count, does it answer)
   async function probe() { probing = true; await loadComputers({ probe: true }); probing = false; }

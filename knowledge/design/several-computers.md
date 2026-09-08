@@ -170,7 +170,16 @@ Opening another computer still reloads the interface, but its bot list – known
 probe – slides in first and travels along in sessionStorage, so the new page shows it at first
 paint, in the order the settings ask for, and with the bots' pictures: the list that slides in
 names its computer, so the pictures come from there (the bridge adds that computer's token; the
-desktop's main process already does), and the phone app keeps fetched pictures as data URLs in
-sessionStorage across the reload. What remains of the reload is the app bundle's own load behind
-the animation. The warm switch without a reload stays a later refinement.
+desktop's main process already does).
+
+**The warm switch (2026-09-08).** Opening another computer no longer reloads the interface: the
+app's `use(id)` changes its token and cookie (and registers push there) and answers with the
+computer's state; `base.js` keeps the origin as a live binding and the gateway as a store, the
+API reads the origin per request, and `switchComputer` in `session.js` starts the stores over,
+moves the event stream and fills the sidebar with the list the overview already knows. The shell
+follows the gateway store, so a computer that is signed out or silent lands on the connect
+screen. A notification from another computer switches the same way before it opens the bot.
+The desktop's `metor:use` marks the window instead of loading it; a window that shows the
+computer already comes to the front and the answer is null. What still reloads: sign-out,
+forgetting the computer shown, and a notification click that moves a desktop window.
 

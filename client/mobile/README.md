@@ -36,13 +36,14 @@ the app: a file goes to the system viewer as described above, which has share an
 
 The app connects to one computer at a time; the head of the bot list names it and its back arrow
 leads to the overview of all known computers (`#/computers`, knowledge/design/several-computers.md):
-one row per computer with its unread count, a tap switches to it (the interface loads anew);
+one row per computer with its unread count, a tap switches to it without a reload (`use(id)` in
+the bridge changes token and cookie, registers push there and answers with the computer's state);
 below the rows *Add new computer*; the ⋮ menu of the overview opens the Settings. Inside a
 computer the ⋮ menu renames or removes it. The overview asks every computer for its bot list when
 it opens (`gateways({ probe: true })` in the bridge, which also keeps each list for the switch:
-the interface shows it at first paint after the reload, with the pictures it fetched kept as data
-URLs in sessionStorage; `fetch` carries the token of whichever known computer a URL belongs to),
-the app once at start. The app icon's badge
+the interface shows it the moment it switches; `fetch` carries the token of whichever known
+computer a URL belongs to; pictures once fetched stay as data URLs in sessionStorage for the
+reloads that remain, sign-out and forget), the app once at start. The app icon's badge
 is the sum over all computers: the native side keeps the last count per computer (iOS: the
 keychain group the extension shares, `PushBadges`; Android: the wrapped preferences), the bridge
 writes the connected computer's count from every bot list, the extension and the messaging

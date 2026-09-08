@@ -5,11 +5,13 @@
   // (knowledge/design/mac-install.md): none known → set it up; exactly one → open it (start or re-link
   // first when needed); several → the overview. Remote: the address and a setup link, pairing link or
   // pairing code (ADR-0012). The known computers are listed below the form (Computers.svelte).
-  import { app } from "../lib/base.js";
+  import { get } from "svelte/store";
+  import { app, gateway } from "../lib/base.js";
+  import { switchComputer } from "../lib/session.js";   // opens a computer without a reload; the shell follows
   import Computers from "./Computers.svelte";   // the known computers: open another one, sign in again, forget
   export let adding = false;          // from the shell: connect another computer (the current one is fine)
   export let onDone = null;           // adding: back to the shell
-  const g = adding ? null : (app?.gateway ?? null);
+  const g = adding ? null : (get(gateway) ?? null);
   const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(origin ?? "");
   const machine = app?.platform === "darwin" ? "this Mac" : "this machine";
   const RUNTIME = { container: "Apple's container runtime", docker: "Docker" };
@@ -64,7 +66,7 @@
     if (!target) return;                                            // several → the overview
     if (!target.signedIn) return run("setup", target.id);           // known but signed out → link again
     if (unreachable || local.state === "stopped") return run("up", target.id);   // stopped → start, the app opens it
-    app.use(target.id);                                             // running → open
+    switchComputer({ id: target.id });                              // running → open
   }
   $: if (step === "local") enterLocal();
   const DOING = { setup: `Setting up the bots' computer on ${machine}…`, up: `Starting the bots' computer on ${machine}…`, down: "Stopping…" };
@@ -132,7 +134,7 @@
         <div class="mt-4 flex flex-wrap gap-2">
           {#if local.state === "stopped"}<button type="button" class={primary} on:click={() => run("up", g?.id)}>Start it</button>{/if}
           {#if g && !g.signedIn}<button type="button" class={primary} on:click={() => run("setup", g.id)}>Connect again</button>
-          {:else if g && local.state === "running"}<button type="button" class={primary} on:click={() => app.use(g.id)}>Open it</button>{/if}
+          {:else if g && local.state === "running"}<button type="button" class={primary} on:click={() => switchComputer({ id: g.id })}>Open it</button>{/if}
           {#if !g && locals().length === 1}<button type="button" class={primary} on:click={() => { acted = false; enterLocal(); }}>Open it</button>{/if}
         </div>
       {/if}
@@ -153,7 +155,7 @@
       {#if unreachable}
         <div class="mt-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
           <div>The bots' computer at <code class="font-mono">{g.origin}</code> does not answer. It is down, or {machine} cannot reach it right now.</div>
-          <button type="button" class="self-start rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={() => app.use(g.id)}>Try again</button>
+          <button type="button" class="self-start rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs hover:bg-amber-100" on:click={() => switchComputer({ id: g.id })}>Try again</button>
         </div>
       {:else if signedOut}
         <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">This app was signed out of <code class="font-mono">{g.origin}</code>. Link it again with a pairing code or a setup link.</p>

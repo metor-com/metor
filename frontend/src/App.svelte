@@ -1,7 +1,6 @@
 <script>
   // App shell: layout and view state only. Data (bot list, selection, live connection, chat
   // entries) lives in lib/session.js; the header, chat, computer panel and routines are components.
-  import { onMount } from "svelte";
   import Sidebar from "./components/Sidebar.svelte";
   import Header from "./components/Header.svelte";
   import RoutinesPanel from "./components/RoutinesPanel.svelte";
@@ -10,9 +9,9 @@
   import Connect from "./components/Connect.svelte";
   import DocumentPanel from "./components/DocumentPanel.svelte";
   import ComputersOverview from "./components/ComputersOverview.svelte";
-  import { app } from "./lib/base.js";
+  import { app, gateway } from "./lib/base.js";
   import { shown, current, quota, selected, entries, partial, select, created, applyEntry, act, remove, interrupt, connect, refresh,
-    computers, computersOpen, connectOpen, openComputers, openConnect, closeView, shownDocument, closeDocument, preloadFor, sortAgents } from "./lib/session.js";
+    computers, computersOpen, connectOpen, openComputers, openConnect, closeView, shownDocument, closeDocument, switchComputer, disconnect, sortAgents } from "./lib/session.js";
   import AvatarDialog from "./components/AvatarDialog.svelte";
   import { isDesktop } from "./lib/viewport.js";
   import { initPush } from "./lib/push.js";
@@ -48,9 +47,11 @@
     if (action === "rm" && !confirm(`Really remove bot "${$current?.title ?? $selected}"? Its directory and history will be deleted.`)) return;
     try { await (action === "rm" ? remove() : act(action)); } catch (e) { alert(e.message); }
   }
-  // Desktop app (ADR-0015) without a computer, or signed out of it: the connect screen instead of the shell
-  const needsConnect = !!app && (!app.gateway?.signedIn || app.gateway.reachable === false);
-  onMount(() => { if (needsConnect) return; initPush(); return connect(); });
+  // Desktop app (ADR-0015) without a computer, or signed out of it: the connect screen instead of the shell.
+  // Follows the gateway store, because a warm switch can land on a computer that is signed out or silent.
+  $: needsConnect = !!app && (!$gateway?.signedIn || $gateway.reachable === false);
+  let pushReady = false;
+  $: if (needsConnect) disconnect(); else { if (!pushReady) { pushReady = true; initPush(); } connect(); }
   // Native clients (knowledge/design/several-computers.md): the overview of the computers takes the sidebar's
   // place (#/computers); "Add new computer" shows the connect screen over the shell (#/connect…)
   const connectStep = () => (app?.local ? null : "remote");   // a phone cannot run a computer of its own: straight to "on a server"
@@ -59,21 +60,23 @@
   const level = (overview, bot, desktop) => (overview ? 0 : bot && !desktop ? 2 : 1);
   let direction = "forward", prevLevel = level($computersOpen, $selected, $isDesktop);
   $: { const l = level($computersOpen, $selected, $isDesktop); if (l !== prevLevel) { direction = l > prevLevel ? "forward" : "back"; prevLevel = l; } }
-  // Another computer: its bot list – known from the overview's probe – slides in as the overview leaves,
-  // then the interface loads anew and shows that same list at first paint (session.js takes it from the
-  // preload), so the switch reads as one movement
+  // Another computer: its bot list – known from the overview's probe, in the order the settings ask for,
+  // with its pictures from that computer – slides in as the overview leaves; once it has arrived the app
+  // switches without a reload (session.js switchComputer) and the same list becomes the real one
   let switching = null;   // { name, agents } while the target's list stands in for the real one
-  function switchTo(c) {
-    preloadFor(c);
-    if (reducedMotion() || !c.agents) { app.use(c.id); return; }
-    switching = { name: c.short ?? c.name, agents: sortAgents(c.agents.map((a) => ({ ...a, origin: c.origin })), $settings) };   // the order the real list will have; pictures from that computer
+  async function switchTo(c) {
+    const list = sortAgents((c.agents ?? []).map((a) => ({ ...a, origin: c.origin })), $settings);
+    if (reducedMotion() || !c.agents) { await switchComputer(c, list); return; }
+    switching = { name: c.short ?? c.name, agents: list };
     closeView();
-    setTimeout(() => app.use(c.id), 320);
+    await new Promise((r) => setTimeout(r, 320));
+    await switchComputer(c, list);
+    switching = null;
   }
 </script>
 
 {#if needsConnect || $connectOpen}
-  <Connect adding={$connectOpen && !needsConnect} onDone={closeView} />
+  {#key $gateway?.id}<Connect adding={$connectOpen && !needsConnect} onDone={closeView} />{/key}
 {:else}
 
 <!-- Fixed app shell: the page itself NEVER scrolls (no horizontal drifting of the sidebar).

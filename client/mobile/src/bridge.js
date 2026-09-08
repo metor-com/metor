@@ -203,15 +203,13 @@ function badgeFromAgents(text) {
 }
 
 // ---------- Notifications while the app is open (the gateway's notify events); push comes later, with the relay ----------
-// A tap names the bot and, from a push, the computer it came from: another computer than the one shown
-// means switching first – the interface loads anew, so the bot to open waits in sessionStorage
-const OPEN_KEY = "metor:open";
-let openBotCallback = null, pendingBot = sessionStorage.getItem(OPEN_KEY) || null, notifyId = 1;
-sessionStorage.removeItem(OPEN_KEY);
+// A tap names the bot and, from a push, the computer it came from; the interface switches to that computer
+// first when it is another one (session.js openBotFrom, a warm switch without a reload)
+let openBotCallback = null, pendingBot = null, notifyId = 1;
 const openBot = (bot, computerId = null) => {
   if (!bot) return;
-  if (computerId && computerId !== db.current && computer(computerId)?.secret) { sessionStorage.setItem(OPEN_KEY, bot); use(computerId); return; }
-  if (openBotCallback) openBotCallback(bot); else pendingBot = bot;
+  const open = { bot, computer: computerId && computer(computerId)?.secret ? computerId : null };
+  if (openBotCallback) openBotCallback(open.bot, open.computer); else pendingBot = open;
 };
 let pushEndpoint = null;   // the subscription registered with the current computer, null without native push
 let pushState = { state: "off", error: null };   // what the settings card shows: on | off | denied | unavailable
@@ -349,7 +347,15 @@ try {
 const c = current();
 if (c?.secret) await setSessionCookie(c);
 const reach = c?.secret ? await reachable(c.origin) : undefined;
-async function use(id) { if (!computer(id)) return; db.current = id; await save(); await setSessionCookie(computer(id)); reload(); }
+// The warm switch: this computer's token and cookie from now on, push registered there, its state back to
+// the interface – which carries on without a reload (session.js switchComputer)
+async function use(id) {
+  const c = computer(id); if (!c) return null;
+  db.current = id; await save(); await setSessionCookie(c);
+  const reach = c.secret ? await reachable(c.origin) : undefined;
+  if (c.secret && reach && db.pushEnabled !== false) registerPush(c);
+  return publicInfo(c, reach === undefined ? {} : { reachable: reach });
+}
 window.metor = {
   platform, version: VERSION,
   gateway: publicInfo(c, reach === undefined ? {} : { reachable: reach }),
@@ -364,7 +370,7 @@ window.metor = {
   fetchMedia: true,   // pictures cannot be loaded by the WebView itself – the interface fetches them (frontend/src/lib/media.js)
   openFile,
   push: { state: async () => { if (pushInFlight) await pushInFlight; return pushState; }, enable: enablePush, disable: disablePush },
-  onOpenBot: (cb) => { openBotCallback = cb; if (pendingBot) { const b = pendingBot; pendingBot = null; cb(b); } },
+  onOpenBot: (cb) => { openBotCallback = cb; if (pendingBot) { const b = pendingBot; pendingBot = null; cb(b.bot, b.computer); } },
 };
 // Now the interface: base.js reads window.metor when its module is evaluated
 const entry = document.querySelector("script[data-entry]")?.dataset.entry;

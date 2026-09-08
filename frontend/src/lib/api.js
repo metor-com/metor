@@ -1,12 +1,12 @@
 // One JSON endpoint per method; events arrive separately via the SSE stream (events.js).
 import { app, origin, url, signedOut } from "./base.js";
-const base = url("/bots/api");
+const base = () => url("/bots/api");   // per call: the computer can change without a reload (base.js)
 
 const unreachable = () => new Error(app ? `The bots' computer at ${origin} does not answer – is it running?` : "The bots' computer does not answer – check the connection.");
 async function req(method, path, body) {
   let r;
   try {
-    r = await fetch(base + path, {
+    r = await fetch(base() + path, {
       method,
       headers: body ? { "content-type": "application/json" } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -44,7 +44,7 @@ export const watchUrl = (name) => req("GET", `/agents/${name}/watch-url`);
 export const chatSend = (name, text, sendId, attachments) => req("POST", `/agents/${name}/chat/send`, { text, sendId, ...(attachments?.length ? { attachments } : {}) });
 export async function uploadFile(name, file) {
   let r;
-  try { r = await fetch(`${base}/agents/${name}/chat/upload?filename=${encodeURIComponent(file.name || "image.png")}`, { method: "POST", body: file }); }
+  try { r = await fetch(`${base()}/agents/${name}/chat/upload?filename=${encodeURIComponent(file.name || "image.png")}`, { method: "POST", body: file }); }
   catch { throw unreachable(); }
   const data = await r.json().catch(() => null);
   if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
@@ -53,13 +53,13 @@ export async function uploadFile(name, file) {
 // The bot's picture: initials and colour (PUT), an uploaded image (POST) or back to initials (DELETE)
 export const setAvatar = (name, avatar) => req("PUT", `/agents/${name}/avatar`, avatar);
 export async function uploadAvatar(name, file) {
-  let r; try { r = await fetch(`${base}/agents/${name}/avatar`, { method: "POST", headers: { "content-type": file.type }, body: file }); } catch { throw unreachable(); }
+  let r; try { r = await fetch(`${base()}/agents/${name}/avatar`, { method: "POST", headers: { "content-type": file.type }, body: file }); } catch { throw unreachable(); }
   const data = await r.json().catch(() => null);
   if (!r.ok) throw new Error(data?.error ?? `HTTP ${r.status}`);
   return data;
 }
 export const resetAvatar = (name) => req("DELETE", `/agents/${name}/avatar`);
-export const fileUrl = (name, path) => `${base}/agents/${name}/chat/file?path=${encodeURIComponent(path)}`;
+export const fileUrl = (name, path) => `${base()}/agents/${name}/chat/file?path=${encodeURIComponent(path)}`;
 export const listFiles = (name, path = "") => req("GET", `/agents/${name}/files?path=${encodeURIComponent(path)}`);
 export const chatPermission = (name, ref, decision) => req("POST", `/agents/${name}/chat/permission`, { ref, decision });
 export const listRoutines = (name) => req("GET", `/agents/${name}/routines`);

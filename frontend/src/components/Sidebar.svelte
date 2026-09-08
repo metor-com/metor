@@ -8,7 +8,7 @@
   import Settings from "./Settings.svelte";
   import { settings } from "../lib/settings.js";
   import { whenLabel } from "../lib/when.js";
-  import { app } from "../lib/base.js";
+  import { app, gateway } from "../lib/base.js";
   import { loadComputers } from "../lib/session.js";
   export let agents = [];
   export let selected = null;
@@ -22,9 +22,9 @@
   // and a ⋮ menu with Settings.
   export let computers = [];
   export let onComputers = null;
-  const currentId = app?.gateway?.id ?? null;
+  $: currentId = $gateway?.id ?? null;   // follows a warm switch
   $: inApp = !!app && !!onComputers;
-  $: computerName = title ?? computers.find((c) => c.id === currentId)?.short ?? app?.gateway?.short ?? app?.gateway?.name ?? "metor";
+  $: computerName = title ?? computers.find((c) => c.id === currentId)?.short ?? $gateway?.short ?? $gateway?.name ?? "metor";
   let creating = false, showSettings = false, menuOpen = false;
   async function renameComputer() {
     const c = computers.find((x) => x.id === currentId); const name = prompt("Name of this computer", c?.name ?? computerName); if (name == null) return;
@@ -114,7 +114,7 @@
     {#if !agents.length}<li class="p-3 text-sm text-zinc-400">no bots yet</li>{/if}
   </ul>
   <!-- New bot: a floating button, bottom right over the list (the list keeps room below its last row) -->
-  <button type="button" class="absolute bottom-3 right-3 flex size-12 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg hover:bg-zinc-700" aria-label="New bot" title="New bot" on:click={() => (creating = true)}>
+  <button type="button" class="fab absolute bottom-3 right-3 flex size-12 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg hover:bg-zinc-700" aria-label="New bot" title="New bot" on:click={() => (creating = true)}>
     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
   </button>
   </div>

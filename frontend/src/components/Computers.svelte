@@ -3,11 +3,11 @@
   // screen – where the overview cannot be reached: one row per computer with its state and unread
   // count. A tap opens it (the app loads its interface); the row's actions rename it, start or stop the
   // one on this machine, or forget it. A browser never gets here – it is served by one computer.
-  import { app } from "../lib/base.js";
-  import { computers, loadComputers } from "../lib/session.js";
+  import { app, gateway } from "../lib/base.js";
+  import { computers, loadComputers, switchComputer } from "../lib/session.js";
   export let onDone = null;            // a tap on the computer shown already (the dialog closes)
   export let onConnect = null;         // sign in again to a computer the app was signed out of
-  const currentId = app?.gateway?.id ?? null;
+  $: currentId = $gateway?.id ?? null;   // follows a warm switch
   let probing = false, menuFor = null, error = null, local = null, busy = null;
   // The stored list at once, then every computer asked for its bot list (unread count, does it answer)
   async function probe() { probing = true; await loadComputers({ probe: true }); probing = false; }
@@ -26,7 +26,7 @@
     if (c.id === currentId && onDone) return onDone();
     if (!c.signedIn) { if (c.local && app?.local) return run("setup", c.id); return onConnect?.("remote", c.origin); }
     if (stopped(c)) return run("up", c.id);
-    app.use(c.id);
+    switchComputer({ id: c.id });   // no reload: the shell follows the gateway store
   }
   async function run(action, id) {
     busy = action; error = null;

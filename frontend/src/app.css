@@ -22,3 +22,9 @@
 .chat-md :where(a) {
   @apply text-zinc-900 underline;
 }
+
+/* A floating button dips away as its view leaves (lib/transition.js marks the view): it sits at the edge
+   the arriving view covers first and would otherwise vanish under it in the first frames */
+.fab { transition: opacity 120ms ease-out, transform 120ms ease-out; }
+.view-leaving .fab { opacity: 0; transform: scale(0.8); }
+

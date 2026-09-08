@@ -5,7 +5,7 @@ import { writable, derived, get } from "svelte/store";
 import { listAgents, chatHistory, agentAction, chatInterrupt, chatRead, fileUrl } from "./api.js";
 import { openEvents } from "./events.js";
 import { settings } from "./settings.js";
-import { app } from "./base.js";
+import { app, gateway, setGateway } from "./base.js";
 
 // The hash: `#/<bot>` is the selected bot, `#/computers` the overview of the connected computers
 // (native clients with several of them, knowledge/design/several-computers.md), `#/connect…` the
@@ -20,16 +20,7 @@ const parseHash = () => {
 };
 const readHash = () => { const h = parseHash(); return h.bot === undefined ? null : h.bot; };
 
-// Switching to another computer loads the interface anew; the bot list the overview already knows
-// (its probe) travels along in sessionStorage, so the new page shows it at first paint and the stream
-// replaces it a moment later – no empty list between the two views (App.svelte switchTo)
-const PRELOAD = "metor:preload";
-export function preloadFor(c) { try { sessionStorage.setItem(PRELOAD, JSON.stringify({ id: c.id, at: Date.now(), agents: c.agents ?? null })); } catch {} }
-function preloaded() {
-  try { const p = JSON.parse(sessionStorage.getItem(PRELOAD) || "null"); sessionStorage.removeItem(PRELOAD);
-    return p && p.id === app?.gateway?.id && Date.now() - p.at < 30_000 && Array.isArray(p.agents) ? p.agents : []; } catch { return []; }
-}
-export const agents = writable(preloaded());
+export const agents = writable([]);
 export const pending = writable([]);          // just-created bots, until the agents event delivers them
 export const selected = writable(readHash());
 export const computersOpen = writable(parseHash().computers);   // the overview of the computers instead of the bot list
@@ -67,7 +58,7 @@ export const shown = derived([agents, pending, settings], ([a, p, s]) => sortAge
 export const current = derived([shown, selected], ([s, n]) => s.find((a) => a.name === n) ?? null);
 export const quota = derived(shown, (s) => s.find((a) => a.quota)?.quota ?? null);   // identical account-wide – the first value is enough
 
-let closeEvents = null, inBackground = false;
+let closeEvents = null, inBackground = false, running = false;
 
 export async function refresh() { try { agents.set(await listAgents()); } catch {} }
 async function loadHistory(name) {
@@ -132,8 +123,35 @@ export const act = (action) => agentAction(get(selected), action);   // start | 
 export async function remove() { await agentAction(get(selected), "rm"); select(null); }
 export const interrupt = () => chatInterrupt(get(selected));
 
+// The warm switch to another computer (native clients): the app changes its token and cookie and answers
+// with the computer's state, no reload; here the stores start over, the stream moves, and the list the
+// overview already knows (its probe) fills the sidebar at once. `null` from the app means another window
+// shows that computer already (desktop) – then nothing changes here.
+export async function switchComputer(c, list = null) {
+  const info = await app.use(c.id);
+  if (!info) return false;
+  closeEvents?.(); closeEvents = null;
+  selected.set(null); entries.set([]); partial.set(null); pending.set([]); shownDocument.set(null);
+  agents.set(Array.isArray(list) ? list : []);
+  history.replaceState(null, "", location.pathname + location.search);
+  computersOpen.set(false); connectOpen.set(false);
+  setGateway(info);   // the shell follows: the bot list, or the connect screen for a computer that is signed out or silent
+  if (running && info.signedIn && info.reachable !== false) { refresh(); reconnect(); }
+  loadComputers();
+  return true;
+}
+// A tap on a native notification: the bot, and the computer it came from – another one is switched to first
+async function openBotFrom(bot, computerId = null) {
+  if (!bot) return;
+  if (computerId && computerId !== get(gateway)?.id) { if (!(await switchComputer({ id: computerId }))) return; }
+  if (bot !== get(selected)) select(bot);
+}
+let stop = null;
+export function disconnect() { stop?.(); stop = null; }
 // Start the live connection and follow the hash (back gesture/button on mobile); returns the stop function
 export function connect() {
+  if (running) return stop;
+  running = true;
   refresh(); reconnect(); const n = get(selected); if (n) loadHistory(n);
   loadComputers(app?.onComputers ? null : { probe: true });   // the desktop's own watch keeps the counts; a phone asks once at start
   openDocumentFromHash(parseHash());
@@ -150,6 +168,7 @@ export function connect() {
     else { if (!closeEvents || inBackground) reconnect(); markRead(get(selected)); }
   };
   document.addEventListener("visibilitychange", onVisibility);
-  app?.onOpenBot((bot) => { if (bot && bot !== get(selected)) select(bot); });   // a tap on a native notification
-  return () => { closeEvents?.(); closeEvents = null; window.removeEventListener("hashchange", onHash); document.removeEventListener("visibilitychange", onVisibility); };
+  app?.onOpenBot((bot, computerId) => { openBotFrom(bot, computerId); });
+  stop = () => { running = false; closeEvents?.(); closeEvents = null; window.removeEventListener("hashchange", onHash); document.removeEventListener("visibilitychange", onVisibility); };
+  return stop;
 }
