@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Paste text from your computer into the bot’s screen using Cmd+V/Ctrl+V or the Paste button, with a manual text field when clipboard access is unavailable.
+
 - The embedded Screen adapts its resolution to the panel after resizing. A per-device switch in Settings → Behaviour enables or disables this (on by default). Changes wait until the bot finishes its turn; the browser keeps its tabs and fills the resized desktop.
 
 - Local Spaces using Apple container now install the recommended Linux kernel without an interactive prompt, including after an interrupted first setup.

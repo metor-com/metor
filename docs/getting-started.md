@@ -303,3 +303,26 @@ watch the same bot, they share its screen resolution.
 
 This requires the updated Space image with TigerVNC. Existing Spaces must update their image
 and restart before this feature is available; updating only the desktop app is not enough.
+
+### Paste text into the bot’s browser
+
+Click the destination field on the bot’s Screen, then press **Cmd+V** on a Mac or **Ctrl+V**
+on Windows/Linux. You can also use **Paste** at the top right of the Screen. If clipboard
+access is unavailable, Paste opens a text field: paste there and choose **Paste into screen**.
+The transfer supports plain text, including Unicode and multiple lines, up to 256 KB.
+It pastes into the currently focused remote field and does not submit the form. Images and
+files still go through chat attachments. This requires the updated Space image.
+
+### Start the local development version on macOS
+
+From a repository checkout, double-click these scripts in Finder, or run them in Terminal:
+
+1. `scripts/build.command` installs missing frontend/desktop dependencies and builds the UI
+   and Space image. Run it after code changes; it does not restart the running Space.
+2. `scripts/run.command` uses that build, restarts the local Space, waits for the gateway,
+   and opens the desktop app. A running desktop from this checkout is restarted too.
+
+Saved bots, chats and runtime sign-ins stay in their volumes; a running bot turn is interrupted
+by the Space restart. The default runtime is Apple's `container` and the image is
+`metor-box:resize-test`; `METOR_RUNTIME` and `METOR_BOX_IMAGE` can override these.
+Node.js/npm and the runtime must already be installed.

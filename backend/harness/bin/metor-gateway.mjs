@@ -6,6 +6,8 @@
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
 import http from "node:http";
 import net from "node:net";
+import { clipboardText, pasteText } from "./metor-clipboard.mjs";
+const screenClipboardScript = readFileSync(new URL("./metor-screen-clipboard.js", import.meta.url));
 import { resizeScreen, screenSize, withScreenResizeLock } from "./metor-screen.mjs";
 import { createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
@@ -226,9 +228,9 @@ setInterval(() => {
 }, 2000);
 
 // ---------- JSON API ----------
-function readBody(req) {
+function readBody(req, limit = 65536) {
   return new Promise((done) => {
-    let buf = ""; req.on("data", (d) => { buf += d; if (buf.length > 65536) { req.destroy(); done(null); } });
+    let buf = ""; req.on("data", (d) => { buf += d; if (buf.length > limit) { req.destroy(); done(null); } });
     req.on("end", () => { try { done(JSON.parse(buf)); } catch { done(null); } });
     req.on("error", () => done(null));
   });
@@ -366,6 +368,13 @@ async function api(req, res, url) {
       injectTurn(BOTS_DIR, name, `[Routine "${r.name}"] ${r.prompt}`);
       recordRun(BOTS_DIR, name, r);
       return send(202, { ok: true });
+    }
+    if (req.method === "POST" && action === "screen-paste" && rest.length === 3) {
+      const body = await readBody(req, 2 * 1024 * 1024);
+      let text;
+      try { text = clipboardText(body?.text); } catch (e) { return send(400, { error: e.message }); }
+      try { return send(200, pasteText(b.display, text)); }
+      catch (e) { return send(409, { error: e.message }); }
     }
     if (req.method === "PUT" && action === "screen-size" && rest.length === 3) {
       const body = await readBody(req);
@@ -636,10 +645,14 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(401, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return res.end(signInPage());
     }
     if (!(req.method === "GET" || req.method === "HEAD") && foreignOrigin(req)) { res.writeHead(403, { "content-type": "application/json", "cache-control": "no-store" }); return res.end(JSON.stringify({ error: "cross-site request refused" })); }
+    if (path === "/bots/screen-clipboard.js" && req.method === "GET") {
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" });
+      return res.end(screenClipboardScript);
+    }
     if (url === "/bots/api" || url.startsWith("/bots/api/")) return await api(req, res, url);
     const t = target(url);
     if (t) {
-      const up = http.request({ host: "127.0.0.1", port: t.port, method: req.method, path: t.path, headers: req.headers }, (r) => {
+      const up = http.request({ host: "127.0.0.1", port: t.port, method: req.method, path: t.path, headers: { ...req.headers, "accept-encoding": "identity" } }, (r) => {
         // Watch cookie for the WebSocket authorization: browsers (esp. Firefox/Safari) do NOT send
         // basic auth with WS handshakes – Caddy therefore lets WS through without login (see Caddyfile),
         // and the upgrade handler demands this cookie instead. It only originates here, i.e.
@@ -651,6 +664,17 @@ const server = http.createServer(async (req, res) => {
           // Never cache HTML: if vnc.html/terminal came from the browser cache, the
           // Set-Cookie step would be missing and the subsequent WebSocket would be rejected
           if (String(headers["content-type"] ?? "").includes("text/html")) headers["cache-control"] = "no-store";
+        }
+        if (req.method === "GET" && /^\/bots\/[a-z0-9-]+\/vnc\.html$/.test(path) && r.statusCode === 200) {
+          const chunks = [];
+          r.on("data", (chunk) => chunks.push(chunk));
+          r.on("end", () => {
+            const html = Buffer.concat(chunks).toString("utf8").replace("</body>", '<script src="/bots/screen-clipboard.js"></script></body>');
+            delete headers["content-length"]; delete headers["etag"];
+            res.writeHead(200, headers); res.end(html);
+          });
+          r.on("error", () => res.destroy());
+          return;
         }
         res.writeHead(r.statusCode ?? 502, headers); r.pipe(res);
       });

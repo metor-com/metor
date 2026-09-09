@@ -1,0 +1,26 @@
+// Run inside an isolated Space with a running smoke bot on display 11. Never run against a personal bot.
+import {chromium} from '/usr/local/lib/node_modules/@playwright/mcp/node_modules/playwright/index.mjs';
+import {execFileSync} from 'node:child_process';
+import assert from 'node:assert/strict';
+const remote=await chromium.connectOverCDP('http://127.0.0.1:9211');
+const target=await remote.contexts()[0].newPage();await target.setContent('<textarea autofocus></textarea>');await target.bringToFront();await target.locator('textarea').focus();
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage'],headless:true});
+const context=await browser.newContext({permissions:['clipboard-read','clipboard-write']});const page=await context.newPage();
+const link=execFileSync('metor',['auth','link','--plain'],{encoding:'utf8'}).match(/http[^\s]+claim\?token=[A-Za-z0-9_-]+/)[0];
+await page.goto(link);const path=await page.evaluate(async()=> (await(await fetch('/bots/api/agents/smoke/watch-url')).json()).path);
+await page.goto('http://127.0.0.1:6010'+path);
+await page.waitForFunction(()=>document.querySelector('#noVNC_container canvas')?.width>100);
+await page.waitForTimeout(500);
+await page.evaluate(()=>navigator.clipboard.writeText('Keyboard Grüße 👋'));
+await page.locator('#noVNC_container canvas').focus();await page.keyboard.press('Control+v');
+await target.waitForFunction(()=>document.querySelector('textarea').value==='Keyboard Grüße 👋',null,{timeout:5000});console.log('PASS: real Ctrl+V through noVNC');
+await target.locator('textarea').fill('');await target.locator('textarea').focus();
+await page.evaluate(()=>navigator.clipboard.writeText('Button 中文'));
+await page.getByRole('button',{name:'Paste',exact:true}).click();
+await target.waitForFunction(()=>document.querySelector('textarea').value==='Button 中文',null,{timeout:5000});console.log('PASS: Paste button through clipboard API');
+await target.locator('textarea').fill('');await target.locator('textarea').focus();
+await page.evaluate(()=>{navigator.clipboard.readText=()=>Promise.reject(new Error('denied'));});
+await page.getByRole('button',{name:'Paste',exact:true}).click();
+await page.locator('dialog textarea').fill('Fallback\nÄÖÜ');await page.getByRole('button',{name:'Paste into screen',exact:true}).click();
+await target.waitForFunction(()=>document.querySelector('textarea').value==='Fallback\nÄÖÜ',null,{timeout:5000});console.log('PASS: denied clipboard access opens working manual fallback');
+await browser.close();await target.close();await remote.close();
