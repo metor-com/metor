@@ -3,7 +3,7 @@
   // that is not set up yet) and by the chat's error card (a sign-in that expired while a bot ran).
   // mode "device": link + one-time code shown here, confirmed at the provider (Codex)
   // mode "code":   link shown here, the provider shows a code at the end, pasted here (Claude Code)
-  // mode "key":    an API key pasted here, it stays inside the bots' computer (Gemini)
+  // mode "key":    an API key pasted here, it stays inside the Space (Gemini)
   // mode "terminal": a command to run inside the box (no wizard for that runtime)
   import { onDestroy } from "svelte";
   import { listHarnesses, setupStart, setupStatus, setupCancel, setupCode } from "../lib/api.js";
@@ -61,7 +61,7 @@
     {#if wizard.hint}<p class="text-xs text-amber-900/60">{wizard.hint}</p>{/if}
   {:else if (wizard.state === "pending" || wizard.state === "verifying") && wizard.mode === "key"}
     <p class="text-amber-900">1. <a class="font-medium underline" href={wizard.url} target="_blank" rel="noopener noreferrer">Get a key at Google AI Studio</a> (free).</p>
-    <p class="text-amber-900">2. Paste the {wizard.keyLabel ?? "API key"} here – it stays inside the bots' computer:</p>
+    <p class="text-amber-900">2. Paste the {wizard.keyLabel ?? "API key"} here – it stays inside the Space:</p>
     <div class="flex items-center gap-2">
       <input type="password" class="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 font-mono text-sm outline-none focus:border-zinc-900"
         bind:value={code} placeholder={wizard.keyLabel ?? "API key"} autocomplete="off" spellcheck="false"

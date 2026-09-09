@@ -46,7 +46,7 @@ function setStatus(id, patch) {
   if (before.unread === after.unread && before.reachable === after.reachable && before.agents === after.agents) return;
   status.set(id, after); broadcast("metor:computers", load().computers.map(publicInfo));
 }
-// `short` is the name where the context already says "bots' computer" (the overview, the head of the bot list): "This Mac"
+// `short` is the name where the context already says "Space" (the overview, the head of the bot list): "This Mac"
 const publicInfo = (c) => (c ? { id: c.id, name: c.label || (isLocal(c.origin) ? nameFor(c.origin) : c.name), short: c.label || (isLocal(c.origin) ? shortFor(c.origin) : c.name),
   origin: c.origin, version: c.version ?? null, signedIn: !!secretOf(c.id), local: isLocal(c.origin), unread: status.get(c.id)?.unread ?? null, reachable: status.get(c.id)?.reachable ?? null,
   agents: status.get(c.id)?.agents ?? null } : null);
@@ -56,7 +56,7 @@ function computerForUrl(u) {
   catch { return null; }
 }
 const deviceLabel = () => `metor app on ${{ darwin: "Mac", win32: "Windows", linux: "Linux" }[process.platform] ?? process.platform}`;
-// Names: a computer on this machine is always "Bots' computer on this Mac" (never "this machine" – that is the user's device,
+// Names: a computer on this machine is always "Space on this Mac" (never "this machine" – that is the user's device,
 // see the glossary); remote ones carry their host name. The local name is derived on every read, so older entries follow.
 const MACHINE = process.platform === "darwin" ? "this Mac" : "this machine";
 const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(origin);
@@ -65,7 +65,7 @@ const isLocal = (origin) => /^https?:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(ori
 const PRIVATE_HOST = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^.]+\.local)$/i;
 const insecureOrigin = (origin) => { try { const u = new URL(origin); return u.protocol === "http:" && !PRIVATE_HOST.test(u.hostname); } catch { return true; } };
 const portSuffix = (origin) => { try { const p = new URL(origin).port; return p && p !== "6010" ? ` (:${p})` : ""; } catch { return ""; } };
-const nameFor = (origin) => { try { return isLocal(origin) ? `Bots' computer on ${MACHINE}${portSuffix(origin)}` : new URL(origin).hostname; } catch { return origin; } };
+const nameFor = (origin) => { try { return isLocal(origin) ? `Space on ${MACHINE}${portSuffix(origin)}` : new URL(origin).hostname; } catch { return origin; } };
 const shortFor = (origin) => `${MACHINE[0].toUpperCase()}${MACHINE.slice(1)}${portSuffix(origin)}`;
 
 async function fetchJson(url, init = {}, ms = 8000) {
@@ -85,12 +85,12 @@ async function connect({ url = "", claim = "" } = {}) {
     else return { ok: false, error: "That link is not a metor link." };
   } catch { if (/^[a-z2-9]{4}-?[a-z2-9]{4}$/i.test(s)) code = s; else if (s) token = s; }
   if (!origin && url) { try { origin = new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`).origin; } catch { return { ok: false, error: "The address is not a URL." }; } }
-  if (!origin) return { ok: false, error: "Enter the address of the bots' computer." };
+  if (!origin) return { ok: false, error: "Enter the address of the Space." };
   if (insecureOrigin(origin)) return { ok: false, error: `${origin} is plain http on the internet – the session would travel unencrypted. Use https, or a computer on this machine or your local network.` };
   if (!token && !code) return { ok: false, error: "Enter a setup link, a pairing link or a pairing code." };
   let v; try { v = await fetchJson(`${origin}/bots/api/version`); } catch (e) { return { ok: false, error: `No answer from ${origin} (${e.message}).` }; }
-  if (!v.ok || v.data?.name !== "metor") return { ok: false, error: `No bots' computer of metor answers at ${origin}.` };
-  if (!v.data.capabilities?.redeem) return { ok: false, error: `The bots' computer at ${origin} is too old for the app – update it to 0.2 or newer.` };
+  if (!v.ok || v.data?.name !== "metor") return { ok: false, error: `No metor Space answers at ${origin}.` };
+  if (!v.data.capabilities?.redeem) return { ok: false, error: `The Space at ${origin} is too old for the app – update it to 0.2 or newer.` };
   let r; try { r = await fetchJson(`${origin}/bots/api/auth/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, code, name: deviceLabel() }) }); }
   catch (e) { return { ok: false, error: e.message }; }
   if (!r.ok || !r.data?.secret) return { ok: false, error: r.data?.error ?? `HTTP ${r.status}` };
@@ -299,7 +299,7 @@ let localBusy = false;
 async function localAction(action, win = null, id = null) {
   const args = { setup: ["setup", "--no-open"], up: ["box", "up"], down: ["box", "down"] }[action];
   if (!args) return { ok: false, error: `unknown action ${action}` };
-  if (localBusy) return { ok: false, error: `The bots' computer on ${MACHINE} is busy – wait for the running step to finish.` };
+  if (localBusy) return { ok: false, error: `The Space on ${MACHINE} is busy – wait for the running step to finish.` };
   localBusy = true; broadcast("metor:local-progress", { start: action, line: `metor ${args.join(" ")}` });
   const r = await runWrapper(args, { id });
   localBusy = false;
@@ -314,7 +314,7 @@ async function localAction(action, win = null, id = null) {
     const c = (id && computer(id)) || localComputer();   // windows on the connect screen, or waiting for this computer, show it once it answers
     if (c && secretOf(c.id)) {
       broadcast("metor:local-progress", { line: "waiting for the interface…" });
-      if (!(await waitReachable(c.origin))) return finish(false, `The bots' computer started, but its interface at ${c.origin} does not answer – see: metor box logs`);
+      if (!(await waitReachable(c.origin))) return finish(false, `The Space started, but its interface at ${c.origin} does not answer – see: metor box logs`);
       for (const [w, cid] of [...windows]) if (cid === null || (cid === c.id && unreachable.get(w) === c.id)) showComputer(w, c.id);
     }
   } else if (action === "down") {
@@ -326,7 +326,7 @@ async function localAction(action, win = null, id = null) {
 async function menuLocal(action) {
   const r = await localAction(action);
   if (!r.ok) dialog.showErrorBox("metor", r.error);
-  else if (action !== "setup") new Notification({ title: "metor", body: r.tail.split("\n").pop() || `Bots' computer on ${MACHINE}: ${action}` }).show();
+  else if (action !== "setup") new Notification({ title: "metor", body: r.tail.split("\n").pop() || `Space on ${MACHINE}: ${action}` }).show();
 }
 // The local computer comes back with the app (Apple's runtime has no restart policy) unless switched off in the menu
 async function autostartLocal() {
@@ -334,7 +334,7 @@ async function autostartLocal() {
   const st = await localStatus(); if (st.state !== "stopped") return;
   const r = await localAction("up"); if (!r.ok) console.error(`autostart: ${r.error}`);
 }
-const localItems = () => (wrapper() ? [{ label: `Bots' computer on ${MACHINE}`, submenu: [
+const localItems = () => (wrapper() ? [{ label: `Space on ${MACHINE}`, submenu: [
   { label: "Set up…", click: () => menuLocal("setup") },
   { label: "Start", click: () => menuLocal("up") },
   { label: "Stop", click: () => menuLocal("down") },
@@ -346,17 +346,17 @@ const localItems = () => (wrapper() ? [{ label: `Bots' computer on ${MACHINE}`, 
 let tray = null;
 function computerItems() {
   const list = load().computers, selected = selectedComputer();
-  return list.length ? list.map((c) => ({ label: publicInfo(c).name, type: "radio", checked: c.id === selected, click: () => focusOrOpen(c.id) })) : [{ label: "No bots' computer connected", enabled: false }];
+  return list.length ? list.map((c) => ({ label: publicInfo(c).name, type: "radio", checked: c.id === selected, click: () => focusOrOpen(c.id) })) : [{ label: "No Space connected", enabled: false }];
 }
 function refreshMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === "darwin" ? [{ role: "appMenu" }] : []),
-    { label: "Computers", submenu: [{ label: "Connect a bots' computer…", click: () => openWindow(null) }, { type: "separator" }, ...localItems(), ...computerItems()] },
+    { label: "Spaces", submenu: [{ label: "Connect a Space…", click: () => openWindow(null) }, { type: "separator" }, ...localItems(), ...computerItems()] },
     { role: "editMenu" }, { role: "viewMenu" }, { role: "windowMenu" },
   ]));
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: "Open metor", click: () => focusOrOpen(load().current ?? load().computers[0]?.id ?? null) },
-    { type: "separator" }, ...computerItems(), { label: "Connect a bots' computer…", click: () => openWindow(null) },
+    { type: "separator" }, ...computerItems(), { label: "Connect a Space…", click: () => openWindow(null) },
     { type: "separator" }, ...localItems(), { label: "Quit metor", role: "quit" },
   ]));
   syncWatches();   // called after every change to the computers and the windows – the watches follow
@@ -474,7 +474,7 @@ app.whenReady().then(async () => {
 
   let id = load().current ?? load().computers[0]?.id ?? null;
   if (argv.connect) { const r = await connect({ claim: String(argv.connect) }); if (r.ok) id = r.id; else console.error(`connect: ${r.error}`); refreshMenus(); }
-  // --connect-screen: start like "Connect a bots' computer…"; --open=<bot>: start with that bot's chat open (or --open=computers)
+  // --connect-screen: start like "Connect a Space…"; --open=<bot>: start with that bot's chat open (or --open=computers)
   const win = openWindow(argv["connect-screen"] ? null : id, argv.open ? String(argv.open) : null);
   if (argv.local) { const r = await localAction(String(argv.local), win); console.log(`local ${argv.local}: ${r.ok ? "ok" : `failed – ${r.error}`}`); }
   else autostartLocal().catch((e) => console.error("autostart:", e.message));

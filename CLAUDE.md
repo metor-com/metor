@@ -48,7 +48,7 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
   under Apple `container` it is `metor box up` again). `metor setup` does the whole first start
   (knowledge/design/mac-install.md).
   `export PATH=$PWD/backend/harness/bin:$PATH`, `metor box build`, `metor box up`,
-  `metor auth link` (open the link once in the browser), in the UI sign in to a runtime ("New bot" →
+  `metor auth link` (open the link once in the browser), in the UI sign in to a runtime ("New Bot" →
   Sign in; or `docker exec -it metor-box claude auth login`), then create bots in the UI at
   http://127.0.0.1:6010/bots/ or with `metor bot create <name> --role "..."`.
 - **Production:** servers run the prebuilt image via compose (see `INSTALL.md`); never develop
@@ -57,7 +57,7 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
 
 ## Rules
 
-- Terms follow `knowledge/GLOSSARY.md`: UI "bot" / "computer", code `agent` / `box` - code terms do
+- Terms follow `knowledge/GLOSSARY.md`: UI "Bot" / "Space", code `agent` / `box` - code terms do
   not change when marketing renames things.
 - Harnesses run as processes with their official login (Agent SDK session for Claude Code,
   `codex app-server` for Codex); never token extraction (ADR-0004, ADR-0006,

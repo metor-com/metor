@@ -6,7 +6,7 @@ interface is bundled and runs on the app's own origin (`capacitor://localhost` o
 `http://localhost` on Android – both built into the gateway's CORS list; `http` rather than
 Capacitor's default `https` so that a computer answering over plain http is not blocked as mixed
 content, and `localhost` is a secure context either way); the app connects to one
-or more bots' computers by setup link, pairing link, pairing code or a `metor://connect?…` link and
+or more Spaces by setup link, pairing link, pairing code or a `metor://connect?…` link and
 keeps each session in the keychain (iOS) or keystore-encrypted storage (Android).
 
 What is native here lives in `src/bridge.js` – the `window.metor` API the desktop app's preload
@@ -38,7 +38,7 @@ The app connects to one computer at a time; the head of the bot list names it an
 leads to the overview of all known computers (`#/computers`, knowledge/design/several-computers.md):
 one row per computer with its unread count, a tap switches to it without a reload (`use(id)` in
 the bridge changes token and cookie, registers push there and answers with the computer's state);
-below the rows *Connect a computer…*; the ⋮ menu of the overview opens the Settings. Inside a
+below the rows *Connect a Space…*; the ⋮ menu of the overview opens the Settings. Inside a
 computer the ⋮ menu renames or forgets it. The overview asks every computer for its bot list when
 it opens (`gateways({ probe: true })` in the bridge, which also keeps each list for the switch:
 the interface shows it the moment it switches; `fetch` carries the token of whichever known

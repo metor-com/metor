@@ -180,7 +180,7 @@ HARNESSES.gemini = {
     // Only a key counts: a Google login may leave oauth_creds.json behind although Google refuses
     // the CLI afterwards ("no longer supported for Gemini Code Assist for individuals", 2026-09-05)
     const key = geminiKey();
-    return { ok: !!key, detail: key ? "API key stored" : "Needs a Gemini API key (New bot → Gemini CLI → Sign in)" };
+    return { ok: !!key, detail: key ? "API key stored" : "Needs a Gemini API key (New Bot → Gemini CLI → Sign in)" };
   },
   // The assistant asks for a Gemini API key from Google AI Studio (free tier), keeps it inside the
   // box only (the runtime's .env, mode 600) and checks it with one small request before it counts.
@@ -190,7 +190,7 @@ HARNESSES.gemini = {
     mode: "key",
     keyLabel: "Gemini API key",
     link: "https://aistudio.google.com/apikey",
-    hint: "Get a free key at Google AI Studio (the free tier needs no subscription – about 1,000 requests a day). The key stays inside the bots' computer.",
+    hint: "Get a free key at Google AI Studio (the free tier needs no subscription – about 1,000 requests a day). The key stays inside the Space.",
     // Only the shape: no spaces or control characters, a plausible length – Google decides the rest
     clean: (k) => String(k ?? "").trim().replace(/^GEMINI_API_KEY\s*=\s*/i, "").replace(/^["']|["']$/g, "").trim(),
     valid: (k) => /^[^\s\x00-\x1f\x7f]{16,400}$/.test(k),
@@ -290,7 +290,7 @@ HARNESSES.copilot = {
     const c = copilotConfig();
     const ok = !!(c?.authTokens && Object.keys(c.authTokens).length);
     const who = (c?.loggedInUsers ?? []).map((u) => u?.login).filter(Boolean).join(", ");
-    return { ok, detail: ok ? `signed in${who ? ` as ${who}` : ""}` : "Sign in required (New bot → GitHub Copilot → Sign in)" };
+    return { ok, detail: ok ? `signed in${who ? ` as ${who}` : ""}` : "Sign in required (New Bot → GitHub Copilot → Sign in)" };
   },
   // GitHub's device-code login, the shape of Codex's. Afterwards the CLI asks whether to keep the token in a
   // plaintext file (the box has no keychain) – only under a terminal, without one it drops the login: the

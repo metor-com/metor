@@ -1,5 +1,5 @@
 <script>
-  // The bots' computers this app is connected to (knowledge/design/several-computers.md), on the connect
+  // The Spaces this app is connected to (knowledge/design/several-computers.md), on the connect
   // screen – where the overview cannot be reached: one row per computer with its state and unread
   // count. A tap opens it (the app loads its interface); the row's actions rename it, start or stop the
   // one on this machine, or forget it. A browser never gets here – it is served by one computer.
@@ -33,7 +33,7 @@
     try { const r = await app.local.run(action, id); if (!r?.ok) { error = r?.error ?? "failed"; busy = null; } } catch (e) { error = e.message; busy = null; }
   }
   async function rename(c) {
-    const name = prompt("Name of this computer", c.name); if (name == null) return;
+    const name = prompt("Name of this Space", c.name); if (name == null) return;
     try { await app.rename(c.id, name.trim()); await loadComputers(); } catch (e) { error = e.message; }
   }
   async function forget(c) {
@@ -79,7 +79,7 @@
       {/if}
     </li>
   {/each}
-  {#if !$computers.length}<li class="p-3 text-sm text-zinc-400">no computer connected</li>{/if}
+  {#if !$computers.length}<li class="p-3 text-sm text-zinc-400">No Space connected</li>{/if}
 </ul>
 {#if probing}<p class="px-3 pt-2 text-xs text-zinc-400">checking…</p>{/if}
 {#if error}<p class="mt-2 rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-700">{error}</p>{/if}

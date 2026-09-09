@@ -53,7 +53,7 @@
   let pushReady = false;
   $: if (needsConnect) disconnect(); else { if (!pushReady) { pushReady = true; initPush(); } connect(); }
   // Native clients (knowledge/design/several-computers.md): the overview of the computers takes the sidebar's
-  // place (#/computers); "Connect a computer…" shows the connect screen over the shell (#/connect…)
+  // place (#/computers); "Connect a Space…" shows the connect screen over the shell (#/connect…)
   const connectStep = () => (app?.local ? null : "remote");   // a phone cannot run a computer of its own: straight to "on a server"
   // The views move like on a phone (lib/transition.js): overview → bot list → chat is forward, the way back
   // is back. The level of the view shown decides the direction; on the desktop the chat stands still.

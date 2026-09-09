@@ -82,12 +82,12 @@ async function connect({ url = "", claim = "" } = {}) {
     else return { ok: false, error: "That link is not a metor link." };
   } catch { if (/^[a-z2-9]{4}-?[a-z2-9]{4}$/i.test(s)) code = s; else if (s) token = s; }
   if (!origin && url) { try { origin = new URL(/^[a-z]+:\/\//i.test(url) ? url : `https://${url}`).origin; } catch { return { ok: false, error: "The address is not a URL." }; } }
-  if (!origin) return { ok: false, error: "Enter the address of the bots' computer." };
+  if (!origin) return { ok: false, error: "Enter the address of the Space." };
   if (insecureOrigin(origin)) return { ok: false, error: `${origin} is plain http on the internet – the session would travel unencrypted. Use https, or a computer on this device or your local network.` };
   if (!token && !code) return { ok: false, error: "Enter a setup link, a pairing link or a pairing code." };
   let v; try { v = await fetchJson(`${origin}/bots/api/version`); } catch (e) { return { ok: false, error: `No answer from ${origin} (${e.message}).` }; }
-  if (!v.ok || v.data?.name !== "metor") return { ok: false, error: `No bots' computer of metor answers at ${origin}.` };
-  if (!v.data.capabilities?.redeem) return { ok: false, error: `The bots' computer at ${origin} is too old for the app – update it to 0.2 or newer.` };
+  if (!v.ok || v.data?.name !== "metor") return { ok: false, error: `No metor Space answers at ${origin}.` };
+  if (!v.data.capabilities?.redeem) return { ok: false, error: `The Space at ${origin} is too old for the app – update it to 0.2 or newer.` };
   let r; try { r = await fetchJson(`${origin}/bots/api/auth/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, code, name: deviceLabel() }) }); }
   catch (e) { return { ok: false, error: e.message }; }
   if (!r.ok || !r.data?.secret) return { ok: false, error: r.data?.error ?? `HTTP ${r.status}` };

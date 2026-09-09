@@ -27,11 +27,11 @@
   $: computerName = title ?? computers.find((c) => c.id === currentId)?.short ?? $gateway?.short ?? $gateway?.name ?? "metor";
   let creating = false, showSettings = false, menuOpen = false;
   async function renameComputer() {
-    const c = computers.find((x) => x.id === currentId); const name = prompt("Name of this computer", c?.name ?? computerName); if (name == null) return;
+    const c = computers.find((x) => x.id === currentId); const name = prompt("Name of this Space", c?.name ?? computerName); if (name == null) return;
     try { await app.rename(currentId, name.trim()); await loadComputers(); } catch (e) { alert(e.message); }
   }
   async function forgetComputer() {
-    if (!confirm(`Forget "${computerName}"? The app signs out of it; the computer and its bots stay as they are.`)) return;
+    if (!confirm(`Forget "${computerName}"? The app signs out of it; the Space and its bots stay as they are.`)) return;
     try { await app.forget(currentId); } catch (e) { alert(e.message); }   // the app shows the connect screen
   }
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
@@ -58,7 +58,7 @@
        wordmark; at the right the ⋮ menu. The round + for a new bot floats bottom right over the list. -->
   <div class="{inApp ? 'grid grid-cols-[2.5rem_1fr_2.5rem]' : 'flex justify-between'} shrink-0 items-center gap-1 py-3 {inApp ? 'pl-2' : 'pl-4'} pr-3">
     {#if inApp}
-      <button type="button" class="flex size-10 items-center justify-center rounded-full text-xl text-zinc-600 hover:bg-zinc-100" on:click={onComputers} title="Your bots' computers" aria-label="Back to your bots' computers">←</button>
+      <button type="button" class="flex size-10 items-center justify-center rounded-full text-xl text-zinc-600 hover:bg-zinc-100" on:click={onComputers} title="Your Spaces" aria-label="Back to your Spaces">←</button>
       <span class="min-w-0 truncate text-center text-lg font-bold tracking-tight text-zinc-900" title={computerName}>{computerName}</span>
     {:else}
       <span class="min-w-0 truncate text-2xl font-bold tracking-tight text-zinc-900">metor</span>
@@ -72,8 +72,8 @@
         {#if menuOpen}
           <div class="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
             {#if inApp}
-              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; renameComputer(); }}>Rename computer…</button>
-              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; forgetComputer(); }}>Forget computer</button>
+              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; renameComputer(); }}>Rename Space…</button>
+              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; forgetComputer(); }}>Forget Space</button>
             {:else}
               <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
             {/if}
@@ -113,8 +113,8 @@
     {/each}
     {#if !agents.length}<li class="p-3 text-sm text-zinc-400">no bots yet</li>{/if}
   </ul>
-  <!-- New bot: a floating button, bottom right over the list (the list keeps room below its last row) -->
-  <button type="button" class="fab absolute bottom-3 right-3 flex size-12 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg hover:bg-zinc-700" aria-label="New bot" title="New bot" on:click={() => (creating = true)}>
+  <!-- New Bot: a floating button, bottom right over the list (the list keeps room below its last row) -->
+  <button type="button" class="fab absolute bottom-3 right-3 flex size-12 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg hover:bg-zinc-700" aria-label="New Bot" title="New Bot" on:click={() => (creating = true)}>
     <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
   </button>
   </div>

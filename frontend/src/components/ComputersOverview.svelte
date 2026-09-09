@@ -1,8 +1,8 @@
 <script>
-  // The overview of the bots' computers this app is connected to (knowledge/design/several-computers.md,
+  // The overview of the Spaces this app is connected to (knowledge/design/several-computers.md,
   // the mailbox pattern): the root screen behind the back arrow of the bot list. One row per computer
   // with its unread count, a tap opens that computer's bot list (the app loads its interface); below the
-  // rows "Connect a computer…" (the connect screen); the computer opened last is not marked – the overview
+  // rows "Connect a Space…" (the connect screen); the computer opened last is not marked – the overview
   // is the root, not a switch. The ⋮ menu at the top opens the Settings. Renaming
   // and removing a computer live in its own ⋮ menu (Sidebar.svelte). A browser never gets here.
   import { app, gateway } from "../lib/base.js";
@@ -41,7 +41,7 @@
       {/if}
     </div>
   </div>
-  <p class="px-4 pb-2 text-[13px] text-zinc-500">Your bots' computers{#if probing} · checking…{/if}</p>
+  <p class="px-4 pb-2 text-[13px] text-zinc-500">Your Spaces{#if probing} · checking…{/if}</p>
   <ul class="min-h-0 flex-1 overflow-y-auto p-2">
     {#each $computers as c (c.id)}
       {@const s = state(c)}
@@ -58,14 +58,14 @@
         </button>
       </li>
     {/each}
-    {#if !$computers.length}<li class="p-3 text-sm text-zinc-400">no computer connected</li>{/if}
+    {#if !$computers.length}<li class="p-3 text-sm text-zinc-400">No Space connected</li>{/if}
     <li class="my-2 border-t border-zinc-100" role="separator"></li>
     <li>
       <button type="button" class="{row} text-zinc-700 hover:bg-zinc-50" on:click={() => onConnect(null)}>
         <span class="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed border-zinc-300 text-zinc-400">
           <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
         </span>
-        <span class="text-[15px]">Connect a computer…</span>
+        <span class="text-[15px]">Connect a Space…</span>
       </button>
     </li>
   </ul>

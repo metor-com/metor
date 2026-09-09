@@ -138,7 +138,7 @@ export function appChoicePage({ appLink, webLink }) {
  a.w{background:#f4f4f5;color:#18181b;font-weight:400}
 </style></head><body><main>
 <h1>metor</h1>
-<p>Sign this phone in to the bots' computer – in the metor app, or here in the browser.</p>
+<p>Sign this phone in to the Space – in the metor app, or here in the browser.</p>
 <a class="b" href="${esc(appLink)}">Open in the metor app</a>
 <a class="b w" href="${esc(webLink)}">Continue in the browser</a>
 <p style="font-size:14px">No app yet? The browser works the same way, and the app can be connected later from <em>Settings → Devices</em>.</p>
@@ -157,7 +157,7 @@ export function signInPage({ error = null } = {}) {
  .err{color:#b91c1c} ol{padding-left:20px;color:#52525b} li{margin:4px 0}
 </style></head><body><main>
 <h1>metor</h1>
-<p>The bots' computer is locked. Sign in from a device that already has access, or with the setup link.</p>
+<p>The Space is locked. Sign in from a device that already has access, or with the setup link.</p>
 ${error ? `<p class="err">${esc(error)}</p>` : ""}
 <ol>
 <li><strong>Setup link</strong>: shown by the installer and by <code>metor auth link</code> inside the box – open it on this device.</li>

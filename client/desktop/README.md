@@ -20,7 +20,7 @@ get a link to the computer. `--open=<bot>?doc=<file>` starts with that document 
 
 The head of the bot list names the computer shown and its back arrow leads to the overview of all
 connected computers (`#/computers`, knowledge/design/several-computers.md): one row per computer
-with its unread count, a tap loads that computer's interface; below the rows *Connect a computer…*
+with its unread count, a tap loads that computer's interface; below the rows *Connect a Space…*
 (the connect screen); the ⋮ menu of the overview opens the Settings. Inside a computer the ⋮ menu
 renames it (a name kept in the app) or forgets it (the app signs out of it). The main process
 keeps an event stream to every signed-in computer: the counts stay live, and a computer no window
@@ -39,15 +39,15 @@ npm start            # builds frontend/ and copies it to ui/, then runs Electron
 npm run dev          # Electron only (ui/ must exist)
 ```
 
-The bots' computer on this machine: the app carries the `metor` host command (copied to `resources/` by
+The Space on this machine: the app carries the `metor` host command (copied to `resources/` by
 `npm run ui`, the checkout's copy in development; `METOR_CLI` or a Homebrew install override it).
-The connect screen offers *Set up the bots' computer on this Mac* – it runs `metor setup` with
+The connect screen offers *Set up the Space on this Mac* – it runs `metor setup` with
 the output shown live and connects with the printed link – and *Start* for a stopped one; the menu
-*Computers → Bots' computer on this Mac* has the same plus *Stop* and *Start automatically when the app opens*
+*Spaces → Space on this Mac* has the same plus *Stop* and *Start automatically when the app opens*
 (on by default: Apple's runtime has no restart policy, so the app brings the computer back).
 
 Useful flags (also for a packaged app): `--connect-screen` (start on the connect screen, like the
-menu *Connect a bots' computer…*; with `--open=connect/local` or `connect/remote` on that step;
+menu *Connect a Space…*; with `--open=connect/local` or `connect/remote` on that step;
 `--also-connect-screen` with `--open2=…` adds a second such window for tests),
 `--local=setup|up|down` (run that host command at start), `--connect=<setup or pairing link>`,
 `--user-data-dir=<dir>` (a separate profile), `--open=<bot>` (start with that bot's chat; `--open=computers` with the overview),

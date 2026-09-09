@@ -1,5 +1,8 @@
 # Getting started with metor
 
+In metor, agents become persistent bots. A **Bot** is a named agent instance with its own
+role, history and files. A **Space** is the shared environment where your bots live and run.
+
 This guide walks through the web interface. It assumes a running installation (see
 [INSTALL.md](../INSTALL.md) for servers or the quickstart in the [README](../README.md) for a local
 box) and that you can open the interface - locally at `http://127.0.0.1:6010/bots/`, on a server
@@ -24,7 +27,7 @@ From the directory** offers well-known ones (a shared memory, documentation look
 GitHub, search APIs) and pre-fills the form, **Custom connector** takes any server by command or
 URL with its environment variables or headers. Bots use a connector on their own, like the browser;
 switch on **Ask before each use** to get an approval card for every call instead. Keys and tokens
-are stored inside the bots' computer.
+are stored inside the Space.
 A connector reaches a bot when the bot starts - after a change, the button **Restart running
 bots** does that for you. **Appearance** (text size; a compact bot list with one line per bot; whether the Claude quota bar
 shows always, never or only from a chosen usage) and
@@ -88,7 +91,7 @@ a line break.
   Choose **Allow** or **Deny**. The card stays in the history with the decision. While a card is
   open the bot list says "waiting for your approval", and with notifications turned on
   (Settings → Devices) your phone gets a push.
-  Be clear about what asks and what does not: inside the bots' computer nothing asks - not the
+  Be clear about what asks and what does not: inside the Space nothing asks - not the
   shell, not the browser, not the files. A bot that is signed in to a site in its browser can act
   there without a card. Approval cards exist for connectors marked "Ask before each use", and
   today only Claude Code bots show them; Codex, Gemini and Copilot bots run every connector without asking
@@ -179,14 +182,14 @@ header of a bot shows both as a small badge on desktop widths.
   send files; assigning tasks to other bots is not available for Codex bots yet.
 - **Gemini CLI** bots use a Gemini API key from Google AI Studio - the free tier (about 1,000
   requests a day) needs no subscription. Sign in once from the create dialog: get the key at
-  AI Studio, paste it, done; it stays inside the bots' computer. Gemini bots can
+  AI Studio, paste it, done; it stays inside the Space. Gemini bots can
   chat, use shell and files, drive their browser, run routines and send files; like Codex bots
   they cannot assign tasks to other bots yet. The model choice is "Auto" - Gemini picks the
   model per task and the bot's header shows which one answered last - or one of the models
   Gemini lists, or a pinned id through *Other model id…*.
 - **GitHub Copilot** bots use your GitHub Copilot subscription - any plan, Free included - and with
   it models from every vendor (Claude, GPT, Gemini, Grok, Kimi). Sign in once from the create
-  dialog with GitHub's device code; the login stays inside the bots' computer. The model choice is
+  dialog with GitHub's device code; the login stays inside the Space. The model choice is
   "Auto" - Copilot picks per task and the bot's header shows which model answered - or one of the
   models Copilot lists. Copilot bots chat, use shell and files, drive their browser, run routines
   and send files; like Codex and Gemini bots they cannot assign tasks to other bots yet. If a
@@ -221,32 +224,31 @@ tab works with touch, but for real intervention a desktop browser is more comfor
 metor is also an app for macOS, Windows and Linux (`client/desktop`, built from the repository or
 taken from a release). It shows the same interface, and adds what a browser tab cannot:
 notifications for approvals, finished replies and unexpected stops while the app runs, a tray
-icon, several bots' computers side by side (menu **Computers** - the one you are looking at is
+icon, several Spaces side by side (menu **Spaces** - the one you are looking at is
 ticked there, and the app opens with it again next time), and screen sharing for the bots.
 
-On first start the app asks one question: should the bots' computer be **on this Mac** or **on a
+On first start the app asks one question: should the Space be **on this Mac** or **on a
 server**? On this Mac, the app creates it right there (see below). On a server, paste the **setup
 link** (from the installer or `metor auth link` inside the box - the address comes with it), or
 enter the address plus a **pairing code** from *Settings → Devices → Link a device* on a device
 that is already signed in. The app then appears under Devices as "metor app on Mac/Windows/Linux";
-removing it there signs the app out, and the app's connect screen offers the bots' computer again.
+removing it there signs the app out, and the app's connect screen offers the Space again.
 
-**The bots' computer on your own Mac.** You do not need a server: choose *On this Mac* and the
+**The Space on your own Mac.** You do not need a server: choose *On this Mac* and the
 app does what the situation needs - no computer yet, it sets one up (the first time this
 downloads the image, about 1 GB, a few minutes; the output shows live); one that is stopped, it
 starts; one that is running, it opens; several, it lets you pick. It needs a container runtime -
 Apple's `container` on an Apple silicon Mac with macOS 26 (install it from Apple's GitHub
 releases), otherwise Docker or Colima - and says so with links when none is installed. After
-that the app starts the bots' computer whenever it opens (menu *Computers → Bots' computer on
+that the app starts the Space whenever it opens (menu *Spaces → Space on
 this Mac* to switch that off, or to start and stop by hand), so a reboot of the Mac changes
-nothing. That computer has its own volumes: sign in to a runtime once under *New bot →
-Sign in*, then create bots as usual. A bots' computer that does not answer - stopped, or a server
+nothing. That computer has its own volumes: sign in to a runtime once under *New Bot →
+Sign in*, then create bots as usual. A Space that does not answer - stopped, or a server
 that is down - lands on the connect screen with the reason and a *Try again* button instead of a
 dead interface.
 
-A word on words: "computer" in metor always means the bots' computer, the shared machine your
-bots work on - never your own Mac, phone or PC. Where both could be meant, the interface says
-"the bots' computer" and "this Mac".
+A Space is the shared environment where your bots live and run. It can run on your Mac
+or a server. The computer panel shows an individual bot’s desktop, terminal and files.
 
 ## 11. Managing bots
 
@@ -270,7 +272,7 @@ Bots restart automatically when the box restarts, unless they were paused.
 ## 12. Troubleshooting
 
 - **A bot shows "stopped" and messages fail.** Most often the runtime login has expired. Sign in
-  again: open "New bot", pick the runtime and click **Sign in** (terminal alternative for Claude
+  again: open "New Bot", pick the runtime and click **Sign in** (terminal alternative for Claude
   Code: `docker compose exec box claude auth login`, or `docker exec -it metor-box claude auth login`
   on a local box). Then press **Start** on the bot. The box's supervisor log
   (`docker compose logs box`) shows the reason if it was something else.

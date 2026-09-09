@@ -1,6 +1,8 @@
 # metor
 
-metor - an agent platform: delegable bots, each with its own computer. A bot has a desktop, a
+metor is a home for your agents. In metor, agents become persistent bots.
+A **Bot** is a named, persistent agent instance. A **Space** is the environment where multiple
+bots live and run, hosted on a machine you own. A bot has a desktop, a
 browser and a terminal inside a shared Linux container, talks to you in a chat, and can run
 recurring jobs on its own. Under the
 hood each bot is a session of an official coding-agent harness - **Claude Code** or **Codex**,

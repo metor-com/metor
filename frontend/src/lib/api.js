@@ -2,7 +2,7 @@
 import { app, origin, url, signedOut } from "./base.js";
 const base = () => url("/bots/api");   // per call: the computer can change without a reload (base.js)
 
-const unreachable = () => new Error(app ? `The bots' computer at ${origin} does not answer – is it running?` : "The bots' computer does not answer – check the connection.");
+const unreachable = () => new Error(app ? `The Space at ${origin} does not answer – is it running?` : "The Space does not answer – check the connection.");
 async function req(method, path, body) {
   let r;
   try {

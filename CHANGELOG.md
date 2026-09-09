@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Unified product language: Agent for the technology, Bot for a named persistent instance, and Space for the shared environment. Updated connection screens, menus, settings and sign-in messages.
+
 All notable user-visible changes to metor are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
 [Semantic Versioning](https://semver.org/) (the current version is in `VERSION`).
