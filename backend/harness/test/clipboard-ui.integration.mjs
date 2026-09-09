@@ -23,4 +23,15 @@ await page.evaluate(()=>{navigator.clipboard.readText=()=>Promise.reject(new Err
 await page.getByRole('button',{name:'Paste',exact:true}).click();
 await page.locator('dialog textarea').fill('Fallback\nÄÖÜ');await page.getByRole('button',{name:'Paste into screen',exact:true}).click();
 await target.waitForFunction(()=>document.querySelector('textarea').value==='Fallback\nÄÖÜ',null,{timeout:5000});console.log('PASS: denied clipboard access opens working manual fallback');
+await page.reload();await page.waitForFunction(()=>document.querySelector('#noVNC_container canvas')?.width>100);
+await target.locator('textarea').fill('Copy Grüße 👋\n中文');
+await target.locator('textarea').focus();await target.keyboard.press('Control+a');
+await page.getByRole('button',{name:'Copy',exact:true}).click();
+await page.waitForFunction(async()=>await navigator.clipboard.readText()==='Copy Grüße 👋\n中文');
+console.log('PASS: Copy button transfers remote selection');
+await page.evaluate(()=>{navigator.clipboard.writeText=()=>Promise.reject(new Error('denied'));});
+await page.getByRole('button',{name:'Copy',exact:true}).click();
+assert.equal(await page.locator('dialog textarea').inputValue(),'Copy Grüße 👋\n中文');
+await page.getByRole('button',{name:'Close',exact:true}).click();
+console.log('PASS: denied clipboard write opens manual copy fallback');
 await browser.close();await target.close();await remote.close();

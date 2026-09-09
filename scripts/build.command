@@ -17,6 +17,6 @@ for project in frontend client/desktop; do
 done
 echo "Building the desktop interface…"
 npm --prefix client/desktop run ui
-echo "Building $METOR_BOX_IMAGE…"
+echo "Building ${METOR_BOX_IMAGE}…"
 "$WRAPPER" box build
 echo "Build complete. Open run.command to start metor."

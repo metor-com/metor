@@ -6,7 +6,7 @@
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
 import http from "node:http";
 import net from "node:net";
-import { clipboardText, pasteText } from "./metor-clipboard.mjs";
+import { clipboardText, pasteText, copyText, readClipboard, copyScreenKey } from "./metor-clipboard.mjs";
 const screenClipboardScript = readFileSync(new URL("./metor-screen-clipboard.js", import.meta.url));
 import { resizeScreen, screenSize, withScreenResizeLock } from "./metor-screen.mjs";
 import { createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -368,6 +368,14 @@ async function api(req, res, url) {
       injectTurn(BOTS_DIR, name, `[Routine "${r.name}"] ${r.prompt}`);
       recordRun(BOTS_DIR, name, r);
       return send(202, { ok: true });
+    }
+    if (req.method === "POST" && rest.length === 3 && ["screen-clipboard", "screen-copy-key"].includes(action)) {
+      try { return send(200, action === "screen-clipboard" ? readClipboard(b.display) : copyScreenKey(b.display)); }
+      catch (e) { return send(409, { error: e.message }); }
+    }
+    if (req.method === "POST" && action === "screen-copy" && rest.length === 3) {
+      try { return send(200, copyText(b.display)); }
+      catch (e) { return send(409, { error: e.message }); }
     }
     if (req.method === "POST" && action === "screen-paste" && rest.length === 3) {
       const body = await readBody(req, 2 * 1024 * 1024);

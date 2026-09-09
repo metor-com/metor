@@ -3,6 +3,7 @@
   // the list comes first and a section opens over it (messenger pattern, like the rest of the app).
   // Devices = sign-in, pairing, notifications (ADR-0012/0013); Appearance and Behaviour are
   // per-device preferences from lib/settings.js.
+  import { app } from "../lib/base.js";
   import Devices from "./Devices.svelte";
   import Connectors from "./Connectors.svelte";
   import Switch from "./Switch.svelte";
@@ -112,6 +113,12 @@
               <div><div class="text-sm font-medium">Compact bot list</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">One line per bot, without the last message underneath.</p></div>
               <Switch checked={$settings.compactList} label="Compact bot list" onChange={(v) => update({ compactList: v })} />
             </div>
+            {#if app?.writeClipboard}
+              <div class="flex items-center justify-between gap-6 py-6">
+                <div><div class="text-sm font-medium">Sync clipboard with active screen</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Copy in the bot’s browser to paste on your computer. Paste on the screen to send local text. Only active while the screen has focus.</p></div>
+                <Switch checked={$settings.syncScreenClipboard} label="Sync clipboard with active screen" onChange={(v) => update({ syncScreenClipboard: v })} />
+              </div>
+            {/if}
             <div class="flex flex-col gap-3 py-6">
               <div><div class="text-sm font-medium">Claude quota</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">The usage bar of the Claude subscription at the bottom of the bot list.</p></div>
               <div class="flex gap-1 rounded-xl bg-zinc-100 p-1">

@@ -3,7 +3,7 @@
 // app://metor. Every request to a connected computer gets that computer's session token added
 // here, in the main process, so the page never holds it. Native parts only: connecting and the
 // keychain, tray and menus, notifications, screen capture, the metor:// link, the updater.
-import { app, BrowserWindow, Menu, Notification, Tray, desktopCapturer, dialog, ipcMain, nativeImage, net, protocol, safeStorage, session, shell } from "electron";
+import { app, BrowserWindow, clipboard, Menu, Notification, Tray, desktopCapturer, dialog, ipcMain, nativeImage, net, protocol, safeStorage, session, shell } from "electron";
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -385,6 +385,11 @@ on("metor:info", (e) => {
   const win = BrowserWindow.fromWebContents(e.sender); const c = computer(currentOf(win)); const info = publicInfo(c);
   if (info && unreachable.get(win) === c.id) info.reachable = false;   // the connect screen says so and offers Try again / Start
   e.returnValue = { platform: process.platform, version: app.getVersion(), gateway: info };
+});
+handle("metor:clipboard-write", (e, text) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (!win?.isFocused() || typeof text !== "string" || text.includes("\0") || Buffer.byteLength(text) > 256 * 1024) return false;
+  clipboard.writeText(text); return true;
 });
 handle("metor:gateways", async (_e, opts) => { if (opts?.probe) await Promise.all(load().computers.map(probe)); return load().computers.map(publicInfo); });
 handle("metor:rename", (_e, id, name) => {   // the user's own name for a computer, kept here, never sent to it

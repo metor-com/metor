@@ -21,3 +21,30 @@ export function pasteText(display, value) {
   if (paste.status !== 0) throw new Error("Text was copied, but could not be pasted into the screen.");
   return { ok: true };
 }
+
+// X11 PRIMARY contains the currently selected text, without synthesizing a keypress.
+export function copyText(display) {
+  if (!Number.isInteger(display) || display < 1) throw new Error("No screen available");
+  const result = spawnSync("xclip", ["-selection", "primary", "-out"], {
+    env: { ...process.env, DISPLAY: `:${display}` }, encoding: "utf8",
+    timeout: 3000, maxBuffer: 256 * 1024,
+  });
+  if (result.status !== 0) throw new Error("Select plain text in the bot’s browser first (up to 256 KB).");
+  return { text: clipboardText(result.stdout) };
+}
+
+export function readClipboard(display) {
+  if (!Number.isInteger(display) || display < 1) throw new Error("No screen available");
+  const result = spawnSync("xclip", ["-selection", "clipboard", "-out"], {
+    env: { ...process.env, DISPLAY: `:${display}` }, encoding: "utf8", timeout: 1000, maxBuffer: 256 * 1024,
+  });
+  return { text: result.status === 0 ? clipboardText(result.stdout) : null };
+}
+export function copyScreenKey(display) {
+  if (!Number.isInteger(display) || display < 1) throw new Error("No screen available");
+  const result = spawnSync("xdotool", ["key", "--clearmodifiers", "ctrl+c"], {
+    env: { ...process.env, DISPLAY: `:${display}` }, timeout: 3000,
+  });
+  if (result.status !== 0) throw new Error("Could not copy from the screen.");
+  return { ok: true };
+}

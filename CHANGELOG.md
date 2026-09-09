@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Desktop clipboard synchronization for the focused Screen, with a per-device setting and Copy/Paste buttons as fallback.
+
+- Copy selected text from the bot’s browser to your computer using the Screen’s Copy button, with a manual fallback when clipboard permission is unavailable.
+
 - Paste text from your computer into the bot’s screen using Cmd+V/Ctrl+V or the Paste button, with a manual text field when clipboard access is unavailable.
 
 - The embedded Screen adapts its resolution to the panel after resizing. A per-device switch in Settings → Behaviour enables or disables this (on by default). Changes wait until the bot finishes its turn; the browser keeps its tabs and fills the resized desktop.

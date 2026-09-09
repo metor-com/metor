@@ -9,6 +9,7 @@ export const DEFAULTS = {
   compactList: false,      // bot list: one line per bot, without the last message
   textSize: "default",     // small | default | large
   defaultView: "split",    // a bot opens with the computer shown ("split") or chat only ("chat"); desktop only
+  syncScreenClipboard: true, // desktop only; while the screen has focus
   autoResizeScreen: true,  // adapt the remote screen to this device’s panel; off keeps its current resolution
   splitRatio: 0.5,         // share of the width the chat takes when the computer is shown (the divider is draggable)
   quota: "always",         // Claude quota bar in the bot list: always | threshold | never

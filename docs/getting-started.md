@@ -326,3 +326,24 @@ Saved bots, chats and runtime sign-ins stay in their volumes; a running bot turn
 by the Space restart. The default runtime is Apple's `container` and the image is
 `metor-box:resize-test`; `METOR_RUNTIME` and `METOR_BOX_IMAGE` can override these.
 Node.js/npm and the runtime must already be installed.
+
+### Copy text from the bot’s browser
+
+Select text in the bot’s browser, then click **Copy** at the top right of the Screen.
+You can now paste it on your computer. If clipboard permission is unavailable, a dialog
+shows the selected text: press **Cmd+C** or **Ctrl+C**, then close it. This reads the
+Linux desktop’s text selection only when you click Copy; it does not synchronize in the
+background. Plain text up to 256 KB is supported. Rebuild and restart the Space to enable it.
+
+### Desktop clipboard synchronization
+
+Under **Settings → Behaviour → Sync clipboard with active screen** (on by default), the
+desktop app transfers newly copied plain text from the focused bot Screen to your local
+clipboard. Selecting text alone does not trigger a transfer. Use **Cmd+C** / **Ctrl+C**
+in the bot browser and paste locally; **Cmd+V** / **Ctrl+V** on the Screen sends local text
+to the bot. Switching away pauses synchronization. Existing remote clipboard contents are
+not imported when entering a Screen. Text is limited to 256 KB.
+
+Copy/Paste buttons hide once synchronization is available. Disable the setting to use them
+again; web clients and older Spaces retain the buttons. Rebuild and restart both the Space
+and desktop app after updating the checkout.

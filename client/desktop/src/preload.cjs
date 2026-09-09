@@ -3,6 +3,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 const info = ipcRenderer.sendSync("metor:info");
 contextBridge.exposeInMainWorld("metor", {
+  writeClipboard: (text) => ipcRenderer.invoke("metor:clipboard-write", text),
   platform: info.platform,
   version: info.version,
   gateway: info.gateway,                                            // { id, name, origin, version, signedIn } | null

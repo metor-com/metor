@@ -1,6 +1,6 @@
 <script>
   import { onDestroy } from "svelte";
-  import { watchUrl, resizeScreen } from "../lib/api.js";
+  import { watchUrl, resizeScreen, agentAction } from "../lib/api.js";
   import { app, url } from "../lib/base.js";
   import { settings } from "../lib/settings.js";
   import FilesPanel from "./FilesPanel.svelte";
@@ -35,6 +35,33 @@
       finally { inFlight = false; }
     }, 400);
   }
+  let screenFrame, clipboardTimer, clipboardBusy = false, clipboardSession = 0, clipboardActive = false;
+  let previousClipboard, clipboardSupported = false;
+  function focusedScreen() {
+    return !!app?.writeClipboard && $settings.syncScreenClipboard && mode === "screen" &&
+      document.hasFocus() && document.activeElement === screenFrame;
+  }
+  function configureClipboard() {
+    screenFrame?.contentWindow?.postMessage({ type: "metor:clipboard-sync", enabled: clipboardSupported && !!app?.writeClipboard && $settings.syncScreenClipboard && mode === "screen" }, src ? new URL(src).origin : "*");
+  }
+  $: if (screenFrame && src && mode && clipboardSupported !== undefined && $settings.syncScreenClipboard !== undefined) configureClipboard();
+  async function pollClipboard() {
+    const active = focusedScreen();
+    if (!active) { clipboardActive = false; previousClipboard = undefined; clipboardSession++; return; }
+    if (clipboardBusy) return;
+    clipboardBusy = true;
+    const generation = clipboardSession, name = bot, source = src;
+    try {
+      const result = await agentAction(name, "screen-clipboard");
+      if (generation !== clipboardSession || name !== bot || source !== src || !focusedScreen()) return;
+      clipboardSupported = true;
+      if (clipboardActive && result.text !== null && result.text !== previousClipboard) await app.writeClipboard(result.text);
+      previousClipboard = result.text; clipboardActive = true;
+    } catch { clipboardSupported = false; clipboardActive = false; previousClipboard = undefined; }
+    finally { clipboardBusy = false; }
+  }
+  clipboardTimer = setInterval(pollClipboard, 500);
+  function resetClipboard() { clipboardSession++; clipboardActive = false; previousClipboard = undefined; }
   let src = null, error = null, timer = null;
   let mode = "screen";       // screen | terminal | files
   let termOpened = false;    // load the terminal iframe only on first open, then keep it mounted (the shell survives tab switches)
@@ -45,6 +72,7 @@
 
   $: load(bot);
   function load(name) {
+    resetClipboard(); clipboardSupported = false;
     clearTimeout(timer); timer = null;
     src = null; error = null; termOpened = false; lastSize = ""; resizeNote = ""; clearTimeout(resizeTimer);
     mode = native ? "files" : "screen";
@@ -65,9 +93,11 @@
     }
   }
   function show(m) { if (native && m !== "files") return openNative(m); mode = m; if (m === "terminal") termOpened = true; }
-  onDestroy(() => { clearTimeout(timer); clearTimeout(resizeTimer); });
+  onDestroy(() => { clearInterval(clipboardTimer); resetClipboard(); clearTimeout(timer); clearTimeout(resizeTimer); });
   $: sub = (v) => `rounded-md px-3 py-1 text-xs transition-colors ${mode === v ? "bg-zinc-600 text-white" : "text-zinc-400 hover:text-zinc-200"}`;
 </script>
+
+<svelte:window on:blur={resetClipboard} />
 
 <div class="flex min-h-0 min-w-0 flex-1 flex-col bg-zinc-800">
   <div class="flex shrink-0 gap-1 border-b border-zinc-700 bg-zinc-900 px-2 py-1.5">
@@ -78,7 +108,7 @@
   <div class="relative min-h-0 min-w-0 flex-1" use:measure>
     {#if resizeNote && mode === "screen"}<p class="absolute bottom-2 left-2 right-2 z-10 rounded bg-zinc-900/90 px-3 py-2 text-xs text-zinc-200" role="status">{resizeNote}</p>{/if}
     {#if src}
-      <iframe title="Screen of {bot}" {src} class="absolute inset-0 h-full w-full border-0" class:hidden={mode !== "screen"} allow="clipboard-read; clipboard-write"></iframe>
+      <iframe bind:this={screenFrame} on:load={configureClipboard} title="Screen of {bot}" {src} class="absolute inset-0 h-full w-full border-0" class:hidden={mode !== "screen"} allow="clipboard-read; clipboard-write"></iframe>
     {:else if mode === "screen"}
       <p class="absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-zinc-400">
         {error ? `Waiting for the bot's computer… (${error})` : "Loading the bot's computer…"}
