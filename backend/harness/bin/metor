@@ -54,7 +54,11 @@ need_runtime() {
             else echo "Docker is not running – start it, then try again"; exit 1; fi
             local i; for i in $(seq 1 90); do docker info >/dev/null 2>&1 && return; sleep 2; done
             echo "Docker did not come up – start it by hand (Docker Desktop, or: colima start), then try again"; exit 1 ;;
-    container) container system status 2>/dev/null | grep -Eq 'status[[:space:]]+running' || { echo "starting Apple's container service…"; container system start >/dev/null; } ;;
+    container)
+      # A failed first start can leave the service running without a kernel. Always let
+      # Apple's idempotent start finish initialization; the app has no stdin for prompts.
+      echo "preparing Apple's container service and Linux kernel…"
+      container system start --enable-kernel-install >/dev/null ;;
     *) hints; exit 1 ;;
   esac
 }
