@@ -51,7 +51,7 @@
     <button
       class="min-w-0 flex-1 rounded-xl border border-dashed border-zinc-300 px-3 py-2.5 text-sm text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-900"
       on:click={() => (creating = true)}
-    >+ New bot</button>
+    >+ New Bot</button>
     <button class="shrink-0 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-500 transition-colors hover:border-zinc-900 hover:text-zinc-900"
       title="Signed-in devices, link a phone, sign out" on:click={() => (devices = true)}>Devices</button>
   </div>

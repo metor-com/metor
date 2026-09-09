@@ -1,5 +1,8 @@
 # Getting started with metor
 
+In metor, agents become persistent bots. A **Bot** is a named agent instance with its own
+role, history and files. A **Space** is the shared environment where your bots live and run.
+
 This guide walks through the web interface. It assumes a running installation (see
 [INSTALL.md](../INSTALL.md) for servers or the quickstart in the [README](../README.md) for a local
 box) and that you can open the interface - locally at `http://127.0.0.1:6010/bots/`, on a server
@@ -31,7 +34,7 @@ interface must be reached over HTTPS for this.
 
 ## 2. Create your first bot
 
-Click **+ New bot** at the bottom of the sidebar.
+Click **+ New Bot** at the bottom of the sidebar.
 
 - **Name** - free text, for example `Scout` or `Fußball-Späher 2`. The dialog shows the **id** it
   derives from the name (`fussball-spaeher-2`: lower case, umlauts as `ae`/`oe`/`ue`, everything
@@ -181,7 +184,7 @@ Bots restart automatically when the box restarts, unless they were paused.
 ## 11. Troubleshooting
 
 - **A bot shows "stopped" and messages fail.** Most often the runtime login has expired. Sign in
-  again: open "New bot", pick the runtime and click **Sign in** (terminal alternative for Claude
+  again: open "New Bot", pick the runtime and click **Sign in** (terminal alternative for Claude
   Code: `docker compose exec box claude auth login`, or `docker exec -it metor-box claude auth login`
   on a local box). Then press **Start** on the bot. The box's supervisor log
   (`docker compose logs box`) shows the reason if it was something else.

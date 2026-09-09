@@ -65,7 +65,7 @@
 
 <div class="fixed inset-0 z-10 flex items-center justify-center bg-black/35 p-4" role="presentation" on:click={() => { stopWizard(); onDone?.(null); }}>
   <form class="flex w-[26rem] max-w-full flex-col gap-3.5 rounded-2xl bg-white p-5 shadow-xl" on:click|stopPropagation on:submit|preventDefault={submit}>
-    <h2 class="text-lg font-bold">New bot</h2>
+    <h2 class="text-lg font-bold">New Bot</h2>
     <label class="flex flex-col gap-1.5 text-[13px] text-zinc-500">Name
       <input class="rounded-lg border border-zinc-300 px-2.5 py-2 text-[15px] text-zinc-900 outline-none focus:border-zinc-900" bind:value={name} placeholder="e.g. Scout or Fußball-Späher 2" maxlength="60" required autofocus />
       <span class="flex items-center gap-1.5 text-xs text-zinc-400">

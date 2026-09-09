@@ -9,7 +9,8 @@ Rule: code terms do not change when marketing renames things.
 | Term | UI | Code | Prompt | Meaning |
 |---|---|---|---|---|
 | **metor** | metor | `metor` (CLI, prefix `METOR_*`), `metor bot …` | "a bot of metor" | The brand and this product: an agent platform – delegable bots with their own computer ("metor Bot" until ADR-0007, a two-word product name until 2026-09-02, see the ADR-0007 addendum) |
-| **Bot** | Bot, "New bot", "your bots" | `agent`, `agentId`, `agents/<id>/` | "You are *<Name>*, a bot of metor" | A single, persistent instance with name, role, history, memory, desktop |
+| **Agent** | Agent in website/SEO and technical explanations | `agent` | agent | The general technology or category, including coding agents such as Claude Code and Codex; never a synonym for a named Bot in normal UI. |
+| **Bot** | Bot, "New Bot", "your bots" | `agent`, `agentId`, `agents/<id>/` | "You are *<Name>*, a bot of metor" | A named, persistent agent instance in metor with name, role, history, memory, desktop |
 | **Profile** | Role | `role`, `CLAUDE.md` / `AGENTS.md` | Identity | Stable identity and role of a bot |
 | **User** | you | `user` | "the user" | The person who owns the bots; the only party allowed to loosen boundaries |
 
@@ -17,19 +18,21 @@ Rule: code terms do not change when marketing renames things.
 
 | Term | UI | Code | Prompt | Meaning |
 |---|---|---|---|---|
-| **Computer** | "Your computer", "metor computer" | `box` (`box/`, `METOR_BOX_*`) | "the box", "your own computer" | The one persistent Linux environment per user in which all bots run (Docker container; possibly a VM later) |
+| **Space** | Space, "Your Spaces", "Connect a Space…" | `box`, existing `computer` identifiers | "the box" | The persistent environment where multiple bots live and run, currently a Linux container on a local machine or server. Forgetting a Space only drops the app connection; it does not delete the Space or its bots. |
 | **Desktop** | Desktop | `display`, `.desktop/` | "your desktop" | Screen + browser window of a bot on the shared computer |
 | **Workspace** | Files | `/workspace` | "the workspace" | Shared working directory of all bots |
 | **Bot directory** | — | `/workspace/bots/<name>/` | — | A bot's home: role file, `bot.json`, `.metor/` (state, histories), files |
-| **Your machine** | "your machine" | `local` | "the user's computer" | The user's real machine – a separate trust zone, reachable only via approvals |
-| **Harness / Runtime** | "Runtime" | `harness: claude-stream \| codex` | — | The agent runner that drives the model (Claude Code, Codex) – runs as a process inside the computer; registry in `metor-harness.mjs` (ADR-0011), each bot additionally carries `model` |
+| **Your machine** | "this Mac", "this machine", "your machine" | `local` | "the user's computer" | The user's real device – a separate trust zone, reachable only via approvals. Never called "computer" in the interface; the Space that runs on it is "the Space on this Mac" |
+| **Harness / Runtime** | "Runtime" | `harness: claude-stream \| codex \| gemini \| copilot` | — | The agent runner that drives the model (Claude Code, Codex, Gemini CLI, GitHub Copilot) – runs as a process inside the computer; registry in `metor-harness.mjs` (ADR-0011), each bot additionally carries `model` |
+| **Connector** | Connector, "Settings → Connectors" | `connector`, `connectors.json`, MCP server key `mcp__<key>__…` | "a tool" | An MCP server configured once in the interface and available to every bot (ADR-0014); the built-in servers `browser` and `routines` are not connectors |
 | **Host process** | — | `metor-agent-host`, `.metor/host.pid` | — | One process per bot that drives its runtime (Agent SDK session or `codex app-server`) and speaks the file IPC (ADR-0009, ADR-0011) |
 | **Session** | Chat | `session`, `sessionId` | — | Running runtime instance of a bot incl. its context; resumed after a restart |
 | **Supervisor** | — | `metor supervise` | — | Process that starts all bots when the computer boots and keeps them alive |
 
 ## 3. Collaboration
 
-Bot-to-bot messaging and groups are roadmap items (design draft in
+Bot-to-bot messaging and groups are roadmap items (concept in
+[design/bot-collaboration.md](design/bot-collaboration.md), groups in
 [design/crew-messaging-groups.md](design/crew-messaging-groups.md)); the terms are fixed here so
 that code and UI use them consistently once built.
 
@@ -64,6 +67,17 @@ that code and UI use them consistently once built.
 | **Device** | Devices | `session`, `/workspace/.metor/auth.json` | A browser signed in by setup link, QR code or pairing code (ADR-0012); listed and revocable in the interface and with `metor auth` |
 | **Setup link / pairing code** | "Link a device" | `metor auth link`, `claim` | One-time secrets that turn a browser into a signed-in device: setup link 24 h (first device), pairing link / QR / code 2 min (further devices) |
 | **noVNC / VNC / Xvfb** | — | — | Browser-based screen access to a bot's virtual monitor (see ADR-0005) |
+
+## Product language
+
+metor is a home for your agents. In metor, agents become persistent bots.
+A Space is the environment where multiple bots live and run.
+
+Use Agent for the technology/category in website copy, SEO, technical docs, architecture,
+comparisons, and API/developer contexts. Use Bot for the persistent product instance,
+and Space for its shared environment. Never use Agent and Bot synonymously in the UI.
+Computer remains appropriate for a bot’s screen/terminal panel and for physical hardware.
+Existing API routes, identifiers, storage and CLI commands remain compatible.
 
 ## Spelling
 
