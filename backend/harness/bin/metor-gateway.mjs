@@ -6,6 +6,7 @@
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
 import http from "node:http";
 import net from "node:net";
+import { resizeScreen, screenSize, withScreenResizeLock } from "./metor-screen.mjs";
 import { createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -365,6 +366,16 @@ async function api(req, res, url) {
       injectTurn(BOTS_DIR, name, `[Routine "${r.name}"] ${r.prompt}`);
       recordRun(BOTS_DIR, name, r);
       return send(202, { ok: true });
+    }
+    if (req.method === "PUT" && action === "screen-size" && rest.length === 3) {
+      const body = await readBody(req);
+      let size;
+      try { size = screenSize(body?.width, body?.height); } catch (e) { return send(400, { error: e.message }); }
+      // The host waits for this marker before starting its next turn. An unreadable or
+      // starting host state is not idle, so an incomplete state write cannot permit a resize.
+      try { return send(200, withScreenResizeLock(join(BOTS_DIR, name, ".metor"),
+        () => streamChat.status(name) === "idle", () => resizeScreen(b.display, size.width, size.height))); }
+      catch (e) { return send(409, { error: e.message }); }
     }
     if (req.method === "GET" && action === "watch-url" && rest.length === 3) {
       if (!b.display || !b.watchToken) return send(404, { error: "no desktop" });

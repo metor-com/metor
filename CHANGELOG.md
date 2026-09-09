@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The embedded Screen adapts its resolution to the panel after resizing. A per-device switch in Settings → Behaviour enables or disables this (on by default). Changes wait until the bot finishes its turn; the browser keeps its tabs and fills the resized desktop.
+
 - Local Spaces using Apple container now install the recommended Linux kernel without an interactive prompt, including after an interrupted first setup.
 
 - Unified product language: Agent for the technology, Bot for a named persistent instance, and Space for the shared environment. Updated connection screens, menus, settings and sign-in messages.

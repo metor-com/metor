@@ -135,6 +135,10 @@
               <div><div class="text-sm font-medium">Sort bots by latest activity</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">The bot with the newest message moves to the top, like a messenger. Off keeps the alphabetical order.</p></div>
               <Switch checked={$settings.sortByActivity} label="Sort bots by latest activity" onChange={(v) => update({ sortByActivity: v })} />
             </div>
+            <div class="flex items-center justify-between gap-6 py-6">
+              <div><div class="text-sm font-medium">Adapt screen resolution to panel</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Adjust the bot’s screen after resizing the panel, once the bot is idle. Off keeps the current resolution and scales the view to fit. Other devices viewing this bot share its screen resolution.</p></div>
+              <Switch checked={$settings.autoResizeScreen} label="Adapt screen resolution to panel" onChange={(v) => update({ autoResizeScreen: v })} />
+            </div>
             <div class="flex flex-col gap-3 py-6">
               <div><div class="text-sm font-medium">Open a bot with</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Whether the bot's computer is shown next to the chat from the start. The computer button in the header toggles it at any time; the divider between chat and computer can be dragged.</p></div>
               <div class="flex gap-1 rounded-xl bg-zinc-100 p-1">

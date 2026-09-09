@@ -288,3 +288,18 @@ Bots restart automatically when the box restarts, unless they were paused.
 - **An attachment is rejected.** Check the limits (25 MB per file, 10 per message).
 - **A bot is stuck in the browser** (login, two-factor, captcha). Open the Screen tab, do the step
   yourself, then tell the bot in the chat to continue.
+
+### Screen size in the split view
+
+Under **Settings → Behaviour → Adapt screen resolution to panel**, you can turn automatic
+resizing on or off for this device (on by default). Off keeps the current resolution and scales
+the view to fit the panel.
+
+The embedded Screen adjusts its resolution to the available panel space after you finish
+dragging the divider. A narrow panel gives the browser a portrait layout rather than shrinking
+a wide desktop. Browser tabs and the current page stay open. While a bot is working, the
+existing screen is scaled; the resolution adjusts once the bot is idle. If several devices
+watch the same bot, they share its screen resolution.
+
+This requires the updated Space image with TigerVNC. Existing Spaces must update their image
+and restart before this feature is available; updating only the desktop app is not enough.

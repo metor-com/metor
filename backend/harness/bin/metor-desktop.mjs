@@ -1,4 +1,4 @@
-// metor-desktop – the desktop chain per bot: Xvfb → openbox → tint2 → Chromium (CDP) → x11vnc →
+// metor-desktop – the desktop chain per bot: Xtigervnc → openbox → tint2 → Chromium (CDP) →
 // websockify/noVNC → ttyd (terminal tab) → xterm. One X display per bot, ports derived from it
 // (metor-harness.mjs `ports`); PID files under <bot>/.desktop/, idempotent start.
 import { spawn, spawnSync } from "node:child_process";
@@ -26,7 +26,7 @@ function readPid(file) {
   try {
     const n = Number(readFileSync(file, "utf8").trim()); if (!isProcess(n)) return null;
     const key = Object.keys(PROC_MATCH).find((k) => file.endsWith(`/${k}.pid`));
-    if (key) { let cmd = ""; try { cmd = readFileSync(`/proc/${n}/cmdline`, "utf8"); } catch { return null; } if (!cmd.includes(PROC_MATCH[key])) return null; }
+    if (key) { let cmd = ""; try { cmd = readFileSync(`/proc/${n}/cmdline`, "utf8"); } catch { return null; } if (!(key === "xvfb" ? /Xvfb|Xtigervnc/.test(cmd) : cmd.includes(PROC_MATCH[key]))) return null; }
     return n;
   } catch { return null; }
 }
@@ -64,8 +64,15 @@ function launch(b, key, cmd, args, extraEnv = {}) {
 }
 export function desktopStart(b) {
   ensureDesktopConfig(b); const p = ports(b.display); const dir = botDir(b.name);
-  const passFile = join(dir, ".desktop", "vncpass"); writeFileSync(passFile, b.watchToken, { mode: 0o600 });
-  launch(b, "xvfb", "Xvfb", [`:${b.display}`, "-screen", "0", "1280x800x24", "-nolisten", "tcp"]);
+  const passFile = join(dir, ".desktop", "vncpass");
+  // TigerVNC reads the standard encrypted VNC password format (not x11vnc's plaintext file).
+  const password = spawnSync("x11vnc", ["-storepasswd", b.watchToken, passFile], { timeout: 2000 });
+  if (password.status !== 0) throw new Error("Could not prepare the desktop password");
+  // One resizable X/VNC server. Only the authenticated gateway can request resizing;
+  // VNC clients cannot change the geometry while a bot is working.
+  launch(b, "xvfb", "Xtigervnc", [`:${b.display}`, "-geometry", "1280x800", "-depth", "24",
+    "-rfbport", String(p.vnc), "-localhost", "-SecurityTypes", "VncAuth", "-rfbauth", passFile,
+    "-AlwaysShared", "-AcceptSetDesktopSize=0", "-nolisten", "tcp"]);
   // The X server must accept connections, not just create the socket (otherwise Chromium starts into the void)
   waitFor(() => spawnSync("xdotool", ["getdisplaygeometry"], { env: { ...process.env, DISPLAY: `:${b.display}` } }).status === 0, 15_000);
   launch(b, "openbox", "openbox", []);
@@ -74,7 +81,6 @@ export function desktopStart(b) {
   launch(b, "tint2", "tint2", ["-c", join(TEMPLATES, "tint2rc")]);
   launch(b, "chromium", "chromium", ["--no-sandbox", "--no-first-run", "--no-default-browser-check", "--disable-dev-shm-usage", "--disable-gpu",
     `--user-data-dir=${join(dir, ".browser")}`, `--remote-debugging-port=${p.cdp}`, "--window-size=1280,800", "--window-position=0,0", "about:blank"]);
-  launch(b, "x11vnc", "x11vnc", ["-display", `:${b.display}`, "-rfbport", String(p.vnc), "-localhost", "-forever", "-shared", "-noxdamage", "-quiet", "-passwdfile", passFile]);
   const web = join(dir, ".desktop", "web", "bots"); mkdirSync(web, { recursive: true });
   if (!existsSync(join(web, b.name))) spawnSync("ln", ["-s", "/usr/share/novnc", join(web, b.name)]);
   launch(b, "novnc", "websockify", ["--web", join(dir, ".desktop", "web"), `0.0.0.0:${p.novnc}`, `127.0.0.1:${p.vnc}`]);
@@ -96,7 +102,7 @@ export function desktopStart(b) {
 }
 // Core processes of the desktop – without xterm: if only the terminal is closed (user typed `exit`),
 // an idempotent desktopStart is enough, the rest of the chain (browser!) stays untouched.
-export function desktopCoreDead(b) { const dir = join(botDir(b.name), ".desktop"); return ["xvfb", "chromium", "x11vnc", "novnc"].some((k) => !readPid(join(dir, `${k}.pid`))); }
+export function desktopCoreDead(b) { const dir = join(botDir(b.name), ".desktop"); return ["xvfb", "chromium", "novnc"].some((k) => !readPid(join(dir, `${k}.pid`))); }
 export function desktopStop(b) {
   const dir = join(botDir(b.name), ".desktop"); if (!existsSync(dir)) return;
   const pids = [];
@@ -106,7 +112,7 @@ export function desktopStop(b) {
   // are unique per bot, so collect them via command-line pattern as well.
   if (b.display) {
     const p = ports(b.display);
-    for (const pat of [`Xvfb :${b.display} `, `x11vnc .*-rfbport ${p.vnc} `, `websockify .*:${p.novnc} `, `chromium .*--remote-debugging-port=${p.cdp} `, `ttyd .*-p ${p.ttyd} `]) {
+    for (const pat of [`Xvfb :${b.display} `, `Xtigervnc :${b.display} `, `x11vnc .*-rfbport ${p.vnc} `, `websockify .*:${p.novnc} `, `chromium .*--remote-debugging-port=${p.cdp} `, `ttyd .*-p ${p.ttyd} `]) {
       const r = spawnSync("pgrep", ["-f", pat], { encoding: "utf8" });
       for (const line of (r.stdout ?? "").split("\n")) { const pid = Number(line.trim()); if (pid && !pids.includes(pid)) { pids.push(pid); try { process.kill(pid, "SIGTERM"); } catch {} } }
     }
@@ -117,7 +123,7 @@ export function desktopStop(b) {
   for (const pid of pids) if (!gone(pid)) { try { process.kill(pid, "SIGKILL"); } catch {} }
 }
 // xterm/tint2 count too: if the user closes them, the supervisor tick restores them within 30 s
-export function desktopAlive(b) { const dir = join(botDir(b.name), ".desktop"); return ["xvfb", "chromium", "xterm", "tint2", "x11vnc", "novnc", "ttyd"].every((k) => readPid(join(dir, `${k}.pid`))); }
+export function desktopAlive(b) { const dir = join(botDir(b.name), ".desktop"); return ["xvfb", "chromium", "xterm", "tint2", "novnc", "ttyd"].every((k) => readPid(join(dir, `${k}.pid`))); }
 // Fresh container: PID files of the previous one are corpses
 export function desktopForgetPids(b) {
   const d = join(botDir(b.name), ".desktop");

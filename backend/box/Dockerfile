@@ -23,7 +23,7 @@ LABEL org.opencontainers.image.title="metor box" \
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git python3 ripgrep procps tini less jq unzip tzdata \
       chromium fonts-liberation fonts-noto-color-emoji \
-      xvfb x11vnc websockify novnc openbox xdotool xterm tint2 fonts-dejavu-core x11-xserver-utils \
+      xvfb tigervnc-standalone-server x11vnc websockify novnc openbox xdotool xterm tint2 fonts-dejavu-core x11-xserver-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # ttyd (Terminal tab of the interface, ships its own xterm.js): not in the Debian repos –
@@ -75,6 +75,7 @@ COPY backend/harness/bin/metor-store.mjs /usr/local/lib/metor/metor-store.mjs
 COPY backend/harness/bin/metor-auth.mjs /usr/local/lib/metor/metor-auth.mjs
 COPY backend/harness/bin/metor-push.mjs /usr/local/lib/metor/metor-push.mjs
 COPY backend/harness/bin/metor-connectors.mjs /usr/local/lib/metor/metor-connectors.mjs
+COPY backend/harness/bin/metor-screen.mjs /usr/local/lib/metor/metor-screen.mjs
 COPY backend/harness/bin/metor-desktop.mjs /usr/local/lib/metor/metor-desktop.mjs
 COPY backend/harness/bin/metor-lifecycle.mjs /usr/local/lib/metor/metor-lifecycle.mjs
 COPY backend/harness/bin/metor-supervise.mjs /usr/local/lib/metor/metor-supervise.mjs

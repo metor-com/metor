@@ -6,6 +6,7 @@
 import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
+import { waitForScreenResize } from "./metor-screen.mjs";
 
 const BOTS_DIR = process.env.METOR_BOTS_DIR ?? "/workspace/bots";
 
@@ -15,6 +16,7 @@ const BOTS_DIR = process.env.METOR_BOTS_DIR ?? "/workspace/bots";
 // Codex as developerInstructions.
 export const CHAT_HOWTO = `Chatting with the user (metor interface):
 - Showing files: write "[File: path/to/file]" (relative to your directory) on its own line in your reply – the chat renders it as a card with preview/download and removes the marker from the text. Use this for results, screenshots and exports instead of quoting long files. File paths you mention in the text (e.g. in backticks) are additionally offered as cards automatically.
+- The user can resize your screen between turns. Before a coordinate-based action in a new turn, take a fresh screenshot; never reuse screen coordinates from a previous turn.
 - The user's attachments reach you as "[Attachment: /path]" lines (the files are under uploads/); look at images with your file-reading tool.
 - Language: the user reads your replies, your texts between steps AND the one-line description you give each command (the "description" of your shell tool – the chat shows it while you work). Write all of them in the language the user writes in, even where a tool's own instructions ask for English.`;
 
@@ -97,6 +99,7 @@ export function createCore(name) {
       if (t.id) chat({ v: 1, type: "status", ref: t.id, status: "delivered", ts: now() });
       if (t.offset) commitCursor(t.offset);
       saveState({ status: "busy" });
+      await waitForScreenResize(metorDir);
       yield t;
     }
   }

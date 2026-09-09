@@ -119,7 +119,7 @@
           <div class="group relative w-1.5 shrink-0 cursor-col-resize bg-zinc-200 hover:bg-zinc-400 {dragging ? 'bg-zinc-500' : ''}" role="separator" aria-orientation="vertical" aria-label="Drag to resize the chat and the pane"
             on:pointerdown|preventDefault={startDrag}></div>
         {/if}
-        {#if pane === "computer"}<ComputerPanel bot={$selected} />
+        {#if pane === "computer"}<ComputerPanel bot={$selected} status={$current.status} resizing={dragging} />
         {:else if pane === "routines"}{#key $selected}<RoutinesPanel bot={$selected} title={$current.title ?? $selected} />{/key}
         {:else if pane === "document" && $shownDocument}<DocumentPanel doc={$shownDocument} onClose={closeDocument} />{/if}
       </section>
