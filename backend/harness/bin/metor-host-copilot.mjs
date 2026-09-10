@@ -1,3 +1,4 @@
+import { attachAcpCommands } from "./metor-commands.mjs";
 // metor-host-copilot – GitHub Copilot CLI adapter for the neutral host core (ADR-0011, ADR-0021;
 // facts in knowledge/harness/copilot-facts.md). Spawns `copilot --acp` as a child – the Agent
 // Client Protocol, JSON-RPC 2.0 newline-delimited over stdio, the same loop as the Gemini adapter –
@@ -50,7 +51,10 @@ export async function run(core) {
   const text = (c) => (Array.isArray(c) ? c : [c]).map((x) => x?.type === "text" ? x.text : x?.type === "content" ? text(x.content) : x?.text ?? "").join("");
   const tidy = (s) => String(s ?? "").replace(/\n?<shellId: \d+ completed with exit code 0>\s*$/, "");   // the shell tool's own footer on success
   const outputOf = (u) => u.content?.length ? text(u.content) : u.rawOutput != null ? (typeof u.rawOutput === "string" ? u.rawOutput : u.rawOutput.content ?? JSON.stringify(u.rawOutput)) : "";
+  const commands = attachAcpCommands(core, send, () => sessionId);
+  core.setModelHandler((model) => commands.setModel(model));
   function onUpdate(u) {
+    if (commands.update(u)) return;
     if (!u || loading) return;
     switch (u.sessionUpdate) {
       case "agent_message_chunk": { const t = text(u.content); if (t) { turnText += t; core.partialAppend(t); } break; }
@@ -117,6 +121,7 @@ export async function run(core) {
     loading = true;
     const r = await send("session/load", { sessionId, cwd: dir, mcpServers: [] });
     loading = false;
+    if (!r.error) commands.init(r.result);
     if (r.error && notLoggedIn(r.error)) return core.fail(loginError());
     if (r.error) { core.log(`session/load failed (${r.error.message ?? r.error.code}) – starting a new session`); sessionId = null; }
   } else if (sessionId) { core.log("this Copilot CLI cannot load sessions – starting a new one"); sessionId = null; }
@@ -125,6 +130,7 @@ export async function run(core) {
     if (r.error && notLoggedIn(r.error)) return core.fail(loginError());
     if (r.error) return core.fail(new Error(`session/new: ${r.error.message ?? JSON.stringify(r.error)}`));
     sessionId = r.result?.sessionId;
+    commands.init(r.result);
   }
   core.saveState({ sessionId, status: "idle" });
 

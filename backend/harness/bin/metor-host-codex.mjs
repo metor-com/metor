@@ -131,11 +131,22 @@ export async function run(core) {
   let currentTurnId = null;
   core.setInterruptHandler(() => { if (currentTurnId) send("turn/interrupt", { threadId, turnId: currentTurnId }); });
 
+  const models = [];
+  let cursor = null;
+  do {
+    const r = await send("model/list", { ...(cursor ? { cursor } : {}) });
+    if (r.error) { core.log("Model list unavailable:", r.error.message); break; }
+    models.push(...(r.result?.data ?? []).filter((m) => !m.hidden).map((m) => ({ id: m.model ?? m.id, label: m.displayName ?? m.id, reasoningEfforts: (m.supportedReasoningEfforts ?? []).map((e) => ({ id: e.reasoningEffort, label: e.reasoningEffort, description: e.description ?? "" })), defaultReasoningEffort: m.defaultReasoningEffort ?? null })));
+    cursor = r.result?.nextCursor ?? null;
+  } while (cursor);
+  core.setCapabilities([], models);
+  // turn/start accepts a model override for the same thread; no synthetic prompt is sent.
+  core.setModelHandler(async () => {});
   core.ready();
   // ---------- Turn loop: strictly sequential (one turn after the other) ----------
   for await (const t of core.turns()) {
     const done = new Promise((r) => (turnDone = r));
-    const res = await send("turn/start", { threadId, input: [{ type: "text", text: t.text }] });
+    const res = await send("turn/start", { threadId, ...(bot.model ? { model: bot.model } : {}), ...(bot.reasoningEffort ? { effort: bot.reasoningEffort } : {}), input: [{ type: "text", text: t.text }] });
     if (res.error) {
       core.emitText(`⚠️ Codex error: ${res.error.message ?? JSON.stringify(res.error)}`);
       core.saveState({ status: "idle" });

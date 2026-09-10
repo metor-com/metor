@@ -3,9 +3,10 @@
 // out), the turn queue, approvals, file cards and the lifecycle. The adapters
 // (metor-host-claude.mjs, metor-host-codex.mjs) only translate between this core and
 // their respective harness – UI and gateway see the same files for all runtimes.
-import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
+import { commandCatalogue, resolveCommand } from "./metor-commands.mjs";
 import { waitForScreenResize } from "./metor-screen.mjs";
 
 const BOTS_DIR = process.env.METOR_BOTS_DIR ?? "/workspace/bots";
@@ -82,8 +83,20 @@ export function createCore(name) {
       }
     } catch {}
   }
-  function saveState(patch) { state = { ...state, ...patch, pid: process.pid, updatedAt: now() }; writeFileSync(stateFile, JSON.stringify(state) + "\n"); }
-  saveState({ status: "starting" });
+  function saveState(patch) { state = { ...state, ...patch, pid: process.pid, updatedAt: now() }; const tmp = `${stateFile}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(state) + "\n"); renameSync(tmp, stateFile); }
+  saveState({ status: "starting", capabilities: { commands: [], models: [] } });
+  let modelHandler = null;
+  function setCapabilities(commands, models = [], currentModel = bot.model) {
+    saveState({ capabilities: { commands: commandCatalogue(commands, models), models, currentModel, currentReasoningEffort: bot.reasoningEffort ?? null } });
+  }
+  function persistModel(model, reasoningEffort) {
+    const file = join(dir, "bot.json");
+    const latest = JSON.parse(readFileSync(file, "utf8"));
+    const tmp = `${file}.${process.pid}.tmp`;
+    writeFileSync(tmp, JSON.stringify({ ...latest, model, reasoningEffort }, null, 2) + "\n"); renameSync(tmp, file);
+    bot.model = model; bot.reasoningEffort = reasoningEffort;
+    saveState({ capabilities: { ...state.capabilities, currentModel: model, currentReasoningEffort: reasoningEffort } });
+  }
 
   // ---------- Inbound: turn queue, fed from inbox.jsonl ----------
   let wake = null;
@@ -95,7 +108,32 @@ export function createCore(name) {
   async function* turns() {
     for (;;) {
       while (!queue.length) await new Promise((r) => (wake = r));
+      // Streaming SDKs may ask for the next input before the current result arrives.
+      // Commands and messages share one ordered queue; model changes happen between turns.
+      while (state.status === "busy" || state.status === "starting") await new Promise((r) => setTimeout(r, 50));
       const t = queue.shift();
+      if (t.command) {
+        try {
+          const command = resolveCommand(state.capabilities, t.command, t.text);
+          if (command.action === "model") {
+            if (!modelHandler) throw new Error("Model switching is unavailable in this session.");
+            saveState({ status: "busy" });
+            await modelHandler(command.argument, command.effort);
+            persistModel(command.argument, command.effort);
+            emitText(`Model: ${state.capabilities.models.find((m) => m.id === command.argument)?.label ?? command.argument}${command.effort ? ` · Reasoning: ${command.effort}` : ""}. Applies to subsequent messages.`, { origin: "harness", kind: "notice" });
+            chat({ v: 1, type: "status", ref: t.id, status: "delivered", ts: now() });
+            if (t.offset) commitCursor(t.offset);
+            saveState({ status: "idle" });
+            continue;
+          }
+        } catch (e) {
+          chat({ v: 1, type: "status", ref: t.id, status: "failed", error: e.message, ts: now() });
+          emitText(`Command failed: ${e.message}`, { kind: "notice", origin: "harness" });
+          if (t.offset) commitCursor(t.offset);
+          saveState({ status: "idle" });
+          continue;
+        }
+      }
       if (t.id) chat({ v: 1, type: "status", ref: t.id, status: "delivered", ts: now() });
       if (t.offset) commitCursor(t.offset);
       saveState({ status: "busy" });
@@ -126,7 +164,7 @@ export function createCore(name) {
       at += Buffer.byteLength(line) + 1;   // the byte after this line: the cursor once its turn is delivered
       if (!line.trim()) continue;
       let m; try { m = JSON.parse(line); } catch { continue; }
-      if (m.kind === "user" && typeof m.text === "string") enqueueTurn({ id: m.id, text: m.text, offset: at });
+      if (m.kind === "user" && typeof m.text === "string") enqueueTurn({ id: m.id, text: m.text, command: m.command, offset: at });
       else if (fresh) continue;   // answers and interrupts from before this host started belong to a host that is gone
       else if (m.kind === "permission-answer" && pendingPerms.has(m.ref)) pendingPerms.get(m.ref)(m.decision === "allow" ? "allow" : "deny");
       else if (m.kind === "interrupt") { log("Interrupt from the UI"); Promise.resolve(onInterrupt?.()).catch((e) => log("Interrupt failed:", e.message)); }
@@ -236,7 +274,8 @@ export function createCore(name) {
   return {
     name, dir, metorDir, bot, now, log, chat,
     get state() { return state; },
-    saveState,
+    saveState, setCapabilities,
+    setModelHandler(fn) { modelHandler = fn; },
     turns,
     setInterruptHandler(fn) { onInterrupt = fn; },
     askPermission,

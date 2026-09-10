@@ -1,4 +1,4 @@
-# Backlog (as of 2026-09-04)
+# Backlog (as of 2026-09-10)
 
 Priority: top = recommended next. Finished items are removed here and recorded in
 [CHANGELOG.md](CHANGELOG.md); large items get an ADR when work starts.
@@ -29,6 +29,23 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 
 ## Roadmap
 
+- **Connect an existing VPS as a Space** (idea, 2026-09-10) - the user orders a Linux
+  server directly from OVHcloud (first test provider) or another host; billing stays with
+  the provider. In the desktop app: **New Space → Connect an existing server**, enter its
+  IP/hostname and authorize initial access with a password or a metor-generated SSH key.
+  No terminal commands or manual SSH session required. A provider-independent installer
+  runs over SSH in the background: check OS/resources (initial target: at least 2 vCPUs,
+  16 GB RAM and 40 GB disk), install Docker, set up persistent data and HTTPS, start metor,
+  and securely pair the Space with the app. Reuse the existing server installer; show
+  progress and actionable errors, make retries safe, and preserve data after interruption.
+  Verify the server's identity before sending credentials, keep secrets out of logs,
+  and remove temporary installation access afterward unless ongoing management is explicitly
+  enabled. Start with fresh servers; detect existing workloads and avoid overwriting them.
+  Acceptance: a user-ordered OVHcloud VPS becomes a usable Space entirely through the app;
+  validate supported Linux versions/architectures, first-connection verification, HTTPS,
+  pairing, retry behavior and credential cleanup on a real test server. Automatic provider
+  ordering, cloud-init/images and optional ongoing server management are later extensions.
+
 - **Bot collaboration** (next) - Codex and Gemini bots cannot message other bots yet (only
   Claude to Claude via SendMessage). Concept:
   [knowledge/design/bot-collaboration.md](knowledge/design/bot-collaboration.md) - a neutral
@@ -51,6 +68,18 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   desktop about 400 MB (Chromium 306), runtime 150 (Codex) to 265 MB (Claude, Copilot), MCP
   servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
   found the same day is fixed
+- **Persistent RAM setting per Space** (2026-09-10, complements the memory guard above) -
+  expose **RAM for this Space** in Settings, show the current allocation and host capacity,
+  and persist the chosen limit across app launches, Space restarts and updates. For Apple's
+  `container`, offer **Apply and restart**: recreate the container with the new memory limit
+  and existing data volumes, without rebuilding the image; explain that running bot turns
+  are interrupted and preserve bots, chats and sign-ins. For Docker on Linux, increase a
+  configured memory limit live where supported and within host capacity. This changes the
+  container allocation, not the VPS plan or physical RAM. Validate values and leave enough
+  memory for the host; treat reductions separately to avoid killing active workloads.
+  Reuse the host wrapper's `METOR_MEMORY` support and define precedence between saved values,
+  explicit environment overrides and defaults. Acceptance: a saved increase survives the next
+  ordinary start/update, and applying it retains existing Space data.
 - **Runtime choice when both are installed** - on a Mac with Docker Desktop and Apple's
   `container`, the host command picks Docker (a stopped Docker cannot say whether it holds the
   computer) and starts Docker Desktop, even while Apple's runtime already runs (seen 2026-09-07

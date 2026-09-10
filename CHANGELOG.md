@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Codex model selection now includes the model’s supported reasoning efforts. The model and effort are saved per bot and apply to subsequent messages.
+
+- Slash-command autocomplete in chat, with distinct runtime/metor labels, keyboard navigation and session-aware model selection. Model changes apply between messages while keeping the conversation.
+
 - Desktop clipboard synchronization for the focused Screen, with a per-device setting and Copy/Paste buttons as fallback.
 
 - Copy selected text from the bot’s browser to your computer using the Screen’s Copy button, with a manual fallback when clipboard permission is unavailable.

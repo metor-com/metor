@@ -1,3 +1,4 @@
+import { attachAcpCommands } from "./metor-commands.mjs";
 // metor-host-gemini – Gemini CLI adapter for the neutral host core (ADR-0011, ADR-0016; facts in
 // knowledge/harness/gemini-facts.md). Spawns `gemini --acp` as a child – the Agent Client
 // Protocol, JSON-RPC 2.0 newline-delimited over stdio, the same shape as Codex's app-server –
@@ -46,7 +47,10 @@ export async function run(core) {
   let loading = false;               // session/load replays the history – not shown again
   const toolEntries = new Map();     // toolCallId → chat entry id
   const text = (c) => (Array.isArray(c) ? c : [c]).map((x) => x?.type === "text" ? x.text : x?.type === "content" ? text(x.content) : x?.text ?? "").join("");
+  const commands = attachAcpCommands(core, send, () => sessionId);
+  core.setModelHandler((model) => commands.setModel(model));
   function onUpdate(u) {
+    if (commands.update(u)) return;
     if (!u || loading) return;
     switch (u.sessionUpdate) {
       case "agent_message_chunk": { const t = text(u.content); if (t) { turnText += t; core.partialAppend(t); } break; }
@@ -101,12 +105,14 @@ export async function run(core) {
     loading = true;
     const r = await send("session/load", { sessionId, cwd: dir, mcpServers: [] });
     loading = false;
+    if (!r.error) commands.init(r.result);
     if (r.error) { core.log(`session/load failed (${r.error.message ?? r.error.code}) – starting a new session`); sessionId = null; }
   } else if (sessionId) { core.log("this Gemini CLI cannot load sessions – starting a new one"); sessionId = null; }
   if (!sessionId) {
     const r = await send("session/new", { cwd: dir, mcpServers: [] });   // MCP servers come from .gemini/settings.json in the bot's directory
     if (r.error) return core.fail(new Error(`session/new: ${r.error.message ?? JSON.stringify(r.error)}`));
     sessionId = r.result?.sessionId;
+    commands.init(r.result);
   }
   core.saveState({ sessionId, status: "idle" });
 

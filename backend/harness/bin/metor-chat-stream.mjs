@@ -15,15 +15,15 @@ const now = () => new Date().toISOString();
 // Attachments (uploads from the UI) live as files under <bot>/uploads/ – the history keeps
 // the metadata for rendering, the bot gets the absolute paths in the turn text (the harness
 // reads images itself with the Read tool; this way it also works for Codex & co.).
-export function injectTurn(botsDir, bot, text, { origin, attachments } = {}) {
+export function injectTurn(botsDir, bot, text, { origin, attachments, command } = {}) {
   const id = randomUUID();
   const metorDir = join(botsDir, bot, ".metor");
   mkdirSync(metorDir, { recursive: true });
   const atts = sanitizeAttachments(attachments);
-  appendFileSync(join(metorDir, "chat.jsonl"), JSON.stringify({ v: 1, id, ts: now(), role: "user", ...(origin ? { origin } : {}), ...(atts ? { attachments: atts } : {}), text, status: "sending" }) + "\n");
+  appendFileSync(join(metorDir, "chat.jsonl"), JSON.stringify({ v: 1, id, ts: now(), role: "user", ...(command ? { command, origin: "harness" } : {}), ...(origin ? { origin } : {}), ...(atts ? { attachments: atts } : {}), text, status: "sending" }) + "\n");
   const turnText = [String(text ?? "").trim(),
     ...(atts ?? []).map((a) => `[Attachment${a.image ? " (image)" : ""}: ${join(botsDir, bot, a.path)}]`)].filter(Boolean).join("\n\n");
-  appendFileSync(join(metorDir, "inbox.jsonl"), JSON.stringify({ kind: "user", id, ts: now(), text: turnText }) + "\n");
+  appendFileSync(join(metorDir, "inbox.jsonl"), JSON.stringify({ kind: "user", id, ts: now(), text: turnText, ...(command ? { command } : {}) }) + "\n");
   // Stamp real user messages (not routine fires): anchor for the routines auto-pause
   if (!origin) { try { writeFileSync(join(metorDir, "last-user.json"), JSON.stringify({ ts: now() }) + "\n"); } catch {} }
   return { id };
@@ -63,12 +63,12 @@ export function createStreamChat({ botsDir } = {}) {
   const nonces = new Map();
   const harnessOf = (bot) => { try { return JSON.parse(readFileSync(join(botsDir, bot, "bot.json"), "utf8")).harness ?? "claude-stream"; } catch { return null; } };
 
-  function send(bot, text, { sendId, attachments } = {}) {
+  function send(bot, text, { sendId, attachments, command } = {}) {
     if (!existsSync(join(botsDir, bot, "bot.json"))) return { error: `Bot ${bot} does not exist` };
     const hasAtts = Array.isArray(attachments) && attachments.length > 0;
     if ((typeof text !== "string" || !text.trim()) && !hasAtts) return { error: "empty message" };
     if (sendId && nonces.has(sendId)) return { id: nonces.get(sendId), accepted: true, duplicate: true };
-    const { id } = injectTurn(botsDir, bot, typeof text === "string" ? text : "", { attachments });
+    const { id } = injectTurn(botsDir, bot, typeof text === "string" ? text : "", { attachments, command });
     if (sendId) { nonces.set(sendId, id); if (nonces.size > 64) nonces.delete(nonces.keys().next().value); }
     return { id, accepted: true };
   }

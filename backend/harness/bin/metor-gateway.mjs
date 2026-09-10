@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { createStreamChat, injectTurn, readHistory } from "./metor-chat-stream.mjs";
 import { readRoutines, readRuns, recordRun, updateRoutine } from "./metor-routines.mjs";
+import { resolveCommand } from "./metor-commands.mjs";
 import { HARNESSES, harnessOf, defaultModel, validModel, modelsFor, modelLabel } from "./metor-harness.mjs";
 import { setupStart, setupStatus, setupCancel, setupSubmit } from "./metor-setup.mjs";
 import { BOTS_DIR, RESERVED_NAMES as RESERVED, isValidName as validName, isValidTitle as validTitle, idFor, allBots as bots, readBot, writeBot, normalizeAvatar } from "./metor-store.mjs";
@@ -398,9 +399,19 @@ async function api(req, res, url) {
       if (!b.display || !b.watchToken) return send(404, { error: "no desktop" });
       return send(200, { path: watchPath(b) });
     }
+    if (action === "chat" && rest[3] === "commands" && req.method === "GET") {
+      const active = ["idle", "busy"].includes(streamChat.status(name));
+      return send(200, active ? streamChat.state(name).capabilities ?? { commands: [], models: [] } : { commands: [], models: [] });
+    }
     if (action === "chat" && rest[3] === "send" && req.method === "POST") {
       const body = await readBody(req);
-      const r = streamChat.send(name, body?.text, { sendId: body?.sendId, attachments: body?.attachments });
+      if (body?.command) {
+        if (!["idle", "busy"].includes(streamChat.status(name))) return send(409, { error: "Start the bot before using a runtime command." });
+        if (body?.attachments?.length) return send(400, { error: "Send attachments in a separate message." });
+        try { resolveCommand(streamChat.state(name).capabilities, body.command, body.text); }
+        catch (e) { return send(400, { error: e.message }); }
+      }
+      const r = streamChat.send(name, body?.text, { sendId: body?.sendId, attachments: body?.attachments, command: body?.command });
       return send(r.error ? 400 : 202, r);
     }
     // Attachments: raw body → <bot>/uploads/<stamp>-<name> (no multipart needed)

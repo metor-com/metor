@@ -82,6 +82,7 @@ COPY backend/harness/bin/metor-desktop.mjs /usr/local/lib/metor/metor-desktop.mj
 COPY backend/harness/bin/metor-lifecycle.mjs /usr/local/lib/metor/metor-lifecycle.mjs
 COPY backend/harness/bin/metor-supervise.mjs /usr/local/lib/metor/metor-supervise.mjs
 COPY backend/harness/bin/metor-harness.mjs /usr/local/lib/metor/metor-harness.mjs
+COPY backend/harness/bin/metor-commands.mjs /usr/local/lib/metor/metor-commands.mjs
 COPY backend/harness/bin/metor-host-core.mjs /usr/local/lib/metor/metor-host-core.mjs
 COPY backend/harness/bin/metor-host-claude.mjs /usr/local/lib/metor/metor-host-claude.mjs
 COPY backend/harness/bin/metor-host-codex.mjs /usr/local/lib/metor/metor-host-codex.mjs

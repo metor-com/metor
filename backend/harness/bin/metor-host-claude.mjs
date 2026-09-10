@@ -66,12 +66,26 @@ export async function run(core) {
   const toolEntries = new Map();   // tool_use_id → chat entry ID (for result patches)
   let lastQuota = null;            // last rate_limit state (quota display in the dock)
 
+  let commands = [], models = [];
+  core.setModelHandler((model) => q.setModel(model));
+  async function refreshCommands() {
+    try {
+      [commands, models] = await Promise.all([q.supportedCommands(), q.supportedModels()]);
+      core.setCapabilities(commands, models.map((m) => ({ id: m.value, label: m.displayName ?? m.value })));
+    } catch (e) { core.log("Command list unavailable:", e.message); }
+  }
+  await refreshCommands();
   core.ready();
   for await (const m of q) {
     if (m.type === "system" && m.subtype === "init") {
       if (m.session_id && m.session_id !== core.state.sessionId) core.log("Session:", m.session_id);
       if (Array.isArray(m.mcp_servers) && m.mcp_servers.length) core.log("MCP:", m.mcp_servers.map((x) => `${x.name} ${x.status}`).join(", "));
       core.saveState({ sessionId: m.session_id, status: core.state.status === "starting" ? "idle" : core.state.status });
+    } else if (m.type === "system" && m.subtype === "local_command_output") {
+      core.emitText(m.content, { origin: "harness", kind: "notice" });
+    } else if (m.type === "system" && m.subtype === "commands_changed") {
+      commands = m.commands ?? [];
+      core.setCapabilities(commands, models.map((m) => ({ id: m.value, label: m.displayName ?? m.value })));
     } else if (m.type === "stream_event") {
       const ev = m.event;
       if (ev?.type === "content_block_delta" && ev.delta?.type === "text_delta") core.partialAppend(ev.delta.text);

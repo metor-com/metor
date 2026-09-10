@@ -1,6 +1,7 @@
 <script>
   import { chatSend, chatPermission, uploadFile, fileUrl } from "../lib/api.js";
   import { picture, openFile } from "../lib/media.js";   // pictures and files inside the phone app (session by fetch, system viewer)
+  import SlashCommands from "./SlashCommands.svelte";
   import RuntimeSignIn from "./RuntimeSignIn.svelte";
   import Ticks from "./Ticks.svelte";
   import Typing from "./Typing.svelte";
@@ -26,7 +27,7 @@
   let signedInFor = null;   // the entry whose sign-in went through – the hint replaces the box until the next reply
   let text = "";
   let sending = false;
-  let listEl, fileInput;
+  let listEl, fileInput, composer, slashPicker, commandExpanded = false, activeCommand;
   let openTools = {};   // expanded tool entries (id → true)
   let openGroups = {};  // unfolded groups of steps (group id → true/false); unset means the Show steps choice
   let pending = [];     // attachments before sending: {file, name, size, image, preview}
@@ -96,7 +97,8 @@
   let lastBot = null;
   function clearPendingOnSwitch(b) { if (b !== lastBot) { lastBot = b; clearPending(); openTools = {}; openGroups = {}; } }
 
-  async function send() {
+  async function send(command = null) {
+    if (!command && await slashPicker?.submit()) return;
     const t = text.trim();
     if ((!t && !pending.length) || sending) return;
     sending = true;
@@ -106,14 +108,14 @@
         const r = await uploadFile(bot, new File([a.file], a.name, { type: a.file.type }));
         attachments.push({ path: r.path, name: a.name, size: a.size, image: a.image });
       }
-      const r = await chatSend(bot, t, crypto.randomUUID(), attachments);
-      onLocalEntry?.({ id: r.id, ts: new Date().toISOString(), role: "user", text: t, ...(attachments.length ? { attachments } : {}), status: "sending" });
+      const r = await chatSend(bot, t, crypto.randomUUID(), attachments, command);
+      onLocalEntry?.({ id: r.id, ts: new Date().toISOString(), role: "user", text: t, ...(command ? { command, origin: "harness" } : {}), ...(attachments.length ? { attachments } : {}), status: "sending" });
       text = "";
       clearPending();
     } catch (e) { alert(`Sending failed: ${e.message}`); }
     sending = false;
   }
-  function onKey(e) { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }
+  function onKey(e) { if (e.isComposing || slashPicker?.handleKey(e)) return; if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }
   const time = (ts) => new Date(ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   // Sent messages that the bot has answered (an assistant reply follows them) – two green ticks
   $: answered = (() => {
@@ -193,6 +195,7 @@
         <div class="flex min-w-0 justify-end">
           <div class="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-white sm:max-w-[42rem] {e.origin === 'routine' ? 'bg-zinc-600' : 'bg-zinc-900'}">
             {#if e.origin === "routine"}<div class="mb-1 text-[10px] font-semibold tracking-wide text-zinc-300 uppercase">⏰ Routine</div>{/if}
+            {#if e.command}<div class="mb-1 text-[11px] text-violet-200">{harnessLabel ?? 'Runtime'}</div>{/if}
             {#if e.attachments?.length}
               <div class="mb-1.5 flex flex-wrap gap-1.5 {e.text ? '' : 'mb-0'}">
                 {#each e.attachments as a}
@@ -216,6 +219,7 @@
       {:else}
         <div class="flex min-w-0">
           <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[42rem]">
+            {#if e.origin === 'harness'}<div class="mb-1 text-[11px] font-medium text-violet-800">{harnessLabel ?? 'Runtime'}</div>{/if}
             {#if e.text}<div class="chat-md">{@html renderMarkdown(e.text)}</div>{/if}
             {#if harness && i === rows.length - 1 && !partial && signInLost(e.text)}
               {#if signedInFor === e.id}
@@ -288,7 +292,8 @@
       {/each}
     </div>
   {/if}
-  <form class="flex shrink-0 gap-2 border-t border-zinc-200 bg-white px-3 py-2.5 md:px-4 md:py-3 {pending.length ? 'border-t-0 pt-2.5' : ''}" on:submit|preventDefault={send}>
+  <SlashCommands bind:this={slashPicker} bind:expanded={commandExpanded} bind:activeOption={activeCommand} {bot} {harnessLabel} {status} bind:text hasAttachments={!!pending.length} onCommand={send} focusInput={() => composer?.focus()} />
+  <form class="flex shrink-0 gap-2 border-t border-zinc-200 bg-white px-3 py-2.5 md:px-4 md:py-3 {pending.length ? 'border-t-0 pt-2.5' : ''}" on:submit|preventDefault={() => send()}>
     <input type="file" multiple class="hidden" bind:this={fileInput} on:change={onPickFiles} />
     <button type="button" class="shrink-0 self-stretch rounded-xl border border-zinc-300 px-3 text-lg text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
       on:click={() => fileInput?.click()} title="Attach a file (or paste/drop an image)" aria-label="Attach a file">📎</button>
@@ -296,10 +301,17 @@
     <textarea
       rows="2"
       class="min-w-0 flex-1 resize-none rounded-xl border border-zinc-300 px-3 py-2 text-base outline-none focus:border-zinc-900 md:text-[15px]"
+      bind:this={composer}
+      role="combobox"
+      aria-expanded={commandExpanded}
+      aria-controls={commandExpanded ? "chat-slash-options" : undefined}
+      aria-activedescendant={activeCommand}
+      aria-autocomplete="list"
+      aria-label="Message or slash command"
       bind:value={text}
       on:keydown={onKey}
       on:paste={onPaste}
-      placeholder="Message {bot}…"
+      placeholder="Message {bot}… (/ for commands)"
     ></textarea>
     <button type="submit" class="shrink-0 self-stretch rounded-xl bg-zinc-900 px-4.5 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={sending || (!text.trim() && !pending.length)}>{sending ? "Sending…" : "Send"}</button>
   </form>

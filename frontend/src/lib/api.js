@@ -41,7 +41,8 @@ export const setupCancel = (id) => req("POST", `/harnesses/${id}/setup/cancel`);
 export const setupCode = (id, code) => req("POST", `/harnesses/${id}/setup/code`, { code });
 export const agentAction = (name, action) => req("POST", `/agents/${name}/${action}`);
 export const watchUrl = (name) => req("GET", `/agents/${name}/watch-url`);
-export const chatSend = (name, text, sendId, attachments) => req("POST", `/agents/${name}/chat/send`, { text, sendId, ...(attachments?.length ? { attachments } : {}) });
+export const chatCommands = (name) => req("GET", `/agents/${name}/chat/commands`);
+export const chatSend = (name, text, sendId, attachments, command) => req("POST", `/agents/${name}/chat/send`, { text, sendId, ...(command ? { command } : {}), ...(attachments?.length ? { attachments } : {}) });
 export async function uploadFile(name, file) {
   let r;
   try { r = await fetch(`${base()}/agents/${name}/chat/upload?filename=${encodeURIComponent(file.name || "image.png")}`, { method: "POST", body: file }); }

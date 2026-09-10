@@ -42,7 +42,7 @@
       document.hasFocus() && document.activeElement === screenFrame;
   }
   function configureClipboard() {
-    screenFrame?.contentWindow?.postMessage({ type: "metor:clipboard-sync", enabled: clipboardSupported && !!app?.writeClipboard && $settings.syncScreenClipboard && mode === "screen" }, src ? new URL(src).origin : "*");
+    screenFrame?.contentWindow?.postMessage({ type: "metor:clipboard-sync", enabled: clipboardSupported && !!app?.writeClipboard && $settings.syncScreenClipboard && mode === "screen" }, src ? new URL(src, window.location.href).origin : "*");
   }
   $: if (screenFrame && src && mode && clipboardSupported !== undefined && $settings.syncScreenClipboard !== undefined) configureClipboard();
   async function pollClipboard() {
