@@ -95,12 +95,13 @@
           <span class="min-w-0 flex-1">
             <span class="flex items-baseline justify-between gap-2">
               <strong class="truncate text-[15px] font-semibold">{a.title ?? a.name}</strong>
-              {#if p.typing && $settings.compactList}<Typing cls="text-zinc-400" />   <!-- no second line here: the dots take the time's place -->
+              {#if a.waitingForMemory && $settings.compactList}<span class="text-xs text-amber-700" title="Waiting to start">Waiting</span>
+              {:else if p.typing && $settings.compactList}<Typing cls="text-zinc-400" />   <!-- no second line here: the dots take the time's place -->
               {:else}<span class="shrink-0 text-xs {a.unread ? 'font-medium text-zinc-900' : 'text-zinc-400'}">{whenLabel(a.lastMessageAt)}</span>{/if}
             </span>
             {#if !$settings.compactList}
               <span class="mt-0.5 flex items-center justify-between gap-2">
-                {#if p.typing}<Typing />{:else}<span class="truncate text-[13px] {p.cls}">{p.text}</span>{/if}
+                {#if a.waitingForMemory}<span class="truncate text-[13px] text-amber-700">{a.waitingForMemory.reason === "low_memory" ? "Waiting for RAM" : "Waiting to start"}</span>{:else if p.typing}<Typing />{:else}<span class="truncate text-[13px] {p.cls}">{p.text}</span>{/if}
                 {#if a.unread}<span class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[11px] font-semibold text-white">{a.unread > 99 ? "99+" : a.unread}</span>{/if}
               </span>
             {:else if a.unread}

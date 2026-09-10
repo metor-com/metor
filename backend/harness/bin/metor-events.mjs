@@ -20,7 +20,7 @@ export function event(dir, type, details = {}) {
   try { locked(dir, () => {
     const row = { v: 1, id: randomUUID(), ts: new Date().toISOString(), type, pid: process.pid };
     // Explicit metadata only: never store prompts, tool output or raw provider errors.
-    for (const key of ['runId', 'routineId', 'turnId', 'reason', 'sessionId', 'durationMs', 'code', 'signal'])
+    for (const key of ['runId', 'routineId', 'turnId', 'reason', 'sessionId', 'durationMs', 'code', 'signal', 'availableBytes', 'requiredBytes'])
       if (details[key] !== undefined && details[key] !== null) row[key] = typeof details[key] === 'string' ? details[key].slice(0, 200) : details[key];
     const file = join(dir, 'events.jsonl'), line = JSON.stringify(row) + '\n';
     let size = 0; try { size = statSync(file).size; } catch {}

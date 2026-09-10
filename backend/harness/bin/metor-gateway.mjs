@@ -4,6 +4,8 @@
 //   *   /bots/api/…                 → JSON API + one SSE stream (topics: agents, chat:<name>)
 //   *   /bots/<name>/…              → the bot's websockify/noVNC (HTTP + WebSocket)
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
+import { createMemoryGuard } from "./metor-memory.mjs";
+const memoryGuard = createMemoryGuard();
 import { readEvents } from "./metor-events.mjs";
 import http from "node:http";
 import net from "node:net";
@@ -108,6 +110,7 @@ async function agentList() {
       model: b.model ?? null,
       modelLabel: modelLabel(h, b.model) ?? (b.model ?? "Default model"),
       status: streamChat.status(b.name),
+      waitingForMemory: streamChat.status(b.name) === "idle" ? streamChat.state(b.name).waitingForMemory ?? null : null,
       sleeping: streamChat.state(b.name).sleeping === true && streamChat.state(b.name).runtimeLoaded === false,
       quota: streamChat.state(b.name).quota ?? null };
   });
@@ -252,6 +255,8 @@ async function api(req, res, url) {
   const send = (code, obj) => { res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
   const u = new URL(url, "http://gateway");
   const rest = u.pathname.split("/").filter(Boolean).slice(2); // after /bots/api/
+
+  if (req.method === "GET" && rest.length === 1 && rest[0] === "memory") return send(200, memoryGuard.snapshot());
 
   if (req.method === "GET" && rest[0] === "events") {
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no" });

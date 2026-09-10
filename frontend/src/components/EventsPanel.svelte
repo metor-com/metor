@@ -3,7 +3,7 @@
   import { listBotEvents } from "../lib/api.js";
   export let bot;
   let events = [], error = null, loaded = false, filter = "all", query = "", count = 100;
-  const labels = { "host.started": "Bot host started", "host.stopped": "Bot host stopped", "runtime.waking": "Waking runtime", "runtime.ready": "Runtime ready", "runtime.sleep_requested": "Idle timeout reached", "runtime.sleeping": "Runtime sleeping", "runtime.error": "Runtime error", "routine.queued": "Routine queued", "routine.paused": "Routine paused automatically", "turn.queued": "Message queued", "turn.started": "Processing started", "turn.completed": "Processing completed", "turn.failed": "Processing failed", "turn.interrupted": "Processing interrupted", "turn.interrupt_requested": "Stop requested" };
+  const labels = { "runtime.memory_waiting": "Runtime start waiting", "runtime.memory_resumed": "Runtime start admitted", "host.started": "Bot host started", "host.stopped": "Bot host stopped", "runtime.waking": "Waking runtime", "runtime.ready": "Runtime ready", "runtime.sleep_requested": "Idle timeout reached", "runtime.sleeping": "Runtime sleeping", "runtime.error": "Runtime error", "routine.queued": "Routine queued", "routine.paused": "Routine paused automatically", "turn.queued": "Message queued", "turn.started": "Processing started", "turn.completed": "Processing completed", "turn.failed": "Processing failed", "turn.interrupted": "Processing interrupted", "turn.interrupt_requested": "Stop requested" };
   const problem = e => /error|failed|interrupted/.test(e.type);
   $: filtered = events.filter(e => (filter === "all" || (filter === "errors" ? problem(e) : filter === "routines" ? !!e.routineId : /^(runtime|host)\./.test(e.type))) && (!query || [e.type, labels[e.type], e.runId, e.routineId, e.turnId, e.reason].join(" ").toLowerCase().includes(query.toLowerCase()))).slice().reverse();
   $: { filter; query; count = 100; }
@@ -44,6 +44,7 @@
         <p class:text-red-700={problem(e)} class="font-medium">{labels[e.type] ?? e.type}</p>
         <time class="text-xs text-zinc-500" datetime={e.ts} title={e.ts}>{new Date(e.ts).toLocaleString()}</time>
         {#if e.durationMs != null}<span class="text-xs text-zinc-500"> · {(e.durationMs / 1000).toFixed(1)} s</span>{/if}
+        {#if e.availableBytes != null}<p class="mt-1 text-xs text-zinc-600">RAM available: {Math.round(e.availableBytes / 1024 ** 2)} MiB{#if e.requiredBytes != null} · required: {Math.ceil(e.requiredBytes / 1024 ** 2)} MiB{/if}</p>{/if}
         {#if e.reason}<p class="mt-1 break-words text-xs text-zinc-600">{e.reason === "see_host_log" ? "See the bot’s host.log for error details." : e.reason}</p>{/if}
         {#if e.runId}<button class="mt-1 block max-w-full break-all text-left text-xs text-blue-700 hover:underline" title="Show this routine run" on:click={() => { filter = "all"; query = e.runId; }}>Run: {e.runId}</button>{/if}
         {#if e.routineId}<p class="break-all text-xs text-zinc-500">Routine: {e.routineId}</p>{/if}

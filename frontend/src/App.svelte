@@ -110,6 +110,12 @@
       <Header agent={$current} {pane}
         onToggleComputer={() => toggle("computer")} onToggleRoutines={() => toggle("routines")} onToggleEvents={() => toggle("events")} onBack={() => select(null)}
         {onAct} onPicture={() => (pictureOpen = true)} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
+      {#if $current.waitingForMemory}
+        <div role="status" class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          {$current.waitingForMemory.reason === 'startup_queue' ? 'Waiting to start: another bot starts first.' : $current.waitingForMemory.reason === 'memory_unavailable' ? 'Waiting to start: the Space cannot check available RAM.' : 'Waiting for RAM. Your messages are queued.'}
+          Starts automatically when ready. See Settings → Space for details.
+        </div>
+      {/if}
       <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={paneEl}>
         {#if $isDesktop || !pane}
           <div class="flex min-h-0 min-w-0 flex-col" style={$isDesktop && pane ? `flex: 0 0 ${ratio * 100}%` : "flex: 1 1 0%"}>

@@ -13,12 +13,15 @@ async function until(check) { for(let i=0;i<200;i++){ if(check()) return; await 
 function fixture(seconds) {
   const root=mkdtempSync(join(tmpdir(),'metor-sleep-')), meta=join(root,'probe','.metor'); mkdirSync(meta,{recursive:true});
   writeFileSync(join(root,'probe','bot.json'),JSON.stringify({name:'probe',harness:'codex',autostart:true,model:'old'}));
+  writeFileSync(join(root,'memory.json'),JSON.stringify({available:true,low:false,availableBytes:2048*1024**2,requiredBytes:768*1024**2}));
   const script=join(root,'metor-agent-host.mjs');
   writeFileSync(script, `
     import { manageRuntime } from ${JSON.stringify(new URL('../bin/metor-runtime-manager.mjs',import.meta.url).href)};
     import { createCore } from ${JSON.stringify(new URL('../bin/metor-host-core.mjs',import.meta.url).href)};
     import { fileURLToPath } from 'node:url';
-    if(process.argv[3] !== '--worker') await manageRuntime('probe',fileURLToPath(import.meta.url));
+    import { readFileSync } from 'node:fs';
+    import { createMemoryGuard } from ${JSON.stringify(new URL('../bin/metor-memory.mjs',import.meta.url).href)};
+    if(process.argv[3] !== '--worker') await manageRuntime('probe',fileURLToPath(import.meta.url),{memory:createMemoryGuard({sample:()=>JSON.parse(readFileSync(${JSON.stringify(join(root,'memory.json'))}))})});
     else {
       const core=createCore('probe',{parentPid:process.ppid});
       core.saveState({sessionId:core.state.sessionId??'saved-conversation'});
@@ -99,5 +102,31 @@ test('failed turns and abrupt worker exits retain routine correlation without re
     assert.ok(events.some(e=>e.type==='turn.interrupted' && e.runId===crashed.runId && e.reason==='worker_exited'));
     assert.ok(events.some(e=>e.type==='runtime.error' && e.code===9));
     assert.equal(events.filter(e=>e.type==='turn.completed').length,0);
+  } finally { await f.close(); }
+});
+
+test('memory pressure queues a routine without consuming it, then admits it once; Pause cancels waiting',async()=>{
+  const f=fixture(.2);
+  const setMemory=low=>writeFileSync(join(f.root,'memory.json'),JSON.stringify({available:true,low,availableBytes:low?100:2048*1024**2,requiredBytes:768*1024**2}));
+  try {
+    await until(()=>f.state().runtimeLoaded===false);
+    setMemory(true); const turn=f.send('wait for memory');
+    await until(()=>f.state().waitingForMemory?.reason==='low_memory');
+    assert.equal(f.state().runtimeLoaded,false); assert.equal(f.read('chat.jsonl').includes('received:'),false);
+    await pause(1100);
+    assert.equal(readEvents(f.meta).filter(e=>e.type==='runtime.memory_waiting').length,1);
+    setMemory(false);
+    await until(()=>f.read('chat.jsonl').includes('received:wait for memory'));
+    assert.equal(f.state().waitingForMemory,null);
+    assert.equal(f.read('chat.jsonl').split('received:wait for memory').length-1,1);
+    assert.ok(readEvents(f.meta).some(e=>e.type==='runtime.memory_resumed' && e.runId===turn.runId));
+    await until(()=>f.state().runtimeLoaded===false);
+    setMemory(true); f.send('never started');
+    await until(()=>f.state().waitingForMemory);
+    const done=once(f.parent,'exit'); f.parent.kill(); await done;
+    assert.equal(f.read('chat.jsonl').includes('received:never started'),false);
+    assert.equal(f.state().waitingForMemory,null);
+    const admission=JSON.parse(readFileSync(join(f.root,'.memory','admission.json')));
+    assert.equal(admission.queue.length,0); assert.equal(admission.lease,null);
   } finally { await f.close(); }
 });

@@ -4,6 +4,7 @@
   // Devices = sign-in, pairing, notifications (ADR-0012/0013); Appearance and Behaviour are
   // per-device preferences from lib/settings.js.
   import { app } from "../lib/base.js";
+  import SpaceMemory from "./SpaceMemory.svelte";
   import Devices from "./Devices.svelte";
   import Connectors from "./Connectors.svelte";
   import Switch from "./Switch.svelte";
@@ -25,7 +26,7 @@
       icon: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" },
     { id: "behaviour", label: "Behaviour", hint: "Order of the bots, default view",
       icon: "M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1M15 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM9 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM17 16a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" },
-    { id: "computer", label: "Space", hint: "Version, updates, runtimes",
+    { id: "computer", label: "Space", hint: "RAM, version, updates, runtimes",
       icon: "M3 5h18v11H3zM8 21h8M12 16v5" },
   ];
   $: section = SECTIONS.find((s) => s.id === tab) ?? SECTIONS[0];
@@ -73,7 +74,8 @@
           <Connectors />
         {:else if tab === "computer"}
           <div class="flex flex-col divide-y divide-zinc-100">
-            <div class="flex flex-col gap-2 pb-6">
+            <SpaceMemory />
+            <div class="flex flex-col gap-2 py-6">
               <div class="flex items-baseline justify-between gap-4">
                 <div class="text-sm font-medium">metor {info?.version ?? "…"}</div>
                 {#if info?.latest?.newer}<span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900">{info.latest.version} available</span>

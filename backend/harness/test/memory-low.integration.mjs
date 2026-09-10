@@ -1,0 +1,25 @@
+// Run inside an isolated Space with only 512 MiB RAM. No inference or large allocation.
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { injectTurn } from '/usr/local/lib/metor/metor-chat-stream.mjs';
+import { readEvents } from '/usr/local/lib/metor/metor-events.mjs';
+const name='memory-probe', dir=`/workspace/bots/${name}/.metor`;
+const cli=(...args)=>execFileSync('metor',args,{encoding:'utf8'});
+cli('bot','create',name,'--harness','codex');
+const state=()=>JSON.parse(readFileSync(`${dir}/harness.json`));
+const link=cli('auth','link','--plain').match(/http[^\s]+claim\?token=[A-Za-z0-9_-]+/)[0];
+const claim=await fetch(link,{redirect:'manual'}),cookie=claim.headers.get('set-cookie').split(';')[0];
+const api=async path=>{const res=await fetch(`http://127.0.0.1:6010/bots/api${path}`,{headers:{cookie}});assert.equal(res.status,200);return res.json()};
+assert.equal((await api('/memory')).low,true);
+const turn=injectTurn('/workspace/bots',name,'test request must remain queued',{origin:'routine',routine:{id:'memory-test'}});
+for(let i=0;i<100&&!state().waitingForMemory;i++) await new Promise(r=>setTimeout(r,100));
+assert.equal(state().waitingForMemory?.reason,'low_memory');
+assert.equal(state().runtimeLoaded,false);
+assert.equal((await api('/agents')).find(a=>a.name===name).waitingForMemory.reason,'low_memory');
+assert.ok((await api('/memory')).waiting.some(x=>x.name===name));
+assert.ok(readEvents(dir).some(e=>e.type==='runtime.memory_waiting'&&e.runId===turn.runId));
+assert.equal(readEvents(dir).some(e=>e.type==='turn.started'),false);
+cli('bot','stop',name);
+assert.equal((await api('/memory')).waiting.length,0);
+console.log('PASS: real low-RAM Space remains reachable, queues a routine without starting a runtime, exposes status/events and cancels waiting on Pause');

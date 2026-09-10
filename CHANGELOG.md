@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Space settings show current RAM headroom and waiting bots. Runtime starts queue under memory pressure, resume automatically, and record admission delays in the Event log.
+
 - Bots have a persistent Event log with sleep/wake reasons, routine run IDs, processing outcomes and durations. Filter and export retained events from the bot menu; storage is bounded.
 
 - Idle runtimes sleep automatically after five minutes and wake for messages, routines or slash commands. Conversations and model settings persist; browser tabs stay open.

@@ -407,3 +407,23 @@ Detailed runtime error messages remain in `.metor/host.log`; use
 `metor bot logs <name>` to see its last 50 lines. If writing diagnostic events fails,
 the host/Space log reports it and the bot continues. The event log is a diagnostic
 history, not an audit log protected against modification by the bot.
+
+### RAM protection
+
+**Settings → Space → RAM protection** shows current available RAM, total capacity and
+waiting bots. Readings refresh every three seconds. Container limits and estimated
+reclaimable file cache are included; swap is not counted as available RAM.
+
+A runtime starts only when at least 512 MiB plus the Space reserve is available.
+The reserve is 10% of capacity, bounded between 256 MiB and 1 GiB. Starts queue in
+arrival order and run one at a time, with a short settling period. Waiting messages
+and routines stay in the inbox and start automatically when RAM becomes available.
+The bot list/chat explain the delay, and the Event log records waiting and admission.
+If memory cannot be measured, new starts wait until readings recover.
+
+To free RAM, pause a bot you are not using; idle runtimes also sleep automatically.
+Their browser and desktop stay open while sleeping. Pausing a waiting bot removes
+it from the startup queue but retains its undelivered messages for a later Start.
+The guard does not interrupt ongoing work or change the Space's RAM allocation.
+Browser/desktop starts and later growth of running processes are not limited by this
+startup check, so available RAM can still fall while bots are working.

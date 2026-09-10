@@ -1,0 +1,42 @@
+// Run in an isolated test Space with smoke bot. Read-only browser checks, mocked pressure values.
+import { chromium } from '/usr/local/lib/node_modules/@playwright/mcp/node_modules/playwright/index.mjs';
+import { execFileSync } from 'node:child_process';
+import assert from 'node:assert/strict';
+import { readFileSync, writeFileSync } from 'node:fs';
+const name='memory-ui-probe';
+execFileSync('metor',['bot','create',name,'--harness','codex']);
+const file=`/workspace/bots/${name}/.metor/harness.json`;
+writeFileSync(file,JSON.stringify({...JSON.parse(readFileSync(file)),waitingForMemory:{reason:'low_memory',since:Date.now()}}));
+const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--disable-dev-shm-usage'],headless:true});
+try {
+  const page=await browser.newPage({viewport:{width:1100,height:800}}),errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  assert.equal((await page.request.get('http://127.0.0.1:6010/bots/api/memory')).status(),401);
+  const link=execFileSync('metor',['auth','link','--plain'],{encoding:'utf8'}).match(/http[^\s]+claim\?token=[A-Za-z0-9_-]+/)[0];
+  await page.goto(link);await page.goto(`http://127.0.0.1:6010/bots/#/${name}`);
+  await page.getByText('Waiting for RAM. Your messages are queued.',{exact:false}).waitFor();
+  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:/^Space/}).click();
+  await page.getByRole('progressbar',{name:'Space RAM usage'}).waitFor();
+  const actual=await(await page.request.get('http://127.0.0.1:6010/bots/api/memory')).json();
+  assert.ok(actual.totalBytes>0);assert.ok(actual.availableBytes>=0);
+  let response={...actual,availableBytes:100*1024**2,usedBytes:actual.totalBytes-100*1024**2,low:true,waiting:[{name:'waiting-probe',since:Date.now()}]};
+  await page.route('**/bots/api/memory',route=>route.fulfill({json:response}));
+  await page.getByText('Low available RAM.',{exact:false}).waitFor();
+  await page.getByText('Waiting bots (1)',{exact:true}).waitFor();
+  await page.screenshot({path:'/tmp/metor-memory-desktop.png'});
+  response={available:false,waiting:[],starting:null};
+  await page.getByText('RAM readings are unavailable.',{exact:false}).waitFor();
+  response={...actual,low:false,waiting:[],starting:null};
+  await page.getByRole('progressbar',{name:'Space RAM usage'}).waitFor();
+  assert.equal(await page.getByText('Low available RAM.',{exact:false}).count(),0);
+  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(500);
+  await page.getByRole('button',{name:'Back to bots',exact:true}).click();
+  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:/^Space/}).click();
+  await page.getByRole('progressbar',{name:'Space RAM usage'}).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.screenshot({path:'/tmp/metor-memory-mobile.png'});
+  assert.deepEqual(errors,[]);
+  console.log('PASS: authenticated memory endpoint, current readings, low/unknown/recovered RAM, waiting list and mobile settings');
+}finally{await browser.close();execFileSync('metor',['bot','rm',name])}

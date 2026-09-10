@@ -1,3 +1,4 @@
+import { createMemoryGuard } from "./metor-memory.mjs";
 import { event } from "./metor-events.mjs";
 // A lightweight host owns the runtime worker. Sleeping ends the complete worker
 // process group, while the durable inbox, session and separate GUI processes stay.
@@ -47,12 +48,12 @@ async function finishGroup(child) {
   }
   signalGroup(child, 'SIGKILL');
 }
-export async function manageRuntime(name, workerScript) {
+export async function manageRuntime(name, workerScript, { memory = createMemoryGuard() } = {}) {
   const dir = join(botDir(name), '.metor'); mkdirSync(dir, { recursive: true });
   const stateFile = join(dir, 'harness.json');
   const previous = json(stateFile);
   if (previous.pid !== process.pid && hostPidMatches({ name }, previous.pid)) throw new Error(`Host for ${name} is already running`);
-  let child = null, stopping = false, stopAt = 0;
+  let child = null, stopping = false, stopAt = 0, admissionTimer = null;
   const save = patch => {
     const tmp = `${stateFile}.${process.pid}.tmp`;
     writeFileSync(tmp, JSON.stringify({ ...json(stateFile), ...patch, pid: process.pid, hostPid: process.pid, updatedAt: new Date().toISOString() }) + '\n');
@@ -64,18 +65,41 @@ export async function manageRuntime(name, workerScript) {
   if (previous.activeTurn) event(dir, "turn.interrupted", { ...previous.activeTurn, reason: "host_restarted" });
   event(dir, "host.started");
   console.log(`Host for ${name} started (runtime on demand, sleep after ${idleSeconds()} seconds)`);
-  save({ status: 'idle', runtimeLoaded: false, sleeping: false, error: null, activeTurn: null });
+  save({ status: 'idle', runtimeLoaded: false, sleeping: false, error: null, activeTurn: null, waitingForMemory: null });
   try {
     while (!stopping) {
       while (!stopping && !pendingRuntimeDemand(dir)) await pause(200);
       if (stopping || !readBot(name).autostart) break;
+      let waiting = null;
+      while (!stopping && readBot(name).autostart) {
+        const check = memory.request(name);
+        if (check.admitted) {
+          if (waiting) event(dir, 'runtime.memory_resumed', { ...pendingRuntimeDemand(dir, true), durationMs: Date.now() - waiting.since, availableBytes: check.memory.availableBytes });
+          break;
+        }
+        if (!waiting || waiting.reason !== check.reason) {
+          waiting = { reason: check.reason, since: waiting?.since ?? Date.now() };
+          save({ status: 'idle', runtimeLoaded: false, sleeping: false, waitingForMemory: waiting });
+          event(dir, 'runtime.memory_waiting', { ...pendingRuntimeDemand(dir, true), reason: check.reason, availableBytes: check.memory?.availableBytes, requiredBytes: check.memory?.requiredBytes });
+        }
+        await pause(1000);
+      }
+      if (stopping || !readBot(name).autostart) break;
       event(dir, 'runtime.waking', pendingRuntimeDemand(dir, true) || { reason: 'inbox' });
       rmSync(join(dir, 'runtime-request'), { force: true });
-      save({ status: 'starting', runtimeLoaded: true, sleeping: false });
+      save({ status: 'starting', runtimeLoaded: true, sleeping: false, waitingForMemory: null });
       child = spawn(process.execPath, [workerScript, name, '--worker'], {
         cwd: botDir(name), detached: true, stdio: 'inherit',
         env: { ...process.env, METOR_RUNTIME_PARENT: String(process.pid) },
       });
+      const startedAt = Date.now();
+      // One startup at a time; let startup allocations settle before checking the next bot.
+      admissionTimer = setInterval(() => {
+        const state = json(stateFile);
+        if (Date.now() - startedAt >= 5000 && state.status !== 'starting' && memory.release(name)) {
+          clearInterval(admissionTimer); admissionTimer = null;
+        }
+      }, 200);
       // Stop must remain bounded even if the worker fails to handle SIGTERM.
       const watchdog = setInterval(() => { if (stopping && Date.now() - stopAt >= 3000) signalGroup(child, 'SIGKILL'); }, 3000);
       const result = await new Promise(resolve => {
@@ -83,7 +107,9 @@ export async function manageRuntime(name, workerScript) {
         child.once('error', error => resolve({ error }));
       });
       clearInterval(watchdog);
+      clearInterval(admissionTimer); admissionTimer = null;
       await finishGroup(child); child = null;
+      for (let retry = 0; retry < 10 && !memory.release(name); retry++) await pause(100);
       const active = json(stateFile).activeTurn;
       if (active) { event(dir, 'turn.interrupted', { ...active, reason: 'worker_exited' }); save({ activeTurn: null }); }
       if (stopping) break;
@@ -94,9 +120,12 @@ export async function manageRuntime(name, workerScript) {
       console.log(`Runtime for ${name} sleeping; conversation retained`);
     }
   } finally {
+    clearInterval(admissionTimer);
+    // A dead owner is also reclaimed by the next admission check.
     if (child) await finishGroup(child);
+    memory.release(name);
     event(dir, 'host.stopped');
-    save({ status: 'stopped', runtimeLoaded: false, sleeping: false });
+    save({ status: 'stopped', runtimeLoaded: false, sleeping: false, waitingForMemory: null });
     process.off('SIGTERM', stop); process.off('SIGINT', stop);
   }
 }
