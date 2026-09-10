@@ -9,7 +9,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HARNESSES, harnessOf } from "./metor-harness.mjs";
 import { allBots, botDir, readBot, idFor } from "./metor-store.mjs";
-import { desktopAlive, ensureDesktopConfig, watchUrl } from "./metor-desktop.mjs";
+import { startResource, desktopAlive, ensureDesktopConfig, watchUrl } from "./metor-desktop.mjs";
 import { createAgent, harnessState, hostAlive, removeAgent, startAgent, stopAgent } from "./metor-lifecycle.mjs";
 import { supervise } from "./metor-supervise.mjs";
 import { createClaim, listSessions, revokeSession, qrTerminal } from "./metor-auth.mjs";
@@ -44,6 +44,7 @@ const bot = {
     const b = readBot(flags[0] ?? die("metor bot stop <name>"));
     console.log(stopAgent(b) ? `${b.name}: host stopped` : `${b.name}: not running`);
   },
+  computer(flags) { startResource(readBot(flags[0] ?? die("metor bot computer <name> browser|desktop|terminal")), flags[1]); },
   watch(flags) { const b = readBot(flags[0] ?? die("metor bot watch <name>")); ensureDesktopConfig(b); console.log(watchUrl(b)); },
   logs(flags) {
     const b = readBot(flags[0] ?? die("metor bot logs <name>"));

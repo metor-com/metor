@@ -20,8 +20,8 @@ export async function run(core) {
     "-c", 'mcp_servers.routines.command="node"',
     "-c", `mcp_servers.routines.args=["${METOR_LIB}/metor-routines-mcp.mjs","${name}"]`,
     ...(cdp ? [
-      "-c", 'mcp_servers.browser.command="playwright-mcp"',
-      "-c", `mcp_servers.browser.args=["--cdp-endpoint","http://127.0.0.1:${cdp}"]`,
+      "-c", 'mcp_servers.browser.command="node"',
+      "-c", `mcp_servers.browser.args=["${METOR_LIB}/metor-browser-mcp.mjs","${name}","--cdp-endpoint","http://127.0.0.1:${cdp}"]`,
     ] : []),
     ...codexOverrides(bot),   // connectors from Settings (ADR-0014)
   ];

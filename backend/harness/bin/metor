@@ -140,7 +140,8 @@ case "${1:-}" in
     if [ "$OPEN" = 1 ]; then if has open; then open "$LINK"; elif has xdg-open; then xdg-open "$LINK" >/dev/null 2>&1 || true; fi; fi ;;
   box) case "${2:-}" in
     build)  [ -f "$CORE/box/Dockerfile" ] || { echo "metor box build needs a checkout of the repository (this metor was installed without one)"; exit 1; }
-            need_runtime; exec "$RT" build -t "${METOR_BOX_IMAGE:-metor-box:dev}" -f "$CORE/box/Dockerfile" "$CORE/.." ;;  # context = repo root (backend/ + frontend/)
+            need_runtime; UI_STAGE=frontend; [ "${METOR_PREBUILT_UI:-0}" = 1 ] && UI_STAGE=frontend-prebuilt
+            exec "$RT" build --build-arg "METOR_FRONTEND_STAGE=$UI_STAGE" -t "${METOR_BOX_IMAGE:-metor-box:dev}" -f "$CORE/box/Dockerfile" "$CORE/.." ;;  # context = repo root (backend/ + frontend/)
     up)     box_up ;;
     down)   exec "$RT" stop "$C" ;;
     update) need_runtime   # the published image: pull the newest, recreate the computer (bots, histories and sign-ins live in the volumes)

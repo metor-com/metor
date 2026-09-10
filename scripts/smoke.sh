@@ -132,7 +132,7 @@ if metor bot create "$PROBE" --role "Smoke-test bot: answer briefly." --no-start
   check "bot.json and role file exist" inbox sh -c "test -f /workspace/bots/$PROBE/bot.json && test -f /workspace/bots/$PROBE/CLAUDE.md"
   check "watch prints the link" bash -c "metor bot watch $PROBE | grep -q '/bots/$PROBE/vnc.html'"
   if metor bot start "$PROBE" 2>&1 | grep -q "running (stream"; then ok "start"; else fail "start"; fi
-  wait_for 60 "probe is idle with a complete desktop" bash -c "metor bot list | grep -E '^$PROBE +idle +:[0-9]+ '"
+  wait_for 60 "probe is idle before computer use" bash -c "metor bot list | grep -E '^$PROBE +idle +:[0-9]+!? '"
   check "logs shows the host log" bash -c "metor bot logs $PROBE | grep -q 'Host for $PROBE started'"
   check "watch-url and mcp.json were written" inbox sh -c "test -f /workspace/bots/$PROBE/.metor/watch-url && test -f /workspace/bots/$PROBE/mcp.json"
   check "screen page is proxied with the session" sub "[ \"\$(inbox curl -s -b $JAR -o /dev/null -w '%{http_code}' $G/bots/$PROBE/vnc.html)\" = 200 ]"

@@ -7,7 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HARNESSES, harnessOf, defaultModel, validModel } from "./metor-harness.mjs";
 import { TEMPLATES, botDir, writeBot, normalizeAvatar } from "./metor-store.mjs";
-import { desktopAlive, desktopCoreDead, desktopStart, desktopStop, isProcess, pidAlive, waitFor, watchUrl } from "./metor-desktop.mjs";
+import { ensureDesktopConfig, desktopStop, isProcess, pidAlive, waitFor, watchUrl } from "./metor-desktop.mjs";
 
 const HOST_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "metor-agent-host.mjs");
 
@@ -54,13 +54,7 @@ export function createAgent({ name, title, role = "General assistant for the use
 // Start: desktop chain + host process; idempotent (a running host only gets its desktop repaired)
 export function startAgent(b) {
   if (!HARNESSES[harnessOf(b)]) throw new Error(`${b.name}: unknown runtime "${harnessOf(b)}" – not started`);
-  if (hostAlive(b)) {
-    if (desktopAlive(b)) return console.log(`${b.name}: already running`);
-    console.log(`${b.name}: host running, restarting desktop`);
-    if (desktopCoreDead(b)) desktopStop(b);
-    desktopStart(b);
-    return;
-  }
+  if (hostAlive(b)) return console.log(`${b.name}: already running`);
   const dir = join(botDir(b.name), ".metor"); mkdirSync(dir, { recursive: true });
   // Start lock: CLI start and supervisor tick must not spawn at the same time (otherwise two hosts
   // processing the same inbox twice – observed 2026-08-31)
@@ -68,9 +62,9 @@ export function startAgent(b) {
   try { const l = JSON.parse(readFileSync(lock, "utf8")); if (Date.now() - l.t < 60_000 && pidAlive(l.pid)) return console.log(`${b.name}: start already in progress`); } catch {}
   writeFileSync(lock, JSON.stringify({ pid: process.pid, t: Date.now() }));
   try {
-    trustDir(botDir(b.name));
+    if (HARNESSES[harnessOf(b)].needsTrustDir) trustDir(botDir(b.name));
     if (b.autostart !== true) { b.autostart = true; writeBot(b); } // started means "running and stays running"
-    desktopStart(b);
+    ensureDesktopConfig(b);
     const log = openSync(join(dir, "host.log"), "a");
     const child = spawn("node", [HOST_SCRIPT, b.name], { cwd: botDir(b.name), detached: true, stdio: ["ignore", log, log], env: process.env });
     child.on("error", (e) => console.error(`${b.name}: host start failed: ${e.message}`));

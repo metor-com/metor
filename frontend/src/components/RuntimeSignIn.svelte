@@ -14,7 +14,7 @@
   export let onDone = null;       // called once the sign-in went through
   let wizard = null, pollTimer = null, code = "", error = null;
   const ACTIVE = ["starting", "pending", "verifying"];
-  if (!setup || !label) listHarnesses().then((hs) => { const h = hs.find((x) => x.id === harness); if (h) { label = label ?? h.label; setup = setup ?? h.setup; } }).catch((e) => { error = e.message; });
+  if (!setup || !label) listHarnesses(harness).then((hs) => { const h = hs.find((x) => x.id === harness); if (h) { label = label ?? h.label; setup = setup ?? h.setup; } }).catch((e) => { error = e.message; });
 
   async function start() {
     error = null; code = "";

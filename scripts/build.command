@@ -11,12 +11,4 @@ case "$METOR_RUNTIME" in container|docker) ;; *) echo "METOR_RUNTIME must be con
 for tool in node npm "$METOR_RUNTIME"; do
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done
-WRAPPER="$ROOT/backend/harness/bin/metor"
-for project in frontend client/desktop; do
-  if [ ! -d "$project/node_modules" ]; then (cd "$project" && npm ci); fi
-done
-echo "Building the desktop interface…"
-npm --prefix client/desktop run ui
-echo "Building ${METOR_BOX_IMAGE}…"
-"$WRAPPER" box build
-echo "Build complete. Open run.command to start metor."
+node scripts/local-dev.mjs build "$@"

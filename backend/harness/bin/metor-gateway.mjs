@@ -6,6 +6,7 @@
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
 import http from "node:http";
 import net from "node:net";
+import { resourceAlive } from "./metor-desktop.mjs";
 import { clipboardText, pasteText, copyText, readClipboard, copyScreenKey } from "./metor-clipboard.mjs";
 const screenClipboardScript = readFileSync(new URL("./metor-screen-clipboard.js", import.meta.url));
 import { resizeScreen, screenSize, withScreenResizeLock } from "./metor-screen.mjs";
@@ -110,8 +111,7 @@ async function agentList() {
   });
 }
 
-// Model names for the badges are ready before the first create dialog asks
-for (const id of Object.keys(HARNESSES)) modelsFor(id).catch(() => {});
+// Model discovery is requested only for the runtime selected in the create dialog.
 // Login state per runtime, cached for 30 s (the probe is a subprocess)
 const probeCache = new Map();
 function harnessSetupState(id) {
@@ -121,10 +121,10 @@ function harnessSetupState(id) {
   probeCache.set(id, { ts: Date.now(), probe });
   return probe;
 }
-async function harnessInfo() {
+async function harnessInfo(selected) {
   return Promise.all(Object.values(HARNESSES).map(async (h) => {
-    const probe = harnessSetupState(h.id);
-    return { id: h.id, label: h.label, models: await modelsFor(h.id),
+    const probe = h.id === selected ? harnessSetupState(h.id) : { ok: null, detail: "Select this runtime to check setup" };
+    return { id: h.id, label: h.label, models: h.id === selected ? await modelsFor(h.id) : h.models,
       setup: { ok: probe.ok, detail: probe.detail, mode: h.setup.mode,
         ...(h.setup.mode === "terminal" ? { command: h.setup.command } : {}), ...(h.setup.hint ? { hint: h.setup.hint } : {}) } };
    }));
@@ -132,6 +132,16 @@ async function harnessInfo() {
 
 // ---------- Command queue: metor bot … strictly serial (parallel creates → freeDisplay race) ----------
 let chain = Promise.resolve();
+const resourceStarts = new Map();
+function ensureResource(name, kind) {
+  const b = readBot(name);
+  if (b.autostart && resourceAlive(b, kind)) return Promise.resolve();
+  const key = `${name}/${kind}`;
+  if (!resourceStarts.has(key)) resourceStarts.set(key, new Promise((resolve, reject) => {
+    execFile("metor", ["bot", "computer", name, kind], { timeout: 65_000 }, (err, out, stderr) => err ? reject(new Error(stderr.trim() || err.message)) : resolve());
+  }).finally(() => resourceStarts.delete(key)));
+  return resourceStarts.get(key);
+}
 const creating = new Set();   // ids queued for "bot create" but not on disk yet (duplicate check)
 function enqueue(args) {
   const id = args[0] === "bot" && args[1] === "create" ? args[args.indexOf("--id") + 1] : null;
@@ -287,7 +297,7 @@ async function api(req, res, url) {
     if (rest.length === 2 && req.method === "PUT") { const r = connectors.update(rest[1], await readBody(req)); return send(r.error ? (r.error.includes("not found") ? 404 : 400) : 200, r); }
     if (rest.length === 2 && req.method === "DELETE") { const r = connectors.remove(rest[1]); return send(r.error ? 404 : 200, r); }
   }
-  if (rest[0] === "harnesses" && rest.length === 1 && req.method === "GET") return send(200, await harnessInfo());
+  if (rest[0] === "harnesses" && rest.length === 1 && req.method === "GET") return send(200, await harnessInfo(u.searchParams.get("selected")));
   // Setup assistant: start/observe/cancel the runtime's device login
   if (rest[0] === "harnesses" && HARNESSES[rest[1]] && rest[2] === "setup" && rest.length === 4) {
     const id = rest[1];
@@ -399,7 +409,10 @@ async function api(req, res, url) {
       if (!b.display || !b.watchToken) return send(404, { error: "no desktop" });
       return send(200, { path: watchPath(b) });
     }
-    if (action === "chat" && rest[3] === "commands" && req.method === "GET") {
+    if (action === "chat" && rest[3] === "commands" && ["GET", "POST"].includes(req.method)) {
+      if (req.method === "POST" && b.autostart && streamChat.state(name).runtimeLoaded === false) {
+        writeFileSync(join(BOTS_DIR, name, ".metor", "runtime-request"), "commands\n");
+      }
       const active = ["idle", "busy"].includes(streamChat.status(name));
       return send(200, active ? streamChat.state(name).capabilities ?? { commands: [], models: [] } : { commands: [], models: [] });
     }
@@ -671,6 +684,7 @@ const server = http.createServer(async (req, res) => {
     if (url === "/bots/api" || url.startsWith("/bots/api/")) return await api(req, res, url);
     const t = target(url);
     if (t) {
+      await ensureResource(t.bot.name, t.port === 7100 + t.bot.display ? "terminal" : "desktop");
       const up = http.request({ host: "127.0.0.1", port: t.port, method: req.method, path: t.path, headers: { ...req.headers, "accept-encoding": "identity" } }, (r) => {
         // Watch cookie for the WebSocket authorization: browsers (esp. Firefox/Safari) do NOT send
         // basic auth with WS handshakes – Caddy therefore lets WS through without login (see Caddyfile),

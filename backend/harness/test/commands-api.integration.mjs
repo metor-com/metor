@@ -8,7 +8,12 @@ const claim = await fetch(link, { redirect: 'manual' });
 const cookie = claim.headers.get('set-cookie').split(';')[0];
 const post = (body) => fetch(base + '/send', { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: JSON.stringify(body) });
 assert.equal((await fetch(base + '/commands')).status, 401);
-const caps = await (await fetch(base + '/commands', { headers: { cookie } })).json();
+let caps;
+for (let i = 0; i < 200; i++) {
+  caps = await (await fetch(base + '/commands', { method: 'POST', headers: { cookie } })).json();
+  if (caps.models?.length) break;
+  await new Promise(r => setTimeout(r, 100));
+}
 assert.ok(caps.models.length > 0);
 const command = caps.commands.find((c) => c.action === 'model'); assert.ok(command);
 assert.equal((await post({ text: '/quit', command: 'harness:quit' })).status, 400);

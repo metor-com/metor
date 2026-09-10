@@ -16,5 +16,6 @@ const harness = core.bot.harness ?? "claude-stream";
 const desc = HARNESSES[harness];
 if (!desc) core.fail(new Error(`unknown harness "${harness}" – no host adapter in the registry`));
 
+await core.waitForDemand();
 const { run } = await import(desc.adapterModule);
 run(core).catch((e) => core.fail(e));

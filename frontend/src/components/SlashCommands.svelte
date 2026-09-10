@@ -20,7 +20,7 @@
     const gen = generation, request = ++requestId, target = bot;
     loading = true;
     try {
-      const result = await chatCommands(target);
+      const result = await chatCommands(target, !!slashParts(text));
       if (gen === generation && request === requestId) capabilities = result;
     } catch (e) {
       if (gen === generation && request === requestId) { capabilities = { commands: [], models: [] }; error = e.message; }
@@ -29,6 +29,8 @@
   onDestroy(() => { generation++; clearInterval(timer); });
   $: commands = [...(["idle", "busy"].includes(status) ? capabilities.commands ?? [] : []), ...METOR_COMMANDS];
   $: parts = slashParts(text);
+  $: slashOpen = !!parts;
+  $: if (slashOpen) refresh();
   $: exact = exactCommand(commands, text, selectedId);
   $: modelArgs = (parts?.argument ?? "").trim().split(/\s+/);
   $: chosenModel = exact?.action === "model" ? capabilities.models?.find((m) => m.id === modelArgs[0]) : null;

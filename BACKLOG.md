@@ -63,11 +63,12 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   renderers, the desktop chain, the host; a Copilot process alone is 290 MB RSS), so six bots froze
   the 4 GB default computer (no swap; `container exec` and the gateway stopped answering, only
   killing the VM helped). Wanted: a guard that warns in Settings → Computer and refuses to start
-  more bots than the memory carries, a lighter desktop (no browser until a bot needs one), and
+  more bots than the memory carries, and
   `METOR_MEMORY` in the Mac docs; the local computer now runs with 6 GB. Measured per idle bot:
   desktop about 400 MB (Chromium 306), runtime 150 (Codex) to 265 MB (Claude, Copilot), MCP
   servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
-  found the same day is fixed
+  found the same day is fixed. Runtime/browser/desktop startup is now on demand (ADR-0024);
+  automatic idle eviction and the memory guard remain open.
 - **Persistent RAM setting per Space** (2026-09-10, complements the memory guard above) -
   expose **RAM for this Space** in Settings, show the current allocation and host capacity,
   and persist the chosen limit across app launches, Space restarts and updates. For Apple's
@@ -90,7 +91,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   code is under 1 MB). One `RUN npm install -g` per runtime in `backend/box/Dockerfile` (Playwright
   MCP, Agent SDK, Codex, Gemini, Copilot) shrinks a bump to that runtime's size (Copilot about
   160 MB compressed); `scripts/runtime-versions.mjs` keeps working, the pins move to their own lines
-- **Runtimes on demand** (after the layer split, with an ADR) - the image carries only base, desktop
+- **Runtime installation on demand** (after the layer split, with an ADR) - the image carries only base, desktop
   and Playwright (about 550 MB compressed instead of 1.4 GB); the registry installs a runtime at its
   first use from npm or claude.ai into its own volume with metor's pinned version, the create dialog
   shows "Install (size)" next to "Sign in"; after an image update metor compares the installed version

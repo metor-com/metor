@@ -7,3 +7,7 @@ docs
 *.md
 CLAUDE.local.md
 .claude
+
+.metor-dev
+client/desktop/dist
+client/mobile

@@ -12,17 +12,7 @@ for tool in node npm curl "$METOR_RUNTIME"; do
   command -v "$tool" >/dev/null || { echo "Missing dependency: $tool" >&2; exit 1; }
 done
 WRAPPER="$ROOT/backend/harness/bin/metor"
-[ -f client/desktop/ui/index.html ] && [ -x client/desktop/node_modules/.bin/electron ] || {
-  echo "Run build.command first." >&2; exit 1;
-}
-if [ "$METOR_RUNTIME" = container ]; then container system start --enable-kernel-install; fi
-"$METOR_RUNTIME" image inspect "$METOR_BOX_IMAGE" >/dev/null || {
-  echo "Image missing. Run build.command first." >&2; exit 1;
-}
-# Check the built UI and image before stopping the running Space.
-echo "Restarting the local Space (saved data is retained)…"
-if [[ "$("$WRAPPER" box state)" == running* ]]; then "$WRAPPER" box down; fi
-"$WRAPPER" box up
+node scripts/local-dev.mjs start "$@"
 READY=0
 for ((attempt=0; attempt<90; attempt++)); do
   if curl -fsS --max-time 2 "http://127.0.0.1:${METOR_PORT:-6010}/bots/api/version" >/dev/null 2>&1; then READY=1; break; fi

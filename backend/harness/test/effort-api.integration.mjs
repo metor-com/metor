@@ -8,7 +8,7 @@ execFileSync('metor', ['bot', 'start', bot]);
 const link = execFileSync('metor', ['auth', 'link', '--plain'], {encoding:'utf8'}).match(/http[^\s]+claim\?token=[A-Za-z0-9_-]+/)[0];
 const claim = await fetch(link, {redirect:'manual'}), cookie = claim.headers.get('set-cookie').split(';')[0];
 const base = `http://127.0.0.1:6010/bots/api/agents/${bot}/chat`;
-const caps = async () => (await fetch(base + '/commands', {headers:{cookie}})).json();
+const caps = async () => (await fetch(base + '/commands', {method:'POST',headers:{cookie}})).json();
 async function until(check) { for (let i=0;i<100;i++) { const c=await caps(); if(check(c)) return c; await new Promise(r=>setTimeout(r,100)); } throw new Error('Timed out'); }
 const before = await until(c=>c.models?.length);
 const model = before.models.find(m=>m.reasoningEfforts?.length>1); assert.ok(model);

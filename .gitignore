@@ -22,3 +22,6 @@ client/mobile/android/app/google-services.json
 # Firebase service account keys (the relay's secret) – never in the repository, wherever they are dropped
 *firebase-adminsdk*.json
 .claude/launch.json
+
+# Local development build fingerprints
+.metor-dev/

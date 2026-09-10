@@ -34,14 +34,14 @@ export const pushTest = () => req("POST", "/push/test");
 export const listAgents = () => req("GET", "/agents");
 // title = what people see; the gateway derives the id from it unless `name` (an explicit id) is given
 export const createAgent = (title, role, harness, model, name, avatar) => req("POST", "/agents", { title, role, ...(name ? { name } : {}), ...(harness ? { harness } : {}), ...(model ? { model } : {}), ...(avatar ? { avatar } : {}) });
-export const listHarnesses = () => req("GET", "/harnesses");
+export const listHarnesses = (selected) => req("GET", `/harnesses${selected ? `?selected=${encodeURIComponent(selected)}` : ""}`);
 export const setupStart = (id) => req("POST", `/harnesses/${id}/setup/start`);
 export const setupStatus = (id) => req("GET", `/harnesses/${id}/setup/status`);
 export const setupCancel = (id) => req("POST", `/harnesses/${id}/setup/cancel`);
 export const setupCode = (id, code) => req("POST", `/harnesses/${id}/setup/code`, { code });
 export const agentAction = (name, action) => req("POST", `/agents/${name}/${action}`);
 export const watchUrl = (name) => req("GET", `/agents/${name}/watch-url`);
-export const chatCommands = (name) => req("GET", `/agents/${name}/chat/commands`);
+export const chatCommands = (name, wake = false) => req(wake ? "POST" : "GET", `/agents/${name}/chat/commands`);
 export const chatSend = (name, text, sendId, attachments, command) => req("POST", `/agents/${name}/chat/send`, { text, sendId, ...(command ? { command } : {}), ...(attachments?.length ? { attachments } : {}) });
 export async function uploadFile(name, file) {
   let r;

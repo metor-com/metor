@@ -27,6 +27,7 @@
   }
   $: previewId = idEdited ? id.trim() : slugify(name);
   $: idOk = !idEdited || isValidId(id.trim());
+  let discovering = false;
   let harnesses = null, harness = "claude-stream", model = null;
   let modelId = "";   // "Other model id…": a full id the runtime knows (claude-fable-5-1), for models the list has no name for yet
   const OTHER = "__other";
@@ -40,14 +41,25 @@
   loadHarnesses();
   async function loadHarnesses() {
     try {
-      harnesses = await listHarnesses();
-      pick(harnesses.find((h) => h.id === harness) ?? harnesses[0]);
+      harnesses = await listHarnesses(harness);
+      pick(harnesses.find((h) => h.id === harness) ?? harnesses[0], false);
     } catch (e) { error = e.message; harnesses = []; }
   }
   $: current = harnesses?.find((h) => h.id === harness) ?? null;
-  function pick(h) {
+  async function pick(h, discover = true) {
     if (!h) return;
     harness = h.id;
+    model = h.models.find((m) => m.default)?.id ?? h.models[0]?.id ?? null;
+    if (discover) {
+      discovering = true;
+      try {
+        const list = await listHarnesses(h.id);
+        if (harness !== h.id) return;
+        h = list.find((entry) => entry.id === h.id);
+        harnesses = list;
+      } catch (e) { error = e.message; return; }
+      finally { if (harness === h.id) discovering = false; }
+    }
     model = h.models.find((m) => m.default)?.id ?? h.models[0]?.id ?? null;
   }
 
@@ -107,7 +119,7 @@
         <label class="flex flex-1 flex-col gap-1.5 text-[13px] text-zinc-500">Runtime
           <select class="rounded-lg border border-zinc-300 px-2 py-2 text-[15px] text-zinc-900 outline-none focus:border-zinc-900"
             value={harness} on:change={(e) => pick(harnesses.find((h) => h.id === e.target.value))}>
-            {#each harnesses as h (h.id)}<option value={h.id}>{h.label}{h.setup.ok ? "" : " – not set up"}</option>{/each}
+            {#each harnesses as h (h.id)}<option value={h.id}>{h.label}{h.setup.ok === false ? " – not set up" : ""}</option>{/each}
           </select>
         </label>
         <label class="flex flex-1 flex-col gap-1.5 text-[13px] text-zinc-500">Model
@@ -128,16 +140,18 @@
       {/if}
     {/if}
 
-    {#if current && !current.setup.ok}
+    {#if discovering}
+      <p class="text-xs text-zinc-400">Checking runtime and models…</p>
+    {:else if current && current.setup.ok === false}
       {#key harness}<RuntimeSignIn harness={current.id} label={current.label} setup={current.setup} onDone={loadHarnesses} />{/key}
     {/if}
 
     {#if error}<p class="text-[13px] text-red-600">{error}</p>{/if}
     <div class="flex justify-end gap-2">
       <button type="button" class="rounded-lg border border-zinc-300 px-3.5 py-2 text-sm hover:bg-zinc-50" on:click={() => onDone?.(null)}>Cancel</button>
-      <button type="submit" class="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={busy || !name.trim() || !idOk || !modelOk || !current?.setup.ok}>{busy ? "Setting up…" : "Create"}</button>
+      <button type="submit" class="rounded-lg bg-zinc-900 px-3.5 py-2 text-sm text-white hover:bg-zinc-700 disabled:bg-zinc-300" disabled={busy || discovering || !name.trim() || !idOk || !modelOk || !current?.setup.ok}>{busy ? "Setting up…" : "Create"}</button>
     </div>
-    <p class="text-xs text-zinc-400">Setup (desktop + session) takes up to a minute.</p>
+    <p class="text-xs text-zinc-400">The runtime and computer start when you use them.</p>
       <input class="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif" bind:this={fileInput} on:change={chooseImage} />
   </form>
 </div>

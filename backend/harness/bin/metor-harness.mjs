@@ -170,7 +170,7 @@ HARNESSES.gemini = {
     const p = ports(bot.display);
     mkdirSync(join(dir, ".gemini"), { recursive: true });
     const builtIn = {
-      browser: { command: "playwright-mcp", args: ["--cdp-endpoint", `http://127.0.0.1:${p.cdp}`, "--output-dir", `/workspace/bots/${bot.name}/.browser-output`, "--image-responses", "allow"], trust: true },
+      browser: { command: "node", args: ["/usr/local/lib/metor/metor-browser-mcp.mjs", bot.name, "--cdp-endpoint", `http://127.0.0.1:${p.cdp}`, "--output-dir", `/workspace/bots/${bot.name}/.browser-output`, "--image-responses", "allow"], trust: true },
       routines: { command: "node", args: ["/usr/local/lib/metor/metor-routines-mcp.mjs", bot.name], trust: true },
     };
     writeFileSync(join(dir, ".gemini", "settings.json"), JSON.stringify({ mcpServers: { ...geminiServers(bot), ...builtIn } }, null, 2) + "\n");
@@ -278,7 +278,7 @@ HARNESSES.copilot = {
     // "Function 'browser.browser-browser_click' is not allowed in reserved namespace" (2026-09-07), so
     // the bot's browser is the server "playwright" here (tools playwright-browser_navigate …)
     const builtIn = {
-      playwright: { type: "local", command: "playwright-mcp", args: ["--cdp-endpoint", `http://127.0.0.1:${p.cdp}`, "--output-dir", `/workspace/bots/${bot.name}/.browser-output`, "--image-responses", "allow"], tools: ["*"] },
+      playwright: { type: "local", command: "node", args: ["/usr/local/lib/metor/metor-browser-mcp.mjs", bot.name, "--cdp-endpoint", `http://127.0.0.1:${p.cdp}`, "--output-dir", `/workspace/bots/${bot.name}/.browser-output`, "--image-responses", "allow"], tools: ["*"] },
       routines: { type: "local", command: "node", args: ["/usr/local/lib/metor/metor-routines-mcp.mjs", bot.name], tools: ["*"] },
     };
     writeFileSync(join(dir, ".copilot", "mcp-config.json"), JSON.stringify({ mcpServers: { ...copilotServers(bot), ...builtIn } }, null, 2) + "\n");

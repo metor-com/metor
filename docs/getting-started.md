@@ -317,15 +317,35 @@ files still go through chat attachments. This requires the updated Space image.
 
 From a repository checkout, double-click these scripts in Finder, or run them in Terminal:
 
-1. `scripts/build.command` installs missing frontend/desktop dependencies and builds the UI
-   and Space image. Run it after code changes; it does not restart the running Space.
-2. `scripts/run.command` uses that build, restarts the local Space, waits for the gateway,
-   and opens the desktop app. A running desktop from this checkout is restarted too.
+1. `scripts/build.command` builds only changed components. It installs dependencies when
+   their package files change, builds the UI once, and skips the entire image build/export
+   when the backend is unchanged. Run it after code changes; it does not restart the Space.
+2. `scripts/run.command` uses the saved build and opens the desktop app. It keeps a running
+   Space when its image digest matches, and transfers changed UI files without restarting
+   bots. A new backend image recreates the Space with its existing data volumes.
 
-Saved bots, chats and runtime sign-ins stay in their volumes; a running bot turn is interrupted
-by the Space restart. The default runtime is Apple's `container` and the image is
-`metor-box:resize-test`; `METOR_RUNTIME` and `METOR_BOX_IMAGE` can override these.
-Node.js/npm and the runtime must already be installed.
+For ordinary launches, use only `run.command`. The development desktop app itself is
+reopened so that UI and Electron changes are visible. Changes to source files take effect
+after `build.command`; launching does not build automatically.
+
+Optional overrides from Terminal:
+
+```sh
+./scripts/build.command --force  # rebuild despite the local fingerprints; image layer cache still applies
+./scripts/run.command --restart # restart even with the same image, e.g. after changing Space configuration
+```
+
+Saved bots, chats and runtime sign-ins stay in their volumes. Applying a new backend image
+or requesting a restart interrupts running bot turns; UI-only updates do not. Cached build
+fingerprints live in the ignored `.metor-dev/` directory and are written only after each
+successful step. The first build initializes this cache. Missing or replaced images are
+rebuilt even if the source files are unchanged. `--force` reruns the UI and image builders but retains their layer caches; it does not
+force dependency updates. The local source cache does not poll upstream.
+
+The default runtime is Apple's `container` and the image is `metor-box:resize-test`;
+`METOR_RUNTIME` and `METOR_BOX_IMAGE` can override these. Node.js/npm and the runtime must
+already be installed. Docker identity handling is supported; the live local workflow is
+verified with Apple's runtime on macOS.
 
 ### Copy text from the bot’s browser
 

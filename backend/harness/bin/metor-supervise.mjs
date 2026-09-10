@@ -8,9 +8,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { injectTurn } from "./metor-chat-stream.mjs";
 import { dueRoutines, recordRun } from "./metor-routines.mjs";
-import { HARNESSES, harnessOf } from "./metor-harness.mjs";
 import { BOTS_DIR, TEMPLATES, allBots, botDir, writeBot } from "./metor-store.mjs";
-import { desktopAlive, desktopCoreDead, desktopForgetPids, desktopStart, desktopStop } from "./metor-desktop.mjs";
+import { repairResources, desktopForgetPids, desktopStop } from "./metor-desktop.mjs";
 import { hostAlive, hostPidFile, startAgent, stopHost } from "./metor-lifecycle.mjs";
 import { AUTH_OFF, createClaim, hasOpenClaim, hasSessions } from "./metor-auth.mjs";
 
@@ -52,20 +51,6 @@ export function supervise() {
       console.log(`supervise: ${name}: title "${title}" added to bot.json`);
     } catch {}
   }
-  // Login gate PER harness (ADR-0011): every runtime has its own login; a missing
-  // Codex login must not block Claude bots and vice versa. Non-ok probes are retried every tick.
-  const loginOk = {};
-  const probeHarness = (id) => {
-    if (loginOk[id]) return true;
-    const desc = HARNESSES[id];
-    if (!desc) return false;
-    const probe = desc.loginProbe();
-    if (probe.ok && !loginOk[id]) console.log(`supervise: ${desc.label} logged in`);
-    loginOk[id] = probe.ok;
-    if (!probe.ok) console.log(`supervise: ${desc.label} NOT logged in – ${probe.detail}`);
-    return probe.ok;
-  };
-  for (const id of new Set(allBots().map((b) => harnessOf(b)))) probeHarness(id);
   let gateway = null;
   // Caution: on death by signal (e.g. SIGTERM) exitCode stays null – signalCode carries the value.
   // Only both together mean "still alive"; otherwise the supervisor would never respawn a killed gateway.
@@ -76,14 +61,12 @@ export function supervise() {
     ensureGateway();
     if (stopping) return;
     const bots = allBots().filter((b) => b.autostart);
-    for (const b of bots) if (hostAlive(b) && !desktopAlive(b)) {
-      const core = desktopCoreDead(b);
-      console.log(`supervise: ${core ? "restarting" : "completing (terminal/dock)"} desktop of ${b.name}`);
-      try { if (core) desktopStop(b); desktopStart(b); } catch (e) { console.error(e); }
-    }
-    for (const b of bots) if (!hostAlive(b)) {
-      if (!probeHarness(harnessOf(b))) continue;   // runtime not logged in (or unknown) → only these bots wait
-      console.log(`supervise: starting ${b.name}`); try { startAgent(b); } catch (e) { console.error(e); }
+    for (const b of bots) {
+      try { repairResources(b); } catch (e) { console.error(e); }
+      if (!hostAlive(b)) {
+        console.log(`supervise: starting ${b.name}`);
+        try { startAgent(b); } catch (e) { console.error(e); }
+      }
     }
     // Bus log rotation: keep one generation; the readers' tail cursors detect the
     // truncation (size < offset → reset) by themselves

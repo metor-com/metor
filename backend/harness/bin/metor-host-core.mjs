@@ -3,7 +3,7 @@
 // out), the turn queue, approvals, file cards and the lifecycle. The adapters
 // (metor-host-claude.mjs, metor-host-codex.mjs) only translate between this core and
 // their respective harness – UI and gateway see the same files for all runtimes.
-import { appendFileSync, closeSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, rmSync, closeSync, mkdirSync, openSync, readFileSync, readSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { commandCatalogue, resolveCommand } from "./metor-commands.mjs";
@@ -17,6 +17,7 @@ const BOTS_DIR = process.env.METOR_BOTS_DIR ?? "/workspace/bots";
 // Codex as developerInstructions.
 export const CHAT_HOWTO = `Chatting with the user (metor interface):
 - Showing files: write "[File: path/to/file]" (relative to your directory) on its own line in your reply – the chat renders it as a card with preview/download and removes the marker from the text. Use this for results, screenshots and exports instead of quoting long files. File paths you mention in the text (e.g. in backticks) are additionally offered as cards automatically.
+- Browser MCP tools start your browser automatically. Before using desktop shell tools (xdotool, screenshots, GUI apps), run \`metor bot computer <your-bot-name> desktop\`. Files and shell commands do not need a desktop.
 - The user can resize your screen between turns. Before a coordinate-based action in a new turn, take a fresh screenshot; never reuse screen coordinates from a previous turn.
 - The user's attachments reach you as "[Attachment: /path]" lines (the files are under uploads/); look at images with your file-reading tool.
 - Language: the user reads your replies, your texts between steps AND the one-line description you give each command (the "description" of your shell tool – the chat shows it while you work). Write all of them in the language the user writes in, even where a tool's own instructions ask for English.`;
@@ -277,6 +278,14 @@ export function createCore(name) {
     saveState, setCapabilities,
     setModelHandler(fn) { modelHandler = fn; },
     turns,
+    async waitForDemand() {
+      saveState({ status: "idle", runtimeLoaded: false, error: null });
+      log(`Host for ${name} started (runtime on demand)`);
+      const request = join(metorDir, "runtime-request");
+      while (!queue.length && !existsSync(request)) await new Promise((r) => setTimeout(r, 100));
+      rmSync(request, { force: true });
+      saveState({ status: "starting", runtimeLoaded: true });
+    },
     setInterruptHandler(fn) { onInterrupt = fn; },
     askPermission,
     partialAppend, partialClear,

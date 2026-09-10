@@ -2,6 +2,8 @@
 # Linux + Node + Claude Code + Codex + Gemini CLI + Copilot CLI + metor CLI; one desktop per bot (Xvfb, Chromium, x11vnc, noVNC) + Playwright MCP.
 # The interface (frontend/, Svelte) is built in a multi-stage build – the build context is the REPO ROOT.
 
+ARG METOR_FRONTEND_STAGE=frontend
+
 # ---------- Stage 1: build the interface (no Node build needed on the server) ----------
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /fe
@@ -9,6 +11,12 @@ COPY frontend/package*.json ./
 RUN npm ci --no-fund --no-audit
 COPY frontend/ ./
 RUN npm run build
+
+# Local development reuses the UI already built for Electron. Release builds
+# keep the default frontend stage and need no generated files in the checkout.
+FROM scratch AS frontend-prebuilt
+COPY client/desktop/ui/ /fe/dist/
+FROM ${METOR_FRONTEND_STAGE} AS frontend-selected
 
 # ---------- Stage 2: the computer ----------
 FROM node:22-bookworm-slim
@@ -78,6 +86,7 @@ COPY backend/harness/bin/metor-connectors.mjs /usr/local/lib/metor/metor-connect
 COPY backend/harness/bin/metor-clipboard.mjs /usr/local/lib/metor/metor-clipboard.mjs
 COPY backend/harness/bin/metor-screen-clipboard.js /usr/local/lib/metor/metor-screen-clipboard.js
 COPY backend/harness/bin/metor-screen.mjs /usr/local/lib/metor/metor-screen.mjs
+COPY backend/harness/bin/metor-browser-mcp.mjs /usr/local/lib/metor/metor-browser-mcp.mjs
 COPY backend/harness/bin/metor-desktop.mjs /usr/local/lib/metor/metor-desktop.mjs
 COPY backend/harness/bin/metor-lifecycle.mjs /usr/local/lib/metor/metor-lifecycle.mjs
 COPY backend/harness/bin/metor-supervise.mjs /usr/local/lib/metor/metor-supervise.mjs
@@ -98,7 +107,7 @@ COPY backend/harness/templates /usr/local/lib/metor/templates
 COPY backend/harness/hooks /usr/local/lib/metor/hooks
 # The compose file that belongs to this image – the installer takes it from here, so image and compose never drift
 COPY deploy/compose.yml /usr/local/lib/metor/compose.yml
-COPY --from=frontend /fe/dist /usr/local/lib/metor/frontend
+COPY --from=frontend-selected /fe/dist /usr/local/lib/metor/frontend
 
 # noVNC ports of the bot desktops (display 11..49 → port 6011..6049), publish only on the host's loopback
 EXPOSE 6010 6011-6049
