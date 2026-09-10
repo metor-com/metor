@@ -69,8 +69,8 @@ export function removeRoutine(botsDir, bot, id) {
   writeRoutines(botsDir, bot, routines.filter((r) => r.id !== id));
   return { removed: id };
 }
-export function recordRun(botsDir, bot, routine) {
-  appendFileSync(runsFile(botsDir, bot), JSON.stringify({ id: randomUUID().slice(0, 8), routineId: routine.id, name: routine.name, ts: new Date().toISOString() }) + "\n");
+export function recordRun(botsDir, bot, routine, turn = {}) {
+  appendFileSync(runsFile(botsDir, bot), JSON.stringify({ id: turn.runId ?? randomUUID().slice(0, 8), turnId: turn.id, routineId: routine.id, name: routine.name, ts: new Date().toISOString() }) + "\n");
 }
 export function readRuns(botsDir, bot, { limit = RUNS_KEEP } = {}) {
   try {

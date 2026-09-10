@@ -1,3 +1,4 @@
+import { event } from "./metor-events.mjs";
 // metor-supervise – PID 1 inside the computer: starts the gateway, brings every autostart bot up
 // (desktop chain + host process) and keeps both alive, fires due routines (ADR-0010), rotates the
 // bus log. One tick every 30 s; login gate per runtime (ADR-0011).
@@ -81,12 +82,13 @@ export function supervise() {
         // The turn goes into the inbox before the routine's file moves on (fire-then-advance)
         const { paused } = dueRoutines(BOTS_DIR, b.name, new Date(), (r) => {
           console.log(`supervise: routine "${r.name}" (${r.id}) for ${b.name}`);
-          injectTurn(BOTS_DIR, b.name, `[Routine "${r.name}"] ${r.prompt}`, { origin: "routine" });
-          recordRun(BOTS_DIR, b.name, r);
+          const turn = injectTurn(BOTS_DIR, b.name, `[Routine "${r.name}"] ${r.prompt}`, { origin: "routine", routine: r });
+          recordRun(BOTS_DIR, b.name, r, turn);
         });
         // The auto-pause has struck: notice directly into the history (NO turn – that would cost exactly
         // the quota the guard protects); the bot switches it back on when asked via update_task
         for (const r of paused) {
+          event(join(BOTS_DIR, b.name, ".metor"), "routine.paused", { routineId: r.id, reason: "schedule_guard" });
           console.log(`supervise: routine "${r.name}" (${r.id}) for ${b.name} paused – ${r.pausedReason}`);
           appendFileSync(join(BOTS_DIR, b.name, ".metor", "chat.jsonl"), JSON.stringify({
             v: 2, id: randomUUID(), ts: new Date().toISOString(), role: "assistant", kind: "text",

@@ -124,6 +124,7 @@ export async function run(core) {
     } else if (m.type === "result") {
       try { recordSeenModel("claude-stream", bot.model, Object.keys(m.modelUsage ?? {})); } catch {}   // the model behind the alias, for the labels
       core.partialClear();
+      core.finishTurn(m.is_error ? "failed" : "completed", m.subtype);
       core.saveState({ status: "idle", ...(lastQuota ? { quota: lastQuota } : {}) });
     }
     // thinking etc. stay invisible

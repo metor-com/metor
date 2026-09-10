@@ -4,6 +4,7 @@
 //   *   /bots/api/…                 → JSON API + one SSE stream (topics: agents, chat:<name>)
 //   *   /bots/<name>/…              → the bot's websockify/noVNC (HTTP + WebSocket)
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
+import { readEvents } from "./metor-events.mjs";
 import http from "node:http";
 import net from "node:net";
 import { resourceAlive } from "./metor-desktop.mjs";
@@ -362,6 +363,7 @@ async function api(req, res, url) {
         return createReadStream(a.file).pipe(res);
       }
     }
+    if (req.method === "GET" && action === "events" && rest.length === 3) return send(200, { events: readEvents(join(BOTS_DIR, name, ".metor")) });
     if (req.method === "GET" && action === "routines" && rest.length === 3) {
       return send(200, { routines: readRoutines(BOTS_DIR, name), runs: readRuns(BOTS_DIR, name) });
     }
@@ -377,8 +379,8 @@ async function api(req, res, url) {
       const r = readRoutines(BOTS_DIR, name).find((x) => x.id === rest[3]);
       if (!r) return send(404, { error: `Routine ${rest[3]} not found` });
       // Like the supervisor's tick, only that a run the user asks for counts as user activity (no origin)
-      injectTurn(BOTS_DIR, name, `[Routine "${r.name}"] ${r.prompt}`);
-      recordRun(BOTS_DIR, name, r);
+      const turn = injectTurn(BOTS_DIR, name, `[Routine "${r.name}"] ${r.prompt}`, { routine: r });
+      recordRun(BOTS_DIR, name, r, turn);
       return send(202, { ok: true });
     }
     if (req.method === "POST" && rest.length === 3 && ["screen-clipboard", "screen-copy-key"].includes(action)) {

@@ -28,3 +28,4 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0023 | [Session-aware slash commands in chat](0023-chat-commands.md) | accepted (2026-09-10) |
 | 0024 | [Start bot components on demand](0024-components-on-demand.md) | accepted (2026-09-10) |
 | 0025 | [Sleep idle runtime processes](0025-runtime-sleep.md) | accepted (2026-09-10) |
+| 0026 | [Durable bot event history](0026-bot-events.md) | accepted (2026-09-10) |

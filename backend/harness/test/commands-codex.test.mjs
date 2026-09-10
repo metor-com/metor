@@ -34,7 +34,7 @@ test('Codex sends the selected effort on turns and on a resumed conversation', a
         dir, name:'probe', bot, state,
         saveState(patch) { Object.assign(state, patch); },
         setCapabilities(commands, list) { models = list; },
-        setModelHandler() {}, setInterruptHandler() {}, ready() {}, log() {}, partialClear() {},
+        setModelHandler() {}, setInterruptHandler() {}, ready() {}, log() {}, partialClear() {}, finishTurn() {},
         onShutdown(fn) { cleanups.push(fn); }, fail(e) { throw e; },
         async *turns() { yield {text: 'Test'}; },
       };

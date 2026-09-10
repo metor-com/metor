@@ -102,7 +102,7 @@ export async function run(core) {
       // The reasoning as it is written (item/reasoning/summaryTextDelta, summaryPartAdded, textDelta), live only
       else if (/^item\/reasoning\//.test(m.method)) core.thoughtAppend(m.method.endsWith("summaryPartAdded") ? "\n\n" : String(p.delta ?? p.text ?? ""));
       else if (m.method === "item/completed") onItemCompleted(p.item);
-      else if (m.method === "turn/completed") { core.partialClear(); core.saveState({ status: "idle" }); turnDone?.(); }
+      else if (m.method === "turn/completed") { core.partialClear(); core.finishTurn(p.turn?.status === "failed" ? "failed" : p.turn?.status === "interrupted" ? "interrupted" : "completed", p.turn?.status); core.saveState({ status: "idle" }); turnDone?.(); }
       else if (m.method === "error") core.log("codex error:", JSON.stringify(p).slice(0, 300));
     }
   });
@@ -149,6 +149,7 @@ export async function run(core) {
     const done = new Promise((r) => (turnDone = r));
     const res = await send("turn/start", { threadId, ...(bot.model ? { model: bot.model } : {}), ...(bot.reasoningEffort ? { effort: bot.reasoningEffort } : {}), input: [{ type: "text", text: t.text }] });
     if (res.error) {
+      core.finishTurn("failed", "turn_start_error");
       core.emitText(`⚠️ Codex error: ${res.error.message ?? JSON.stringify(res.error)}`);
       core.saveState({ status: "idle" });
       continue;

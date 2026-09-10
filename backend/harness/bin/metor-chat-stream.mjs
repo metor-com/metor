@@ -1,3 +1,4 @@
+import { event } from "./metor-events.mjs";
 // metor-chat-stream – gateway side of the stream harness (ADR-0009).
 // Send = user entry in chat.jsonl + line in inbox.jsonl (read by the metor-agent-host).
 // Live events = file tail on the chat.jsonl of all stream bots (the host writes them).
@@ -15,18 +16,20 @@ const now = () => new Date().toISOString();
 // Attachments (uploads from the UI) live as files under <bot>/uploads/ – the history keeps
 // the metadata for rendering, the bot gets the absolute paths in the turn text (the harness
 // reads images itself with the Read tool; this way it also works for Codex & co.).
-export function injectTurn(botsDir, bot, text, { origin, attachments, command } = {}) {
+export function injectTurn(botsDir, bot, text, { origin, attachments, command, routine } = {}) {
   const id = randomUUID();
   const metorDir = join(botsDir, bot, ".metor");
   mkdirSync(metorDir, { recursive: true });
+  const run = routine ? { runId: randomUUID(), routineId: routine.id } : {};
   const atts = sanitizeAttachments(attachments);
   appendFileSync(join(metorDir, "chat.jsonl"), JSON.stringify({ v: 1, id, ts: now(), role: "user", ...(command ? { command, origin: "harness" } : {}), ...(origin ? { origin } : {}), ...(atts ? { attachments: atts } : {}), text, status: "sending" }) + "\n");
   const turnText = [String(text ?? "").trim(),
     ...(atts ?? []).map((a) => `[Attachment${a.image ? " (image)" : ""}: ${join(botsDir, bot, a.path)}]`)].filter(Boolean).join("\n\n");
-  appendFileSync(join(metorDir, "inbox.jsonl"), JSON.stringify({ kind: "user", id, ts: now(), text: turnText, ...(command ? { command } : {}) }) + "\n");
+  appendFileSync(join(metorDir, "inbox.jsonl"), JSON.stringify({ kind: "user", id, ts: now(), origin, ...run, text: turnText, ...(command ? { command } : {}) }) + "\n");
   // Stamp real user messages (not routine fires): anchor for the routines auto-pause
   if (!origin) { try { writeFileSync(join(metorDir, "last-user.json"), JSON.stringify({ ts: now() }) + "\n"); } catch {} }
-  return { id };
+  event(metorDir, routine ? "routine.queued" : "turn.queued", { ...run, turnId: id, reason: routine ? (origin === "routine" ? "schedule" : "manual") : "message" });
+  return { id, ...run };
 }
 // Only files below uploads/ (no path escape), metadata reduced to the essentials
 function sanitizeAttachments(list) {

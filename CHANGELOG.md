@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Bots have a persistent Event log with sleep/wake reasons, routine run IDs, processing outcomes and durations. Filter and export retained events from the bot menu; storage is bounded.
+
 - Idle runtimes sleep automatically after five minutes and wake for messages, routines or slash commands. Conversations and model settings persist; browser tabs stay open.
 
 - Local build/start scripts cache unchanged builds, reuse the UI build for the image, update the Space UI without restarting bots, and keep a running Space when its image is current.

@@ -1,3 +1,4 @@
+import { event } from "./metor-events.mjs";
 // metor-host-core – the harness-neutral core of every bot host (ADR-0011).
 // Owns the complete file IPC (inbox.jsonl in; chat.jsonl, harness.json, partial.json
 // out), the turn queue, approvals, file cards and the lifecycle. The adapters
@@ -85,6 +86,13 @@ export function createCore(name, { parentPid = null } = {}) {
       }
     } catch {}
   }
+  let activeTurn = null, interrupted = false;
+  function finishTurn(outcome = 'completed', reason) {
+    if (!activeTurn) return;
+    event(metorDir, `turn.${interrupted ? 'interrupted' : outcome}`, { ...activeTurn, reason, durationMs: Date.now() - activeTurn.startedAt });
+    activeTurn = null; interrupted = false;
+    saveState({ activeTurn: null });
+  }
   let idleSince = Date.now(), closing = false;
   function saveState(patch) { if (closing) return; if (patch.status === "idle" && state.status !== "idle") idleSince = Date.now(); state = { ...state, ...patch, pid: process.pid, updatedAt: now() }; const tmp = `${stateFile}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(state) + "\n"); renameSync(tmp, stateFile); }
   saveState({ status: "starting", runtimeLoaded: !!parentPid, sleeping: false, conversationStarted: state.conversationStarted ?? !!state.sessionId, capabilities: { commands: [], models: [] } });
@@ -140,7 +148,10 @@ export function createCore(name, { parentPid = null } = {}) {
       }
       if (t.id) chat({ v: 1, type: "status", ref: t.id, status: "delivered", ts: now() });
       if (t.offset) commitCursor(t.offset);
-      saveState({ status: "busy", conversationStarted: true });
+      activeTurn = { turnId: t.id, runId: t.runId, routineId: t.routineId, startedAt: Date.now() };
+      interrupted = false;
+      event(metorDir, "turn.started", { ...activeTurn, sessionId: state.sessionId });
+      saveState({ status: "busy", conversationStarted: true, activeTurn });
       await waitForScreenResize(metorDir);
       yield t;
     }
@@ -169,10 +180,10 @@ export function createCore(name, { parentPid = null } = {}) {
       at += Buffer.byteLength(line) + 1;   // the byte after this line: the cursor once its turn is delivered
       if (!line.trim()) continue;
       let m; try { m = JSON.parse(line); } catch { continue; }
-      if (m.kind === "user" && typeof m.text === "string") enqueueTurn({ id: m.id, text: m.text, command: m.command, offset: at });
+      if (m.kind === "user" && typeof m.text === "string") enqueueTurn({ id: m.id, text: m.text, command: m.command, runId: m.runId, routineId: m.routineId, offset: at });
       else if (fresh) continue;   // answers and interrupts from before this host started belong to a host that is gone
       else if (m.kind === "permission-answer" && pendingPerms.has(m.ref)) pendingPerms.get(m.ref)(m.decision === "allow" ? "allow" : "deny");
-      else if (m.kind === "interrupt") { log("Interrupt from the UI"); Promise.resolve(onInterrupt?.()).catch((e) => log("Interrupt failed:", e.message)); }
+      else if (m.kind === "interrupt") { interrupted = true; event(metorDir, "turn.interrupt_requested", activeTurn ?? {}); log("Interrupt from the UI"); Promise.resolve(onInterrupt?.()).catch((e) => log("Interrupt failed:", e.message)); }
     }
     if (!queue.length) commitCursor(at);   // nothing waiting: the cursor may skip the control lines just read
   }
@@ -268,6 +279,7 @@ export function createCore(name, { parentPid = null } = {}) {
   const cleanups = [];
   function shutdown(sleeping = false) {
     if (closing) return;
+    finishTurn("interrupted", "host_stopped");
     clearInterval(idleTimer);
     clearInterval(inboxTimer);
     clearInterval(partialTimer);
@@ -289,6 +301,7 @@ export function createCore(name, { parentPid = null } = {}) {
     const request = join(metorDir, "runtime-request");
     if (existsSync(request)) { rmSync(request, { force: true }); idleSince = Date.now(); }
     if (queue.length || pendingPerms.size || Date.now() - idleSince < idleMs) return;
+    event(metorDir, "runtime.sleep_requested", { reason: "idle_timeout", sessionId: state.sessionId });
     log("Idle timeout: releasing runtime");
     shutdown(true);
   }, Math.min(1000, idleMs || 1000));
@@ -297,7 +310,7 @@ export function createCore(name, { parentPid = null } = {}) {
     name, dir, metorDir, bot, now, log, chat, managed: !!parentPid,
     get state() { return state; },
     get closing() { return closing; },
-    saveState, setCapabilities,
+    saveState, setCapabilities, finishTurn,
     setSleepSupported(supported) { sleepSupported = !!supported; },
     backgroundTasks(ids) { backgroundTasks.clear(); for (const id of ids) backgroundTasks.add(id); idleSince = Date.now(); },
     backgroundTask(id, running) { if (running) backgroundTasks.add(id); else { backgroundTasks.delete(id); idleSince = Date.now(); } },
@@ -316,10 +329,12 @@ export function createCore(name, { parentPid = null } = {}) {
     partialAppend, partialClear,
     extractFiles, emitText, emitTool, patchTool, thoughtStart, thoughtAppend,
     onShutdown(fn) { cleanups.push(fn); },
-    ready() { saveState({ status: "idle", error: null }); log(`Host for ${name} started (harness ${bot.harness ?? "claude-stream"}, resume: ${state.sessionId ?? "-"})`); },
+    ready() { event(metorDir, "runtime.ready", { sessionId: state.sessionId }); saveState({ status: "idle", error: null }); log(`Host for ${name} started (harness ${bot.harness ?? "claude-stream"}, resume: ${state.sessionId ?? "-"})`); },
     // The error is the bot's last message: the list shows it in red, the chat as a card with a Start button
     fail(e) {
       if (closing) return;
+      finishTurn("failed", "runtime_error");
+      event(metorDir, "runtime.error", { reason: "see_host_log" });
       const msg = String(e?.message ?? e); log("Harness error:", msg);
       try { chat({ v: 2, id: randomUUID(), ts: now(), role: "assistant", kind: "error", text: msg }); } catch {}
       saveState({ status: "error", error: msg }); process.exit(1);

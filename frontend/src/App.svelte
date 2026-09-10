@@ -3,6 +3,7 @@
   // entries) lives in lib/session.js; the header, chat, computer panel and routines are components.
   import Sidebar from "./components/Sidebar.svelte";
   import Header from "./components/Header.svelte";
+  import EventsPanel from "./components/EventsPanel.svelte";
   import RoutinesPanel from "./components/RoutinesPanel.svelte";
   import ChatView from "./components/ChatView.svelte";
   import ComputerPanel from "./components/ComputerPanel.svelte";
@@ -107,7 +108,7 @@
   <main class="flex min-w-0 flex-1 flex-col" in:swap={{ dir: direction, enabled: !$isDesktop }} out:swap={{ dir: direction, enabled: !$isDesktop, out: true }}>
     {#if $current}
       <Header agent={$current} {pane}
-        onToggleComputer={() => toggle("computer")} onToggleRoutines={() => toggle("routines")} onBack={() => select(null)}
+        onToggleComputer={() => toggle("computer")} onToggleRoutines={() => toggle("routines")} onToggleEvents={() => toggle("events")} onBack={() => select(null)}
         {onAct} onPicture={() => (pictureOpen = true)} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
       <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={paneEl}>
         {#if $isDesktop || !pane}
@@ -120,6 +121,7 @@
             on:pointerdown|preventDefault={startDrag}></div>
         {/if}
         {#if pane === "computer"}<ComputerPanel bot={$selected} status={$current.status} resizing={dragging} />
+        {:else if pane === "events"}{#key $selected}<EventsPanel bot={$selected} />{/key}
         {:else if pane === "routines"}{#key $selected}<RoutinesPanel bot={$selected} title={$current.title ?? $selected} />{/key}
         {:else if pane === "document" && $shownDocument}<DocumentPanel doc={$shownDocument} onClose={closeDocument} />{/if}
       </section>

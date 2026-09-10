@@ -154,6 +154,7 @@ export async function run(core) {
     if (used) try { recordSeenModel("copilot", bot.model ?? "auto", [used], used); } catch {}
     // A cancelled prompt ends as end_turn (verified); anything else is worth a log line
     if (res.result?.stopReason && !["end_turn", "cancelled"].includes(res.result.stopReason)) core.log("stop reason:", res.result.stopReason);
+    core.finishTurn(res.error ? "failed" : res.result?.stopReason === "cancelled" ? "interrupted" : "completed", res.error ? "prompt_error" : res.result?.stopReason);
     core.saveState({ status: "idle" });
   }
 }

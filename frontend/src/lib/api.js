@@ -78,3 +78,5 @@ export const removeConnector = (id) => req("DELETE", `/connectors/${id}`);
 export const restartBots = () => req("POST", "/connectors/restart");
 
 export const resizeScreen = (name, width, height) => req("PUT", `/agents/${name}/screen-size`, { width, height });
+
+export const listBotEvents = (name) => req("GET", `/agents/${name}/events`);

@@ -1,3 +1,4 @@
+import { event } from "./metor-events.mjs";
 // A lightweight host owns the runtime worker. Sleeping ends the complete worker
 // process group, while the durable inbox, session and separate GUI processes stay.
 import { spawn } from 'node:child_process';
@@ -14,8 +15,8 @@ export function idleSeconds(value = process.env.METOR_RUNTIME_IDLE_SECONDS) {
 }
 const pause = ms => new Promise(r => setTimeout(r, ms));
 function json(file) { try { return JSON.parse(readFileSync(file)); } catch { return {}; } }
-export function pendingRuntimeDemand(dir) {
-  if (existsSync(join(dir, 'runtime-request'))) return true;
+export function pendingRuntimeDemand(dir, details = false) {
+  if (existsSync(join(dir, 'runtime-request'))) return details ? { reason: 'commands' } : true;
   const file = join(dir, 'inbox.jsonl');
   let fd;
   try {
@@ -31,7 +32,7 @@ export function pendingRuntimeDemand(dir) {
       const count = readSync(fd, buffer, 0, buffer.length, offset); if (!count) break;
       offset += count;
       const lines = (rest + buffer.subarray(0, count).toString('utf8')).split('\n'); rest = lines.pop();
-      for (const line of lines) { try { const m = JSON.parse(line); if (m.kind === 'user' && typeof m.text === 'string') return true; } catch {} }
+      for (const line of lines) { try { const m = JSON.parse(line); if (m.kind === 'user' && typeof m.text === 'string') return details ? { reason: m.routineId ? 'routine' : 'message', turnId: m.id, runId: m.runId, routineId: m.routineId } : true; } catch {} }
     }
   } catch {} finally { if (fd !== undefined) closeSync(fd); }
   return false;
@@ -60,12 +61,15 @@ export async function manageRuntime(name, workerScript) {
   };
   const stop = () => { if (!stopping) stopAt = Date.now(); stopping = true; if (child) { try { child.kill('SIGTERM'); } catch {} } };
   process.on('SIGTERM', stop); process.on('SIGINT', stop);
+  if (previous.activeTurn) event(dir, "turn.interrupted", { ...previous.activeTurn, reason: "host_restarted" });
+  event(dir, "host.started");
   console.log(`Host for ${name} started (runtime on demand, sleep after ${idleSeconds()} seconds)`);
-  save({ status: 'idle', runtimeLoaded: false, sleeping: false, error: null });
+  save({ status: 'idle', runtimeLoaded: false, sleeping: false, error: null, activeTurn: null });
   try {
     while (!stopping) {
       while (!stopping && !pendingRuntimeDemand(dir)) await pause(200);
       if (stopping || !readBot(name).autostart) break;
+      event(dir, 'runtime.waking', pendingRuntimeDemand(dir, true) || { reason: 'inbox' });
       rmSync(join(dir, 'runtime-request'), { force: true });
       save({ status: 'starting', runtimeLoaded: true, sleeping: false });
       child = spawn(process.execPath, [workerScript, name, '--worker'], {
@@ -80,13 +84,18 @@ export async function manageRuntime(name, workerScript) {
       });
       clearInterval(watchdog);
       await finishGroup(child); child = null;
+      const active = json(stateFile).activeTurn;
+      if (active) { event(dir, 'turn.interrupted', { ...active, reason: 'worker_exited' }); save({ activeTurn: null }); }
       if (stopping) break;
+      if (result.code !== SLEEP_EXIT) event(dir, 'runtime.error', { code: result.code, signal: result.signal, reason: 'worker_exited' });
       if (result.code !== SLEEP_EXIT) throw result.error ?? new Error(`Runtime worker exited (${result.code ?? result.signal})`);
       save({ status: 'idle', runtimeLoaded: false, sleeping: true, error: null });
+      event(dir, 'runtime.sleeping', { sessionId: json(stateFile).sessionId });
       console.log(`Runtime for ${name} sleeping; conversation retained`);
     }
   } finally {
     if (child) await finishGroup(child);
+    event(dir, 'host.stopped');
     save({ status: 'stopped', runtimeLoaded: false, sleeping: false });
     process.off('SIGTERM', stop); process.off('SIGINT', stop);
   }

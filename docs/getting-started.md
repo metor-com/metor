@@ -385,3 +385,25 @@ not imported when entering a Screen. Text is limited to 256 KB.
 Copy/Paste buttons hide once synchronization is available. Disable the setting to use them
 again; web clients and older Spaces retain the buttons. Rebuild and restart both the Space
 and desktop app after updating the checkout.
+
+### Diagnose sleep, routines and runtime errors
+
+Open a bot's **⋮ → Event log**. The view refreshes every five seconds without waking
+its runtime. Filter by routines, runtime activity or errors/interruptions. Click a
+run ID to follow one routine from queuing through waking and processing to its
+outcome. **Export** downloads all matching retained records as JSONL, including
+records beyond the first page. Times display in your local timezone; exports use UTC.
+
+Events live in the bot's `.metor/events.jsonl` and `events.jsonl.1`, up to 2 MiB each.
+Older records expire on rotation; export them before they expire when investigating
+an issue. Records begin with this version; earlier history is not reconstructed.
+Routine run IDs also appear in `.metor/runs.jsonl`. A queued routine is not yet a
+completed turn. Completion means the runtime finished its turn, not that metor has
+independently verified the task's result. A process crash marks active work interrupted
+when its host detects the exit or restarts; it does not silently report success.
+
+The event log contains diagnostic metadata, not prompts, replies or tool output.
+Detailed runtime error messages remain in `.metor/host.log`; use
+`metor bot logs <name>` to see its last 50 lines. If writing diagnostic events fails,
+the host/Space log reports it and the bot continues. The event log is a diagnostic
+history, not an audit log protected against modification by the bot.
