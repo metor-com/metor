@@ -25,7 +25,7 @@ Rule: code terms do not change when marketing renames things.
 | **Your machine** | "this Mac", "this machine", "your machine" | `local` | "the user's computer" | The user's real device – a separate trust zone, reachable only via approvals. Never called "computer" in the interface; the Space that runs on it is "the Space on this Mac" |
 | **Harness / Runtime** | "Runtime" | `harness: claude-stream \| codex \| gemini \| copilot` | — | The agent runner that drives the model (Claude Code, Codex, Gemini CLI, GitHub Copilot) – runs as a process inside the computer; registry in `metor-harness.mjs` (ADR-0011), each bot additionally carries `model` |
 | **Connector** | Connector, "Settings → Connectors" | `connector`, `connectors.json`, MCP server key `mcp__<key>__…` | "a tool" | An MCP server configured once in the interface and available to every bot (ADR-0014); the built-in servers `browser` and `routines` are not connectors |
-| **Host process** | — | `metor-agent-host`, `.metor/host.pid` | — | One process per bot that drives its runtime (Agent SDK session or `codex app-server`) and speaks the file IPC (ADR-0009, ADR-0011) |
+| **Host process** | — | `metor-agent-host`, `.metor/host.pid` | — | One lightweight process per bot that starts a runtime worker on demand; the worker drives the official harness and file IPC, then exits when idle (ADR-0025) |
 | **Session** | Chat | `session`, `sessionId` | — | Running runtime instance of a bot incl. its context; resumed after a restart |
 | **Supervisor** | — | `metor supervise` | — | Process that starts lightweight bot hosts when the Space boots, schedules routines and repairs components already requested |
 

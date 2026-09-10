@@ -53,3 +53,24 @@ test('Codex sends the selected effort on turns and on a resumed conversation', a
     }
   } finally { process.env.PATH = previousPath; rmSync(dir, {recursive:true, force:true}); }
 });
+
+test('a failed resume cannot replace a conversation that has received a turn', async () => {
+  const dir=mkdtempSync(join(tmpdir(),'metor-resume-')), previousPath=process.env.PATH;
+  writeFileSync(join(dir,'codex'), `#!${process.execPath}
+    const {createInterface}=require('node:readline');
+    const {appendFileSync}=require('node:fs');
+    createInterface({input:process.stdin}).on('line',line=>{
+      const m=JSON.parse(line); if(m.id===undefined)return;
+      appendFileSync('requests.jsonl',line+'\\n');
+      process.stdout.write(JSON.stringify({id:m.id,...(m.method==='thread/resume'?{error:{message:'saved rollout unavailable'}}:{result:{}})})+'\\n');
+    });
+  `,{mode:0o755});
+  process.env.PATH=`${dir}:${previousPath}`;
+  const cleanups=[], state={sessionId:'saved-thread',conversationStarted:true};
+  const core={dir,name:'probe',bot:{},state,log(){},onShutdown(fn){cleanups.push(fn)},fail(e){throw e}};
+  try{
+    await assert.rejects(run(core),/Could not resume the saved conversation/);
+    assert.equal(state.sessionId,'saved-thread');
+    assert.ok(!readFileSync(join(dir,'requests.jsonl'),'utf8').includes('thread/start'));
+  }finally{for(const fn of cleanups)fn();process.env.PATH=previousPath;rmSync(dir,{recursive:true,force:true})}
+});

@@ -70,7 +70,7 @@ export function startAgent(b) {
     child.on("error", (e) => console.error(`${b.name}: host start failed: ${e.message}`));
     child.unref(); writeFileSync(join(dir, "host.pid"), String(child.pid));
     const deadline = Date.now() + 30_000;
-    while (Date.now() < deadline) { const s = harnessState(b); if (s.pid === child.pid && s.status && s.status !== "starting") break; spawnSync("sleep", ["1"]); }
+    while (Date.now() < deadline) { const s = harnessState(b); if ((s.pid === child.pid || s.hostPid === child.pid) && s.status && s.status !== "starting") break; spawnSync("sleep", ["1"]); }
     const s = harnessState(b);
     // The child exits at once if its own guard finds a host for this bot already running (observed
     // 2026-09-02): adopt that host, otherwise host.pid points at the loser and the bot reads as

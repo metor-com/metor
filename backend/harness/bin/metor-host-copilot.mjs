@@ -113,6 +113,7 @@ export async function run(core) {
   const init = await send("initialize", { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } }, clientInfo: { name: "metor", version: "1.0" } });
   if (init.error) return core.fail(new Error(`initialize: ${init.error.message ?? JSON.stringify(init.error)}`));
   const canLoad = !!init.result?.agentCapabilities?.loadSession;
+  core.setSleepSupported(canLoad);
   // The CLI's login is not done over ACP (initialize only names `copilot login`) – a missing one shows up here
   const notLoggedIn = (e) => /authentication required/i.test(e?.message ?? "");
   const loginError = () => new Error("Not logged in: GitHub Copilot needs a sign-in – New bot → GitHub Copilot → Sign in, then start the bot again");
@@ -123,6 +124,7 @@ export async function run(core) {
     loading = false;
     if (!r.error) commands.init(r.result);
     if (r.error && notLoggedIn(r.error)) return core.fail(loginError());
+    if (r.error && core.state.conversationStarted) return core.fail(new Error(`Could not resume the saved conversation: ${r.error.message ?? r.error.code}. The session was retained; no new conversation was started.`));
     if (r.error) { core.log(`session/load failed (${r.error.message ?? r.error.code}) – starting a new session`); sessionId = null; }
   } else if (sessionId) { core.log("this Copilot CLI cannot load sessions – starting a new one"); sessionId = null; }
   if (!sessionId) {

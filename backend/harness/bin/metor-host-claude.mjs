@@ -64,6 +64,7 @@ export async function run(core) {
   core.onShutdown(() => { try { q.close(); } catch {} });
 
   const toolEntries = new Map();   // tool_use_id → chat entry ID (for result patches)
+  let backgroundLevel = false;
   let lastQuota = null;            // last rate_limit state (quota display in the dock)
 
   let commands = [], models = [];
@@ -81,6 +82,13 @@ export async function run(core) {
       if (m.session_id && m.session_id !== core.state.sessionId) core.log("Session:", m.session_id);
       if (Array.isArray(m.mcp_servers) && m.mcp_servers.length) core.log("MCP:", m.mcp_servers.map((x) => `${x.name} ${x.status}`).join(", "));
       core.saveState({ sessionId: m.session_id, status: core.state.status === "starting" ? "idle" : core.state.status });
+    } else if (m.type === "system" && m.subtype === "task_started") {
+      if (!backgroundLevel && !m.skip_transcript) core.backgroundTask(m.task_id, true);
+    } else if (m.type === "system" && m.subtype === "task_notification") {
+      if (!backgroundLevel) core.backgroundTask(m.task_id, false);
+    } else if (m.type === "system" && m.subtype === "background_tasks_changed") {
+      backgroundLevel = true;
+      core.backgroundTasks((m.tasks ?? []).filter((task) => !task.ambient).map((task) => task.task_id));
     } else if (m.type === "system" && m.subtype === "local_command_output") {
       core.emitText(m.content, { origin: "harness", kind: "notice" });
     } else if (m.type === "system" && m.subtype === "commands_changed") {
@@ -120,6 +128,7 @@ export async function run(core) {
     }
     // thinking etc. stay invisible
   }
+  if (core.closing) return; // The core owns the sleep/stop exit code after q.close().
   core.log("Session stream ended");
   core.saveState({ status: "stopped" });
   process.exit(0);

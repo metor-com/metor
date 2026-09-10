@@ -100,6 +100,7 @@ COPY backend/harness/bin/metor-host-copilot.mjs /usr/local/lib/metor/metor-host-
 COPY backend/harness/bin/metor-setup.mjs /usr/local/lib/metor/metor-setup.mjs
 COPY backend/harness/bin/metor-gateway.mjs /usr/local/lib/metor/metor-gateway.mjs
 COPY backend/harness/bin/metor-chat-stream.mjs /usr/local/lib/metor/metor-chat-stream.mjs
+COPY backend/harness/bin/metor-runtime-manager.mjs /usr/local/lib/metor/metor-runtime-manager.mjs
 COPY backend/harness/bin/metor-agent-host.mjs /usr/local/lib/metor/metor-agent-host.mjs
 COPY backend/harness/bin/metor-routines.mjs /usr/local/lib/metor/metor-routines.mjs
 COPY backend/harness/bin/metor-routines-mcp.mjs /usr/local/lib/metor/metor-routines-mcp.mjs

@@ -347,6 +347,24 @@ The default runtime is Apple's `container` and the image is `metor-box:resize-te
 already be installed. Docker identity handling is supported; the live local workflow is
 verified with Apple's runtime on macOS.
 
+### Automatic runtime sleep
+
+After five minutes without work, a bot releases its runtime processes. Its status
+shows **Sleeping**; messages, routines and slash commands wake it automatically.
+The next response may take a little longer while the runtime resumes its session.
+Browser tabs and the desktop stay open. Running turns, pending approvals and
+reported background tasks prevent sleep.
+
+Set `METOR_RUNTIME_IDLE_SECONDS` for the Space to change the delay; `0` disables
+sleep. For the local development Space, for example:
+
+```sh
+METOR_RUNTIME_IDLE_SECONDS=600 ./scripts/run.command --restart
+```
+
+Keep the variable in your launch environment for subsequent recreations; Compose
+reads it from its `.env`. This setting is not a per-device UI preference.
+
 ### Copy text from the bot’s browser
 
 Select text in the bot’s browser, then click **Copy** at the top right of the Screen.

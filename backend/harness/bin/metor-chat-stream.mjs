@@ -92,7 +92,8 @@ export function createStreamChat({ botsDir } = {}) {
   }
   function status(bot) {
     const s = state(bot);
-    const alive = s.pid && (() => { try { process.kill(s.pid, 0); return true; } catch { return false; } })();
+    const owner = s.hostPid ?? s.pid; // the host stays alive while its runtime worker sleeps
+    const alive = owner && (() => { try { process.kill(owner, 0); return true; } catch { return false; } })();
     if (!alive) return "stopped";
     return s.status === "busy" ? "busy" : s.status === "starting" ? "starting" : "idle";   // "error" ends the process, so it reads as stopped
   }

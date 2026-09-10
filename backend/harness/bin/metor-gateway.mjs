@@ -107,6 +107,7 @@ async function agentList() {
       model: b.model ?? null,
       modelLabel: modelLabel(h, b.model) ?? (b.model ?? "Default model"),
       status: streamChat.status(b.name),
+      sleeping: streamChat.state(b.name).sleeping === true && streamChat.state(b.name).runtimeLoaded === false,
       quota: streamChat.state(b.name).quota ?? null };
   });
 }
@@ -410,7 +411,7 @@ async function api(req, res, url) {
       return send(200, { path: watchPath(b) });
     }
     if (action === "chat" && rest[3] === "commands" && ["GET", "POST"].includes(req.method)) {
-      if (req.method === "POST" && b.autostart && streamChat.state(name).runtimeLoaded === false) {
+      if (req.method === "POST" && b.autostart ) {
         writeFileSync(join(BOTS_DIR, name, ".metor", "runtime-request"), "commands\n");
       }
       const active = ["idle", "busy"].includes(streamChat.status(name));

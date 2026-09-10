@@ -26,6 +26,9 @@
     <strong class="truncate text-base" title="id: {agent.name}">{agent.title ?? agent.name}</strong>
     <span class="hidden shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500 md:inline" title="Runtime and model of this bot">{agent.harnessLabel ?? "Claude Code"} · {agent.modelLabel ?? "Default model"}</span>
   </div>
+  {#if agent.sleeping && agent.status === "idle"}
+    <span class="shrink-0 text-xs text-zinc-400" title="Wakes automatically for messages and routines" aria-label="Sleeping; wakes automatically">☾ <span class="hidden md:inline">Sleeping</span></span>
+  {/if}
   <!-- The pane next to the chat: the bot's computer or its routines (one at a time) -->
   <div class="flex shrink-0 gap-1">
     <button type="button" class="flex size-9 items-center justify-center rounded-lg transition-colors {pane === 'computer' ? 'bg-zinc-900 text-white' : 'border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50'}"

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Idle runtimes sleep automatically after five minutes and wake for messages, routines or slash commands. Conversations and model settings persist; browser tabs stay open.
+
 - Local build/start scripts cache unchanged builds, reuse the UI build for the image, update the Space UI without restarting bots, and keep a running Space when its image is current.
 
 - Bots start with a lightweight host. Messages, routines and slash commands load only the selected runtime; browser tools, Screen and Terminal start their computer components on demand. Profiles and conversations remain persistent.

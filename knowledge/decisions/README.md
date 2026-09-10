@@ -27,3 +27,4 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0021 | [GitHub Copilot as the fourth runtime, through its CLI's ACP server](0021-copilot-runtime.md) | accepted (2026-09-07, built the same day) |
 | 0023 | [Session-aware slash commands in chat](0023-chat-commands.md) | accepted (2026-09-10) |
 | 0024 | [Start bot components on demand](0024-components-on-demand.md) | accepted (2026-09-10) |
+| 0025 | [Sleep idle runtime processes](0025-runtime-sleep.md) | accepted (2026-09-10) |

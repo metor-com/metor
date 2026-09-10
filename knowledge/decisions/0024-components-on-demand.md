@@ -2,6 +2,8 @@
 
 Status: accepted, 2026-09-10
 
+Runtime idle eviction is added by [ADR-0025](0025-runtime-sleep.md); browser and desktop retention remain unchanged.
+
 ## Context
 
 An idle bot previously started its runtime and complete graphical computer. Browser

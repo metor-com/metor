@@ -7,6 +7,7 @@ import { appendFileSync, existsSync, rmSync, closeSync, mkdirSync, openSync, rea
 import { join, relative } from "node:path";
 import { randomUUID } from "node:crypto";
 import { commandCatalogue, resolveCommand } from "./metor-commands.mjs";
+import { idleSeconds, SLEEP_EXIT } from "./metor-runtime-manager.mjs";
 import { waitForScreenResize } from "./metor-screen.mjs";
 
 const BOTS_DIR = process.env.METOR_BOTS_DIR ?? "/workspace/bots";
@@ -52,7 +53,7 @@ export function acpStep(u) {
   }
 }
 
-export function createCore(name) {
+export function createCore(name, { parentPid = null } = {}) {
   const dir = join(BOTS_DIR, name);
   const metorDir = join(dir, ".metor");
   mkdirSync(metorDir, { recursive: true });
@@ -73,7 +74,7 @@ export function createCore(name) {
   // name metor-agent-host AND this bot, and the PID must be a process, not a thread – a stale PID
   // from the previous container can be a thread ID of THIS process (kill(tid, 0) succeeds and
   // /proc/<tid>/cmdline shows the thread group's command line; hit on 2026-09-02).
-  if (state.pid && state.pid !== process.pid) {
+  if (state.pid && state.pid !== process.pid && state.pid !== parentPid) {
     try {
       process.kill(state.pid, 0);
       const argv = readFileSync(`/proc/${state.pid}/cmdline`, "utf8").split("\0");
@@ -84,8 +85,9 @@ export function createCore(name) {
       }
     } catch {}
   }
-  function saveState(patch) { state = { ...state, ...patch, pid: process.pid, updatedAt: now() }; const tmp = `${stateFile}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(state) + "\n"); renameSync(tmp, stateFile); }
-  saveState({ status: "starting", capabilities: { commands: [], models: [] } });
+  let idleSince = Date.now(), closing = false;
+  function saveState(patch) { if (closing) return; if (patch.status === "idle" && state.status !== "idle") idleSince = Date.now(); state = { ...state, ...patch, pid: process.pid, updatedAt: now() }; const tmp = `${stateFile}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(state) + "\n"); renameSync(tmp, stateFile); }
+  saveState({ status: "starting", runtimeLoaded: !!parentPid, sleeping: false, conversationStarted: state.conversationStarted ?? !!state.sessionId, capabilities: { commands: [], models: [] } });
   let modelHandler = null;
   function setCapabilities(commands, models = [], currentModel = bot.model) {
     saveState({ capabilities: { commands: commandCatalogue(commands, models), models, currentModel, currentReasoningEffort: bot.reasoningEffort ?? null } });
@@ -112,6 +114,7 @@ export function createCore(name) {
       // Streaming SDKs may ask for the next input before the current result arrives.
       // Commands and messages share one ordered queue; model changes happen between turns.
       while (state.status === "busy" || state.status === "starting") await new Promise((r) => setTimeout(r, 50));
+      if (closing) return;
       const t = queue.shift();
       if (t.command) {
         try {
@@ -137,7 +140,7 @@ export function createCore(name) {
       }
       if (t.id) chat({ v: 1, type: "status", ref: t.id, status: "delivered", ts: now() });
       if (t.offset) commitCursor(t.offset);
-      saveState({ status: "busy" });
+      saveState({ status: "busy", conversationStarted: true });
       await waitForScreenResize(metorDir);
       yield t;
     }
@@ -151,6 +154,7 @@ export function createCore(name) {
   const pendingPerms = new Map();
   let onInterrupt = null;
   function inboxTick() {
+    if (closing) return;
     const fresh = inboxFresh; inboxFresh = false;   // the first look at the inbox: whatever is there predates this host
     let size; try { size = statSync(inboxFile).size; } catch { return; }
     if (size < inboxOffset) { inboxOffset = 0; inboxRest = ""; }
@@ -262,20 +266,41 @@ export function createCore(name) {
 
   // ---------- Lifecycle ----------
   const cleanups = [];
-  function shutdown() {
+  function shutdown(sleeping = false) {
+    if (closing) return;
+    clearInterval(idleTimer);
     clearInterval(inboxTimer);
     clearInterval(partialTimer);
     partialClear();
-    saveState({ status: "stopped" });
+    saveState({ status: sleeping ? "idle" : "stopped", sleeping });
+    closing = true;
     for (const fn of cleanups) { try { fn(); } catch {} }
-    setTimeout(() => process.exit(0), 500);
+    setTimeout(() => process.exit(sleeping ? SLEEP_EXIT : 0), 500);
   }
-  process.on("SIGTERM", shutdown); process.on("SIGINT", shutdown);
+  process.on("SIGTERM", () => shutdown()); process.on("SIGINT", () => shutdown());
+  let sleepSupported = true;
+  const backgroundTasks = new Set();
+  const idleMs = idleSeconds() * 1000;
+  const idleTimer = setInterval(() => {
+    if (!parentPid || !idleMs || !sleepSupported || backgroundTasks.size || closing || state.status !== "idle") return;
+    // Catch a message that arrived since the regular inbox tick before choosing
+    // to sleep. A later arrival remains on disk for the parent to wake us again.
+    inboxTick();
+    const request = join(metorDir, "runtime-request");
+    if (existsSync(request)) { rmSync(request, { force: true }); idleSince = Date.now(); }
+    if (queue.length || pendingPerms.size || Date.now() - idleSince < idleMs) return;
+    log("Idle timeout: releasing runtime");
+    shutdown(true);
+  }, Math.min(1000, idleMs || 1000));
 
   return {
-    name, dir, metorDir, bot, now, log, chat,
+    name, dir, metorDir, bot, now, log, chat, managed: !!parentPid,
     get state() { return state; },
+    get closing() { return closing; },
     saveState, setCapabilities,
+    setSleepSupported(supported) { sleepSupported = !!supported; },
+    backgroundTasks(ids) { backgroundTasks.clear(); for (const id of ids) backgroundTasks.add(id); idleSince = Date.now(); },
+    backgroundTask(id, running) { if (running) backgroundTasks.add(id); else { backgroundTasks.delete(id); idleSince = Date.now(); } },
     setModelHandler(fn) { modelHandler = fn; },
     turns,
     async waitForDemand() {
@@ -294,6 +319,7 @@ export function createCore(name) {
     ready() { saveState({ status: "idle", error: null }); log(`Host for ${name} started (harness ${bot.harness ?? "claude-stream"}, resume: ${state.sessionId ?? "-"})`); },
     // The error is the bot's last message: the list shows it in red, the chat as a card with a Start button
     fail(e) {
+      if (closing) return;
       const msg = String(e?.message ?? e); log("Harness error:", msg);
       try { chat({ v: 2, id: randomUUID(), ts: now(), role: "assistant", kind: "error", text: msg }); } catch {}
       saveState({ status: "error", error: msg }); process.exit(1);

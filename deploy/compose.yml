@@ -31,6 +31,7 @@ services:
       METOR_AUTH: ${METOR_AUTH:-}                   # "off" = no gateway sign-in (only behind your own login)
       METOR_APP_ORIGINS: ${METOR_APP_ORIGINS:-}     # optional: further app origins allowed to call the API (ADR-0015)
       METOR_PUSH_SUBJECT: ${METOR_PUSH_SUBJECT:-}   # optional: contact for the push services (see .env.example)
+      METOR_RUNTIME_IDLE_SECONDS: ${METOR_RUNTIME_IDLE_SECONDS:-300} # 0 disables automatic runtime sleep
       METOR_UPDATE_CHECK: ${METOR_UPDATE_CHECK:-}   # "off" = never ask GitHub for the newest release (Settings → Computer)
     volumes:
       - metor-workspace:/workspace

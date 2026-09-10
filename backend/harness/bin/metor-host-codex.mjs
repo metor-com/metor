@@ -118,6 +118,7 @@ export async function run(core) {
   let threadId = core.state.sessionId ?? null;
   if (threadId) {
     const r = await send("thread/resume", { threadId, ...threadOpts });
+    if (r.error && core.state.conversationStarted) return core.fail(new Error(`Could not resume the saved conversation: ${r.error.message ?? r.error.code}. The session was retained; no new conversation was started.`));
     if (r.error) { core.log(`thread/resume failed (${r.error.message ?? r.error.code}) – starting a new thread`); threadId = null; }
     else threadId = r.result?.thread?.id ?? threadId;
   }

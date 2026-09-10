@@ -98,7 +98,7 @@ box_up() {
       docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
         --ulimit nofile=65536:65536 \
         -p "$BIND:$PORT:6010" -p 127.0.0.1:6011-6049:6011-6049 \
-        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" -e "METOR_RUNTIME_IDLE_SECONDS=${METOR_RUNTIME_IDLE_SECONDS:-300}" \
         $VOLS "$IMAGE" >/dev/null ;;
     container)
       container rm "$C" >/dev/null 2>&1 || true
@@ -111,7 +111,7 @@ box_up() {
       # shellcheck disable=SC2086
       container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${METOR_MEMORY:-4g}" --cpus "${METOR_CPUS:-4}" \
         -p "$BIND:$PORT:6010" \
-        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" \
+        -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" -e "METOR_RUNTIME_IDLE_SECONDS=${METOR_RUNTIME_IDLE_SECONDS:-300}" \
         $VOLS "$IMAGE" >/dev/null ;;
   esac
   remember_runtime

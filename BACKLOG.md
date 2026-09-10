@@ -68,7 +68,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   desktop about 400 MB (Chromium 306), runtime 150 (Codex) to 265 MB (Claude, Copilot), MCP
   servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
   found the same day is fixed. Runtime/browser/desktop startup is now on demand (ADR-0024);
-  automatic idle eviction and the memory guard remain open.
+  automatic runtime sleep is implemented (ADR-0025); browser eviction and the memory guard remain open.
 - **Persistent RAM setting per Space** (2026-09-10, complements the memory guard above) -
   expose **RAM for this Space** in Settings, show the current allocation and host capacity,
   and persist the chosen limit across app launches, Space restarts and updates. For Apple's

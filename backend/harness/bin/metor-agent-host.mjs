@@ -6,16 +6,26 @@
 // IMPORTANT: script name + bot name on the command line are the liveness proof for
 // hostAlive()/double-start protection – this script therefore remains the only entry point.
 import { createCore } from "./metor-host-core.mjs";
+import { fileURLToPath } from "node:url";
+import { manageRuntime } from "./metor-runtime-manager.mjs";
+import { hostPidMatches } from "./metor-lifecycle.mjs";
 import { HARNESSES } from "./metor-harness.mjs";
 
 const name = process.argv[2];
 if (!name) { console.error("metor-agent-host <bot>"); process.exit(1); }
 
-const core = createCore(name);
-const harness = core.bot.harness ?? "claude-stream";
-const desc = HARNESSES[harness];
-if (!desc) core.fail(new Error(`unknown harness "${harness}" – no host adapter in the registry`));
-
-await core.waitForDemand();
-const { run } = await import(desc.adapterModule);
-run(core).catch((e) => core.fail(e));
+if (process.argv[3] === "--worker") {
+  const parentPid = Number(process.env.METOR_RUNTIME_PARENT);
+  if (!parentPid || parentPid !== process.ppid) throw new Error("Runtime worker requires its host");
+  const core = createCore(name, { parentPid });
+  const desc = HARNESSES[core.bot.harness ?? "claude-stream"];
+  if (!desc) core.fail(new Error("Unknown runtime"));
+  const orphanCheck = setInterval(() => {
+    if (!hostPidMatches({ name }, parentPid)) process.kill(process.pid, "SIGTERM");
+  }, 1000);
+  core.onShutdown(() => clearInterval(orphanCheck));
+  const { run } = await import(desc.adapterModule);
+  run(core).catch((e) => core.fail(e));
+} else {
+  await manageRuntime(name, fileURLToPath(import.meta.url));
+}

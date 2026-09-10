@@ -27,13 +27,13 @@ export async function run(core) {
   if (!key) return core.fail(new Error("Gemini needs an API key – sign in under New bot → Gemini CLI → Sign in, then start the bot again"));
   // detached: the CLI's Node wrapper and its Node child form their own process group, so the shutdown can end
   // both – they ignore SIGTERM and would live on after the host (the leak measured on 2026-09-07)
-  const child = spawn("gemini", args, { cwd: dir, stdio: ["pipe", "pipe", "pipe"], detached: true, env: { ...process.env, METOR_BOT: name, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", ...(key ? { GEMINI_API_KEY: key } : {}) } });
+  const child = spawn("gemini", args, { cwd: dir, stdio: ["pipe", "pipe", "pipe"], detached: !core.managed, env: { ...process.env, METOR_BOT: name, NO_BROWSER: "true", GEMINI_CLI_TRUST_WORKSPACE: "true", ...(key ? { GEMINI_API_KEY: key } : {}) } });
   let shuttingDown = false;
   child.on("error", (e) => core.fail(e));
   child.on("exit", (code, signal) => { if (!shuttingDown) core.fail(new Error(`gemini --acp exited (code ${code ?? "-"}, signal ${signal ?? "-"})`)); });
   child.stderr.on("data", (d) => { const s = String(d).trim(); if (s) core.log("gemini:", s.slice(0, 300)); });
   // Close the protocol first (an ACP server ends on EOF), then end the group – the host exits half a second later
-  core.onShutdown(() => { shuttingDown = true; try { child.stdin.end(); } catch {} killGroup(child); });
+  core.onShutdown(() => { shuttingDown = true; try { child.stdin.end(); } catch {} if (core.managed) child.kill("SIGTERM"); else killGroup(child); });
 
   // ---------- JSON-RPC over stdio ----------
   let buf = "", nextId = 1;
@@ -99,6 +99,7 @@ export async function run(core) {
   const init = await send("initialize", { protocolVersion: 1, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } } });
   if (init.error) return core.fail(new Error(`initialize: ${init.error.message ?? JSON.stringify(init.error)}`));
   const canLoad = !!init.result?.agentCapabilities?.loadSession;
+  core.setSleepSupported(canLoad);
   if (key) { const a = await send("authenticate", { methodId: "gemini-api-key" }); if (a.error) return core.fail(new Error(`authenticate: ${a.error.message ?? JSON.stringify(a.error)}`)); }
   let sessionId = core.state.sessionId ?? null;
   if (sessionId && canLoad) {
@@ -106,6 +107,7 @@ export async function run(core) {
     const r = await send("session/load", { sessionId, cwd: dir, mcpServers: [] });
     loading = false;
     if (!r.error) commands.init(r.result);
+    if (r.error && core.state.conversationStarted) return core.fail(new Error(`Could not resume the saved conversation: ${r.error.message ?? r.error.code}. The session was retained; no new conversation was started.`));
     if (r.error) { core.log(`session/load failed (${r.error.message ?? r.error.code}) – starting a new session`); sessionId = null; }
   } else if (sessionId) { core.log("this Gemini CLI cannot load sessions – starting a new one"); sessionId = null; }
   if (!sessionId) {
