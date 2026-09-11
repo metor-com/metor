@@ -8,6 +8,7 @@
   import { get } from "svelte/store";
   import { app, gateway } from "../lib/base.js";
   import { switchComputer } from "../lib/session.js";   // opens a computer without a reload; the shell follows
+  import ServerSetup from "./ServerSetup.svelte";
   import Computers from "./Computers.svelte";   // the known computers: open another one, sign in again, forget
   export let adding = false;          // from the shell: connect another computer (the current one is fine)
   export let onDone = null;           // adding: back to the shell
@@ -20,7 +21,7 @@
 
   // Which step to start on: the context decides (a known computer that needs attention), else the
   // hash (#/connect/local|remote, also used by the app's menus), else the question
-  const fromHash = /^#\/connect\/(local|remote)/.exec(location.hash)?.[1] ?? null;
+  const fromHash = /^#\/connect\/(local|remote|server-setup)/.exec(location.hash)?.[1] ?? null;
   // A phone (client/mobile) cannot run a computer of its own: no choice, no local step, every computer is "on a server"
   const canLocal = !!app?.local;
   let step = g ? (canLocal && isLocal(g.origin) ? "local" : "remote") : (canLocal ? fromHash ?? "choose" : "remote");
@@ -91,7 +92,7 @@
         </button>
         <button type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-left hover:border-zinc-400 hover:bg-zinc-50" on:click={() => (step = "remote")}>
           <div class="text-sm font-medium">On a server</div>
-          <p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Your Space already runs on a server of yours. You connect with its setup link or a pairing code.</p>
+          <p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Set up a fresh server, or connect a Space that is already running.</p>
         </button>
       </div>
       {#if list.length}
@@ -99,6 +100,9 @@
       {/if}
       {#if app?.version}<p class="mt-6 text-xs text-zinc-400">metor app {app.version}</p>{/if}
     </main>
+
+  {:else if step === "server-setup"}
+    <ServerSetup onBack={() => step = "remote"} />
 
   {:else if step === "local"}
     <!-- Step 2a: on this machine – the state decides what happens, the user mostly watches -->
@@ -161,6 +165,13 @@
         <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">This app was signed out of <code class="font-mono">{g.origin}</code>. Link it again with a pairing code or a setup link.</p>
       {:else}
         <p class="mt-1 text-[13px] leading-relaxed text-zinc-500">Paste the setup link from the installer, or enter the address and a pairing code from a device that is signed in.</p>
+      {/if}
+      {#if app?.server && !g}
+        <button type="button" class="mt-4 w-full rounded-xl border border-zinc-300 p-3 text-left hover:bg-zinc-50" on:click={() => step = "server-setup"}>
+          <span class="block text-sm font-medium">Set up an existing server</span>
+          <span class="mt-1 block text-xs text-zinc-500">Have a fresh VPS? Install metor with its address and root password.</span>
+        </button>
+        <p class="mt-5 text-sm font-medium">Or connect an existing Space</p>
       {/if}
       <form class="mt-5 flex flex-col gap-3" on:submit|preventDefault={submit}>
         <label class="flex flex-col gap-1 text-[13px]">

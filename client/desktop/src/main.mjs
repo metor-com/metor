@@ -11,6 +11,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createResourceManager } from "./space-resources.mjs";
 import updater from "electron-updater";
+import { probe as probeServer, inspect as inspectServer, install as installServer } from "./server-setup.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const UI_DIR = resolve(here, "..", "ui");
@@ -423,6 +424,56 @@ handle("metor:rename", (_e, id, name) => {   // the user's own name for a comput
   const c = computer(id); if (!c) return; const n = String(name ?? "").trim().slice(0, 60);
   if (n) c.label = n; else delete c.label;
   save(); refreshMenus(); broadcast("metor:computers", load().computers.map(publicInfo));
+});
+// Existing VPS setup: one ephemeral SSH session per initiating window, never a stored password.
+const serverSessions = new Map();
+const serverOperations = new Set();
+function closeServer(id) {
+  const s = serverSessions.get(id); if (!s) return;
+  clearTimeout(s.timer); s.conn.end(); serverSessions.delete(id);
+}
+handle("metor:server-probe", async (_e, args) => {
+  try { return { ok: true, ...await probeServer(args) }; } catch (error) { return { ok: false, error: error.message }; }
+});
+handle("metor:server-inspect", async (e, args) => {
+  const id = e.sender.id;
+  if (serverOperations.has(id)) return { ok: false, error: "A server operation is already running." };
+  closeServer(id); serverOperations.add(id);
+  try {
+    const s = await inspectServer(args);
+    if (e.sender.isDestroyed()) { s.conn.end(); return { ok: false }; }
+    s.timer = setTimeout(() => closeServer(id), 10 * 60 * 1000);
+    serverSessions.set(id, s);
+    e.sender.once("destroyed", () => closeServer(id));
+    return { ok: true, ...s.info };
+  } catch (error) { return { ok: false, error: error.message }; }
+  finally { serverOperations.delete(id); }
+});
+handle("metor:server-cancel", e => {
+  if (!serverOperations.has(e.sender.id)) closeServer(e.sender.id);
+});
+handle("metor:server-install", async e => {
+  const id = e.sender.id, s = serverSessions.get(id);
+  if (serverOperations.has(id)) return { ok: false, error: "A server operation is already running." };
+  if (!s) return { ok: false, error: "The server check expired. Sign in again to retry." };
+  serverOperations.add(id); clearTimeout(s.timer);
+  const progress = line => { if (!e.sender.isDestroyed()) e.sender.send("metor:server-progress", line); };
+  try {
+    const installer = readFileSync(app.isPackaged ? join(process.resourcesPath, "install.sh") : resolve(here, "../../../deploy/install.sh"), "utf8");
+    const claim = await installServer(s, installer, app.getVersion(), progress);
+    let ready = false;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if (e.sender.isDestroyed()) throw Error("The setup window was closed. Connect again to finish pairing.");
+      try { const r = await fetchJson(`https://${s.domain}/bots/api/version`, {}, 4000); if (r.ok && r.data?.name === "metor") { ready = true; break; } } catch {}
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    if (!ready) throw Error("metor is installed, but HTTPS is not reachable yet. Check DNS and allow TCP ports 80 and 443 in your provider firewall, then reconnect and retry.");
+    progress("Connecting your Space…");
+    const r = await connect({ claim });
+    if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); }
+    return r;
+  } catch (error) { return { ok: false, error: error.message }; }
+  finally { closeServer(id); serverOperations.delete(id); }
 });
 handle("metor:connect", async (e, args) => { const r = await connect(args ?? {}); if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); } return r; });
 // The warm switch: this window shows that computer from now on – no reload, the interface carries on

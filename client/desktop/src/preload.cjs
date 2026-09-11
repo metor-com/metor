@@ -18,6 +18,13 @@ contextBridge.exposeInMainWorld("metor", {
   notify: (n) => ipcRenderer.send("metor:notify", { title: n?.title, body: n?.body, bot: n?.bot }),
   onOpenBot: (cb) => ipcRenderer.on("metor:open-bot", (_e, bot) => cb(bot)),
   // A computer on this machine through the bundled host command (Docker or Apple's container runtime)
+  server: {
+    probe: args => ipcRenderer.invoke("metor:server-probe", args),
+    inspect: args => ipcRenderer.invoke("metor:server-inspect", args),
+    install: () => ipcRenderer.invoke("metor:server-install"),
+    cancel: () => ipcRenderer.invoke("metor:server-cancel"),
+    onProgress: cb => { const listener = (_e, line) => cb(line); ipcRenderer.on("metor:server-progress", listener); return () => ipcRenderer.removeListener("metor:server-progress", listener); },
+  },
   local: {
     resources: id => ipcRenderer.invoke("metor:local-resources", id),
     setMemory: (id, mib) => ipcRenderer.invoke("metor:local-memory", id, mib),

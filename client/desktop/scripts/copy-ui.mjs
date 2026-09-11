@@ -15,3 +15,5 @@ const wrapper = readFileSync(join(root, "backend", "harness", "bin", "metor"), "
 mkdirSync(join(here, "..", "resources"), { recursive: true });
 writeFileSync(join(here, "..", "resources", "metor"), wrapper); chmodSync(join(here, "..", "resources", "metor"), 0o755);
 console.log(`resources/metor: the host command, version ${version}`);
+
+cpSync(join(root, "deploy", "install.sh"), join(here, "..", "resources", "install.sh"));

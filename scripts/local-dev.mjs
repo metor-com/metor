@@ -36,7 +36,7 @@ function inspect(args) { try { return JSON.parse(capture(runtime, args))[0]; } c
 export function imageId(info, rt) { return rt === 'docker' ? info?.Id : info?.configuration?.descriptor?.digest; }
 export function runningImage(info, rt) { return rt === 'docker' ? info?.Image : info?.configuration?.image?.descriptor?.digest; }
 export function isRunning(info, rt) { return rt === 'docker' ? info?.State?.Running === true : info?.status?.state === 'running'; }
-const uiOutput = () => fingerprint(['client/desktop/ui', 'client/desktop/resources/metor']);
+const uiOutput = () => fingerprint(['client/desktop/ui', 'client/desktop/resources/metor', 'client/desktop/resources/install.sh']);
 
 function build(force) {
   const state = readState();
@@ -58,7 +58,7 @@ function build(force) {
     console.log('Installing the Electron desktop binary…');
     run(process.execPath, ['client/desktop/node_modules/electron/install.js']);
   }
-  const ui = fingerprint(['frontend', 'client/desktop/scripts/copy-ui.mjs', 'client/desktop/package.json', 'backend/harness/bin/metor']);
+  const ui = fingerprint(['frontend', 'client/desktop/scripts/copy-ui.mjs', 'client/desktop/package.json', 'backend/harness/bin/metor', 'deploy/install.sh']);
   if (force || state.ui?.source !== ui || !existsSync('client/desktop/ui/index.html') || state.ui.output !== uiOutput()) {
     console.log('Building the desktop interface…');
     run('npm', ['--prefix', 'client/desktop', 'run', 'ui']);

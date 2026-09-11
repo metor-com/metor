@@ -130,6 +130,7 @@ mv compose.yml.new compose.yml
 {
   echo "METOR_IMAGE=$IMAGE"
   [ -n "$DOMAIN" ] && echo "METOR_WATCH_BASE=https://$DOMAIN"
+  [ -z "${METOR_MEMORY:-}" ] || echo "METOR_MEMORY=$METOR_MEMORY"
 } > .env
 
 if [ -n "$DOMAIN" ] && [ "$PROXY" = own ]; then
@@ -168,6 +169,7 @@ for _ in $(seq 1 60); do
   code=$(docker compose exec -T box curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:6010/bots/api/harnesses 2>/dev/null || true)
   case "$code" in 200|401) break ;; esac; sleep 2
 done
+case "$code" in 200|401) ;; *) echo "The gateway did not become ready. Check docker compose logs box and retry."; exit 1 ;; esac
 say "Done – open this link once on your first device (valid 24 hours):"
 docker compose exec -T box metor auth link || echo "  (later: cd $DIR && docker compose exec box metor auth link)"
 if [ -z "$DOMAIN" ]; then echo "Interface: http://127.0.0.1:6010/bots/ (this machine only; from elsewhere: ssh -L 6010:127.0.0.1:6010 root@<server>)"

@@ -33,3 +33,4 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0028 | [Personal settings and Space administration](0028-space-administration.md) | accepted (2026-09-10) |
 | 0029 | [Persistent local Space RAM allocation](0029-space-ram-allocation.md) | accepted (2026-09-11) |
 | 0030 | [Shared RAM admission for computer starts](0030-resource-memory-admission.md) | accepted (2026-09-11) |
+| 0031 | [Set up an existing server from the desktop app](0031-existing-server-setup.md) | implemented; first Hetzner deployment confirmed (2026-09-11) |

@@ -7,6 +7,12 @@ decisions in `knowledge/decisions/`.
 
 ## [Unreleased]
 
+- **Set up an existing server** in the desktop app: verify its SSH fingerprint, sign in
+  with a root password, review resources, then install metor and connect over HTTPS.
+  Passwords are not saved; interrupted app installations can be retried on the same domain.
+  First installation and use on Hetzner confirmed by the user. SSH errors distinguish
+  rejected credentials, required password changes and connection failures.
+
 ## [0.4.0] - 2026-09-11
 
 ### Added

@@ -29,22 +29,14 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 
 ## Roadmap
 
-- **Connect an existing VPS as a Space** (idea, 2026-09-10) - the user orders a Linux
-  server directly from OVHcloud (first test provider) or another host; billing stays with
-  the provider. In the desktop app: **New Space → Connect an existing server**, enter its
-  IP/hostname and authorize initial access with a password or a metor-generated SSH key.
-  No terminal commands or manual SSH session required. A provider-independent installer
-  runs over SSH in the background: check OS/resources (initial target: at least 2 vCPUs,
-  16 GB RAM and 40 GB disk), install Docker, set up persistent data and HTTPS, start metor,
-  and securely pair the Space with the app. Reuse the existing server installer; show
-  progress and actionable errors, make retries safe, and preserve data after interruption.
-  Verify the server's identity before sending credentials, keep secrets out of logs,
-  and remove temporary installation access afterward unless ongoing management is explicitly
-  enabled. Start with fresh servers; detect existing workloads and avoid overwriting them.
-  Acceptance: a user-ordered OVHcloud VPS becomes a usable Space entirely through the app;
-  validate supported Linux versions/architectures, first-connection verification, HTTPS,
-  pairing, retry behavior and credential cleanup on a real test server. Automatic provider
-  ordering, cloud-init/images and optional ongoing server management are later extensions.
+- **Existing VPS setup: follow-ups** (first Hetzner deployment confirmed, 2026-09-11) -
+  root-password setup, fingerprint verification, resource checks, installation and app
+  connection are implemented (ADR-0031). The user successfully installed and used metor
+  on a Hetzner CX23. Remaining: live interrupted-install/retry tests, other supported
+  Linux versions and architectures, additional providers, SSH-key authentication,
+  non-root sudo and optional ongoing server management. Test the initial password-change
+  flow and explain provider-console passwords versus SSH access during onboarding.
+  Provider ordering and cloud-init/images remain later extensions.
 
 - **Bot collaboration** (next) - Codex and Gemini bots cannot message other bots yet (only
   Claude to Claude via SendMessage). Concept:
