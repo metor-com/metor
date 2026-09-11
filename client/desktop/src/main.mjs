@@ -7,9 +7,10 @@ import { app, BrowserWindow, clipboard, Menu, Notification, Tray, desktopCapture
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createResourceManager } from "./space-resources.mjs";
+import { checkDomain, waitForHttps } from "./server-diagnostics.mjs";
 import updater from "electron-updater";
 import { probe as probeServer, inspect as inspectServer, install as installServer } from "./server-setup.mjs";
 
@@ -427,6 +428,7 @@ handle("metor:rename", (_e, id, name) => {   // the user's own name for a comput
 });
 // Existing VPS setup: one ephemeral SSH session per initiating window, never a stored password.
 const serverSessions = new Map();
+const serverKeyFiles = new Map();
 const serverOperations = new Set();
 function closeServer(id) {
   const s = serverSessions.get(id); if (!s) return;
@@ -435,22 +437,45 @@ function closeServer(id) {
 handle("metor:server-probe", async (_e, args) => {
   try { return { ok: true, ...await probeServer(args) }; } catch (error) { return { ok: false, error: error.message }; }
 });
+handle("metor:server-key", async e => {
+  if (serverOperations.has(e.sender.id)) return { ok: false, error: "Wait for the current server operation to finish." };
+  const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), {
+    title: "Choose your private SSH key", defaultPath: join(app.getPath("home"), ".ssh"), properties: ["openFile", "showHiddenFiles"],
+  });
+  if (result.canceled || !result.filePaths[0]) return { ok: false, cancelled: true };
+  const path = result.filePaths[0];
+  try {
+    if (!statSync(path).isFile() || statSync(path).size > 65536 || path.endsWith(".pub")) throw Error("Choose a private SSH key file, not its .pub file.");
+    serverKeyFiles.set(e.sender.id, path);
+    e.sender.once("destroyed", () => serverKeyFiles.delete(e.sender.id));
+    return { ok: true, name: basename(path) };
+  } catch { return { ok: false, error: "Choose a readable private SSH key file (up to 64 KiB), not its .pub file." }; }
+});
 handle("metor:server-inspect", async (e, args) => {
   const id = e.sender.id;
   if (serverOperations.has(id)) return { ok: false, error: "A server operation is already running." };
   closeServer(id); serverOperations.add(id);
   try {
-    const s = await inspectServer(args);
+    const input = { host: args?.host, port: args?.port, domain: args?.domain, fingerprint: args?.fingerprint, authMethod: args?.authMethod };
+    if (input.authMethod === "key") {
+      const path = serverKeyFiles.get(id);
+      if (!path) throw Error("Choose your private SSH key file first.");
+      if (!statSync(path).isFile() || statSync(path).size > 65536) throw Error("The selected key file is no longer available or is too large.");
+      input.privateKey = readFileSync(path); input.passphrase = args?.passphrase;
+    } else input.password = args?.password;
+    if (args) { args.password = ''; args.passphrase = ''; }
+    const s = await inspectServer(input);
     if (e.sender.isDestroyed()) { s.conn.end(); return { ok: false }; }
     s.timer = setTimeout(() => closeServer(id), 10 * 60 * 1000);
     serverSessions.set(id, s);
     e.sender.once("destroyed", () => closeServer(id));
-    return { ok: true, ...s.info };
+    const dns = await checkDomain(s.domain, s.info.addresses);
+    return { ok: true, ...s.info, dns };
   } catch (error) { return { ok: false, error: error.message }; }
   finally { serverOperations.delete(id); }
 });
 handle("metor:server-cancel", e => {
-  if (!serverOperations.has(e.sender.id)) closeServer(e.sender.id);
+  if (!serverOperations.has(e.sender.id)) { closeServer(e.sender.id); serverKeyFiles.delete(e.sender.id); }
 });
 handle("metor:server-install", async e => {
   const id = e.sender.id, s = serverSessions.get(id);
@@ -460,14 +485,10 @@ handle("metor:server-install", async e => {
   const progress = line => { if (!e.sender.isDestroyed()) e.sender.send("metor:server-progress", line); };
   try {
     const installer = readFileSync(app.isPackaged ? join(process.resourcesPath, "install.sh") : resolve(here, "../../../deploy/install.sh"), "utf8");
+    const dns = await checkDomain(s.domain, s.info.addresses);
+    if (!dns.ok) throw Error(dns.message);
     const claim = await installServer(s, installer, app.getVersion(), progress);
-    let ready = false;
-    for (let attempt = 0; attempt < 60; attempt++) {
-      if (e.sender.isDestroyed()) throw Error("The setup window was closed. Connect again to finish pairing.");
-      try { const r = await fetchJson(`https://${s.domain}/bots/api/version`, {}, 4000); if (r.ok && r.data?.name === "metor") { ready = true; break; } } catch {}
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-    if (!ready) throw Error("metor is installed, but HTTPS is not reachable yet. Check DNS and allow TCP ports 80 and 443 in your provider firewall, then reconnect and retry.");
+    await waitForHttps(s.domain, s.info.addresses, progress, { cancelled: () => e.sender.isDestroyed() });
     progress("Connecting your Space…");
     const r = await connect({ claim });
     if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); }

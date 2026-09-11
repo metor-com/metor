@@ -8,6 +8,12 @@ set -euo pipefail
 
 IMAGE_DEFAULT="ghcr.io/metor-com/metor-box:latest"
 DIR="${METOR_DIR:-/opt/metor}"
+phase() {
+  [ "${METOR_APP_INSTALL:-}" = yes ] || return 0
+  printf '%s\n' "$1" > "$DIR/.desktop-phase.new"
+  mv "$DIR/.desktop-phase.new" "$DIR/.desktop-phase"
+  printf 'METOR_PHASE:%s\n' "$1"
+}
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 
 # Everything runs inside main(): with `curl … | bash` the script itself arrives on stdin, so bash
@@ -50,6 +56,7 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
   case "${METOR_INSTALL_DOCKER:-yes}" in
     n|N|no) echo "Docker (with the compose plugin) is missing – please install it, or run without METOR_INSTALL_DOCKER=no."; exit 1 ;;
   esac
+  phase docker
   say "Installing Docker via get.docker.com"
   curl -fsSL https://get.docker.com | sh
   docker compose version >/dev/null 2>&1 || { echo "docker compose is still missing – please install the compose plugin."; exit 1; }
@@ -112,10 +119,12 @@ if ! docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
   docker manifest inspect "$IMAGE" >/dev/null 2>&1 || { echo "Still no access to $IMAGE – check user and token (scope read:packages)."; exit 1; }
   echo "The login is kept in /root/.docker/config.json for updates; 'docker logout ghcr.io' removes it."
 fi
+phase image
 say "Pulling $IMAGE"
 docker pull -q "$IMAGE"
 
 # ---------- Write files ----------
+phase files
 say "Writing $DIR"
 mkdir -p "$DIR"; cd "$DIR"
 
@@ -128,14 +137,23 @@ fi
 mv compose.yml.new compose.yml
 
 {
+  if [ -f .env ]; then
+    # Retain user settings on retry; replace only values owned by this installation.
+    if [ -n "${METOR_MEMORY:-}" ]; then
+      awk '!/^(METOR_IMAGE|METOR_WATCH_BASE|METOR_MEMORY)=/' .env
+    else
+      awk '!/^(METOR_IMAGE|METOR_WATCH_BASE)=/' .env
+    fi
+  fi
   echo "METOR_IMAGE=$IMAGE"
   [ -n "$DOMAIN" ] && echo "METOR_WATCH_BASE=https://$DOMAIN"
   [ -z "${METOR_MEMORY:-}" ] || echo "METOR_MEMORY=$METOR_MEMORY"
-} > .env
+} > .env.new
+mv .env.new .env
 
 if [ -n "$DOMAIN" ] && [ "$PROXY" = own ]; then
   # Caddy only terminates TLS; the sign-in (devices, pairing) is done by the gateway (ADR-0012)
-  cat > Caddyfile <<CADDY
+  cat > Caddyfile.new <<CADDY
 $DOMAIN {
 	redir / /bots/ permanent
 	handle /bots* {
@@ -148,9 +166,11 @@ $DOMAIN {
 	}
 }
 CADDY
+  mv Caddyfile.new Caddyfile
 fi
 
 # ---------- Start ----------
+phase start
 say "Starting metor"
 if [ -n "$DOMAIN" ] && [ "$PROXY" = own ]; then
   # A Caddy container left behind by a failed earlier run (e.g. port 80 taken at that time) keeps a
@@ -164,12 +184,14 @@ else
 fi
 
 # ---------- First device: setup link (+ QR code) ----------
+phase gateway
 say "Waiting for the gateway…"
 for _ in $(seq 1 60); do
   code=$(docker compose exec -T box curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:6010/bots/api/harnesses 2>/dev/null || true)
   case "$code" in 200|401) break ;; esac; sleep 2
 done
 case "$code" in 200|401) ;; *) echo "The gateway did not become ready. Check docker compose logs box and retry."; exit 1 ;; esac
+phase ready
 say "Done – open this link once on your first device (valid 24 hours):"
 docker compose exec -T box metor auth link || echo "  (later: cd $DIR && docker compose exec box metor auth link)"
 if [ -z "$DOMAIN" ]; then echo "Interface: http://127.0.0.1:6010/bots/ (this machine only; from elsewhere: ssh -L 6010:127.0.0.1:6010 root@<server>)"

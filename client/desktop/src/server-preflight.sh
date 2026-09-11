@@ -49,3 +49,12 @@ if [ "$owned" = yes ] && [ -f /opt/metor/.env ]; then
   fi
 fi
 printf 'METOR_SERVER:%s %s|%s|%s|%s|%s\n' "$ID" "$VERSION_ID" "$cpus" "$ram" "$free_disk" "$memory"
+
+if [ "$owned" = yes ]; then
+  phase=unknown
+  if [ -f /opt/metor/.desktop-phase ]; then phase=$(cat /opt/metor/.desktop-phase); fi
+  case "$phase" in docker|image|files|start|gateway|ready) ;; *) phase=unknown ;; esac
+  printf 'METOR_RESUME:%s\n' "$phase"
+fi
+
+printf "METOR_ADDRESSES:%s\n" "$(hostname -I 2>/dev/null || true)"

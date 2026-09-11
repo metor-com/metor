@@ -77,7 +77,7 @@
   const small = "rounded-lg border border-zinc-300 px-3 py-1.5 text-xs hover:bg-zinc-50";
 </script>
 
-<div class="flex h-dvh items-center justify-center overflow-auto bg-zinc-100 p-4 font-sans text-[15px] text-zinc-900 antialiased">
+<div style="align-items: safe center" class="flex h-dvh items-center justify-center overflow-auto bg-zinc-100 p-4 font-sans text-[15px] text-zinc-900 antialiased">
 
   {#if step === "choose"}
     <!-- Step 1: where the Space is – one sentence each, nothing else yet -->

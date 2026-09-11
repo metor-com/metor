@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("metor", {
   onOpenBot: (cb) => ipcRenderer.on("metor:open-bot", (_e, bot) => cb(bot)),
   // A computer on this machine through the bundled host command (Docker or Apple's container runtime)
   server: {
+    chooseKey: () => ipcRenderer.invoke("metor:server-key"),
     probe: args => ipcRenderer.invoke("metor:server-probe", args),
     inspect: args => ipcRenderer.invoke("metor:server-inspect", args),
     install: () => ipcRenderer.invoke("metor:server-install"),

@@ -38,27 +38,44 @@ from a device that is already signed in, and every device can be removed again. 
 
 Choose **Connect a Space → On a server → Set up an existing server**. Enter the server
 IP/hostname and SSH port, compare the displayed ED25519 fingerprint with the provider
-console, then enter a domain pointing to the server and its root password. The app checks
+console, then enter a domain pointing to the server and choose **Password** or **SSH key** for root login. The app checks
 the server before offering **Install and connect**. It keeps the SSH connection for ten
-minutes while you review; passwords are never saved. If the provider requires changing
+minutes while you review; passwords and key passphrases are never saved. If the provider requires changing
 the initial password, do that in its console first.
 
 Use a fresh Ubuntu 22.04/24.04/26.04 or Debian 12/13 server, x86-64 or ARM64, with at least
 2 vCPUs, 4 GB RAM and 12 GiB free disk (16 GB RAM / 40 GB disk recommended). Allow inbound
 SSH plus TCP 80 and 443. Both A and AAAA DNS records, when present, must point to this
-server. SSH password login must be enabled. The app installs Docker, the matching metor
+server. The chosen SSH login method must be enabled. For **SSH key**, choose your local private
+key file (not its `.pub` file), then enter its passphrase if encrypted. The matching
+public key must already be installed for root; the private key stays on your device. The app installs Docker, the matching metor
 release and Caddy, then pairs itself once HTTPS is reachable. Keep it open during setup.
 
 Existing installations and other Docker workloads are rejected. Failed app installations
 can be retried with the same domain; volumes and the Space RAM allocation are retained.
-Nothing is automatically uninstalled on failure. SSH keys, non-root users and custom
-reverse proxies are not supported by this first app flow. The first Hetzner installation and subsequent use were confirmed by the user on
-2026-09-11. Interrupted-install recovery and other providers still need live validation.
-The transport and failure guards have automated local tests.
+Nothing is automatically uninstalled on failure. Non-root users and custom
+reverse proxies are not supported by this app flow. The first Hetzner installation and subsequent use were confirmed by the user on
+2026-09-11. Automated local tests now cover actual installer process termination at four stages,
+using a Docker test double, plus real SSH connections for passwords, private keys and
+connection loss. Full recovery with real Docker and other providers still needs live
+validation.
+
+The app records installation phases on the server and replaces configuration files
+atomically. Retries preserve extra `.env` settings and persistent data. When setup
+reached the ready stage, **Reconnect existing Space** pairs the app without downloading
+an image or restarting the Space. A stopped or unhealthy completed Space needs its
+container problem resolved before reconnecting.
+
+DNS is checked before installation, including stale AAAA records. The domain must point
+directly to addresses on the server; proxied DNS/NAT configurations need manual setup.
+HTTPS failures distinguish DNS, port 443 reachability, certificate verification and
+incorrect proxy responses. The app never disables TLS verification or changes firewall
+rules automatically. Port checks show reachability; they cannot identify which firewall
+or network component is responsible.
 
 On a server originally created with an SSH key, resetting the root password may enable
 only provider-console login. SSH root password login must be enabled separately before
-using this app flow. The app does not change the server’s SSH authentication policy.
+choosing **Password** in this app flow. **SSH key** works without enabling password login. The app does not change the server’s SSH authentication policy.
 
 ## A) New server - one-liner (recommended)
 

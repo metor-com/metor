@@ -7,6 +7,11 @@ decisions in `knowledge/decisions/`.
 
 ## [Unreleased]
 
+- **More reliable server setup:** interrupted installs retain extra settings and data;
+  completed setups reconnect without restarting bots. DNS and HTTPS failures now give
+  targeted diagnostics. Sign in with a private SSH key, including encrypted keys, as an
+  alternative to the root password; key passphrases are never saved.
+
 - **Set up an existing server** in the desktop app: verify its SSH fingerprint, sign in
   with a root password, review resources, then install metor and connect over HTTPS.
   Passwords are not saved; interrupted app installations can be retried on the same domain.

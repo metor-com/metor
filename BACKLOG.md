@@ -32,10 +32,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 - **Existing VPS setup: follow-ups** (first Hetzner deployment confirmed, 2026-09-11) -
   root-password setup, fingerprint verification, resource checks, installation and app
   connection are implemented (ADR-0031). The user successfully installed and used metor
-  on a Hetzner CX23. Remaining: live interrupted-install/retry tests, other supported
-  Linux versions and architectures, additional providers, SSH-key authentication,
+  on a Hetzner CX23. Private-key authentication (including passphrases), DNS/HTTPS diagnostics and automatic
+  recovery tests are implemented. Remaining: live interrupted-install/retry tests with
+  real Docker, other supported Linux versions and architectures, additional providers,
   non-root sudo and optional ongoing server management. Test the initial password-change
-  flow and explain provider-console passwords versus SSH access during onboarding.
+  flow on a real provider. The onboarding explains provider-console passwords versus SSH access.
   Provider ordering and cloud-init/images remain later extensions.
 
 - **Bot collaboration** (next) - Codex and Gemini bots cannot message other bots yet (only
