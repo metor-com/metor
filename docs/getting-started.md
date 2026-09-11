@@ -15,34 +15,34 @@ at `https://<your-domain>/bots/` after opening your setup link (section 1).
 The interface has no passwords. The first browser gets in with a **setup link** that the installer
 prints at the end (and that `metor auth link` inside the box prints again at any time, valid for
 24 hours, single use). Every further phone or browser is linked from a device that is already
-signed in: open the **⋮ menu** at the top of the bot list → **Settings**, section **Devices**, click **Link a device**, and on the new
+signed in: open the **⋮ menu** at the top of the bot list → **Manage Space**, section **My devices & notifications**, click **Link a device**, and on the new
 device either scan the QR code with the camera or open the interface and type the pairing code on
 the sign-in page. Links and codes are valid for two minutes.
 
-The **Devices** tab also lists every signed-in browser (name, last seen) - remove one to sign it out, or
+The **My devices & notifications** tab also lists every signed-in browser (name, last seen) - remove one to sign it out, or
 sign out the device you are on. Lost all devices? `metor auth link` over SSH mints a new setup link.
 
-**Settings** has three more sections. **Connectors** are MCP servers every bot can use: **Add →
+**Manage Space → Connectors** lists MCP servers every bot can use: **Add →
 From the directory** offers well-known ones (a shared memory, documentation lookups, DeepWiki,
 GitHub, search APIs) and pre-fills the form, **Custom connector** takes any server by command or
 URL with its environment variables or headers. Bots use a connector on their own, like the browser;
 switch on **Ask before each use** to get an approval card for every call instead. Keys and tokens
 are stored inside the Space.
 A connector reaches a bot when the bot starts - after a change, the button **Restart running
-bots** does that for you. **Appearance** (text size; a compact bot list with one line per bot; whether the Claude quota bar
+bots** does that for you. Under **App settings**, **Appearance** (text size; a compact bot list with one line per bot; whether the Claude quota bar
 shows always, never or only from a chosen usage) and
 **Behaviour** (sort the bot list by latest activity, newest chat on top like a messenger; which
 view a bot opens with on a wide screen) are remembered per device.
 
 **On the phone or tablet** the interface installs as an app. Android: the browser's menu or
-**Settings → Devices → Install metor as an app**. iPhone and iPad: Share → **Add to Home Screen**, open metor
+**Manage Space → My devices & notifications → Install metor as an app**. iPhone and iPad: Share → **Add to Home Screen**, open metor
 from the home screen and sign in there once with a pairing code (the home-screen app has its own
-cookie jar). Then turn on **Settings → Devices → Notifications on this device**: you get a push when a bot
+cookie jar). Then turn on **Manage Space → My devices & notifications → Notifications on this device**: you get a push when a bot
 needs an approval, has finished a reply or stopped unexpectedly - never on the device that is
 looking at that chat. The box sends these itself, no third-party service is involved; the
 interface must be reached over HTTPS for this.
 
-<!-- screenshot: Settings → Devices with the QR code -->
+<!-- screenshot: Manage Space → My devices & notifications with the QR code -->
 
 ## 2. Create your first bot
 
@@ -86,11 +86,11 @@ a line break.
 - **Tool lines**: grey lines with a gear icon show what the bot is doing (reading a file, running a
   command, opening a page). Click a line to expand the full command and its result; click again to
   collapse it.
-- **Approval cards**: when a connector marked **Ask before each use** (Settings → Connectors) is
+- **Approval cards**: when a connector marked **Ask before each use** (Manage Space → Connectors) is
   called, an amber card titled "Approval" appears with the tool, the reason and the exact input.
   Choose **Allow** or **Deny**. The card stays in the history with the decision. While a card is
   open the bot list says "waiting for your approval", and with notifications turned on
-  (Settings → Devices) your phone gets a push.
+  (Manage Space → My devices & notifications) your phone gets a push.
   Be clear about what asks and what does not: inside the Space nothing asks - not the
   shell, not the browser, not the files. A bot that is signed in to a site in its browser can act
   there without a card. Approval cards exist for connectors marked "Ask before each use", and
@@ -230,7 +230,7 @@ ticked there, and the app opens with it again next time), and screen sharing for
 On first start the app asks one question: should the Space be **on this Mac** or **on a
 server**? On this Mac, the app creates it right there (see below). On a server, paste the **setup
 link** (from the installer or `metor auth link` inside the box - the address comes with it), or
-enter the address plus a **pairing code** from *Settings → Devices → Link a device* on a device
+enter the address plus a **pairing code** from *Manage Space → My devices & notifications → Link a device* on a device
 that is already signed in. The app then appears under Devices as "metor app on Mac/Windows/Linux";
 removing it there signs the app out, and the app's connect screen offers the Space again.
 
@@ -291,7 +291,7 @@ Bots restart automatically when the box restarts, unless they were paused.
 
 ### Screen size in the split view
 
-Under **Settings → Behaviour → Adapt screen resolution to panel**, you can turn automatic
+Under **App settings → Behaviour → Adapt screen resolution to panel**, you can turn automatic
 resizing on or off for this device (on by default). Off keeps the current resolution and scales
 the view to fit the panel.
 
@@ -375,7 +375,7 @@ background. Plain text up to 256 KB is supported. Rebuild and restart the Space 
 
 ### Desktop clipboard synchronization
 
-Under **Settings → Behaviour → Sync clipboard with active screen** (on by default), the
+Under **App settings → Behaviour → Sync clipboard with active screen** (on by default), the
 desktop app transfers newly copied plain text from the focused bot Screen to your local
 clipboard. Selecting text alone does not trigger a transfer. Use **Cmd+C** / **Ctrl+C**
 in the bot browser and paste locally; **Cmd+V** / **Ctrl+V** on the Screen sends local text
@@ -410,7 +410,7 @@ history, not an audit log protected against modification by the bot.
 
 ### RAM protection
 
-**Settings → Space → RAM protection** shows current available RAM, total capacity and
+**Space menu → Manage Space… → Resources & updates → RAM protection** shows current available RAM, total capacity and
 waiting bots. Readings refresh every three seconds. Container limits and estimated
 reclaimable file cache are included; swap is not counted as available RAM.
 
@@ -427,3 +427,23 @@ it from the startup queue but retains its undelivered messages for a later Start
 The guard does not interrupt ongoing work or change the Space's RAM allocation.
 Browser/desktop starts and later growth of running processes are not limited by this
 startup check, so available RAM can still fall while bots are working.
+
+### App and Space settings
+
+**App settings** contains appearance and behaviour preferences for this device.
+The Space menu offers **Manage Space**, followed by **Remove from my overview** in
+native apps. Removing a connection affects this device only and does not stop or
+remove the Space or its bots.
+
+**Manage Space** opens inside the app/browser and contains:
+
+- **General**: change the Space name for all connected devices. The name is stored
+  on the Space and live connections receive updates automatically.
+- **My devices & notifications**: link or sign out your devices and configure
+  notifications for the current device.
+- **Resources & updates**: RAM protection, versions and update information.
+- **Connectors**: MCP servers available to bots.
+
+A Space is personal. Each device has its own revocable session; all signed-in devices
+can manage the Space. There are no membership roles or invitations for other people.
+The gateway requires sign-in for protected API requests, including name changes.

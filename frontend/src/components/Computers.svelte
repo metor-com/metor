@@ -3,6 +3,7 @@
   // screen – where the overview cannot be reached: one row per computer with its state and unread
   // count. A tap opens it (the app loads its interface); the row's actions rename it, start or stop the
   // one on this machine, or forget it. A browser never gets here – it is served by one computer.
+  import { openAdministration } from "../lib/administration.js";
   import { app, gateway } from "../lib/base.js";
   import { computers, loadComputers, switchComputer } from "../lib/session.js";
   export let onDone = null;            // a tap on the computer shown already (the dialog closes)
@@ -32,12 +33,8 @@
     busy = action; error = null;
     try { const r = await app.local.run(action, id); if (!r?.ok) { error = r?.error ?? "failed"; busy = null; } } catch (e) { error = e.message; busy = null; }
   }
-  async function rename(c) {
-    const name = prompt("Name of this Space", c.name); if (name == null) return;
-    try { await app.rename(c.id, name.trim()); await loadComputers(); } catch (e) { error = e.message; }
-  }
   async function forget(c) {
-    if (!confirm(`Forget "${c.name}"? The app signs out of it.`)) return;
+    if (!confirm(`Remove "${c.name}" from this device? The Space and its bots will keep running.`)) return;
     try { await app.forget(c.id); await loadComputers(); } catch (e) { error = e.message; }
   }
   const menu = (fn) => (c) => { menuFor = null; fn(c); };
@@ -69,12 +66,8 @@
       {#if menuFor === c.id}
         <!-- The actions, unfolded below the row (a floating menu would be cut off by the dialog's scroll area) -->
         <div class="flex flex-wrap gap-1.5 px-3 pb-2.5" role="group" on:click|stopPropagation>
-          <button type="button" class={action} on:click={() => menu(rename)(c)}>Rename</button>
-          {#if c.local && app?.local && local?.computer?.id === c.id}
-            {#if local.state === "running"}<button type="button" class={action} on:click={() => menu((x) => run("down", x.id))(c)}>Stop</button>
-            {:else if local.state === "stopped"}<button type="button" class={action} on:click={() => menu((x) => run("up", x.id))(c)}>Start</button>{/if}
-          {/if}
-          <button type="button" class="{action} text-red-600" on:click={() => menu(forget)(c)}>Forget</button>
+          {#if c.signedIn}<button type="button" class={action} on:click={() => menu(openAdministration)(c)}>Manage Space</button>{/if}
+          <button type="button" class="{action} text-red-600" on:click={() => menu(forget)(c)}>Remove from my overview</button>
         </div>
       {/if}
     </li>

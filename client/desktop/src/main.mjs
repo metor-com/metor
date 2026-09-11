@@ -47,7 +47,7 @@ function setStatus(id, patch) {
   status.set(id, after); broadcast("metor:computers", load().computers.map(publicInfo));
 }
 // `short` is the name where the context already says "Space" (the overview, the head of the bot list): "This Mac"
-const publicInfo = (c) => (c ? { id: c.id, name: c.label || (isLocal(c.origin) ? nameFor(c.origin) : c.name), short: c.label || (isLocal(c.origin) ? shortFor(c.origin) : c.name),
+const publicInfo = (c) => (c ? { id: c.id, name: c.spaceName || c.label || (isLocal(c.origin) ? nameFor(c.origin) : c.name), short: c.spaceName || c.label || (isLocal(c.origin) ? shortFor(c.origin) : c.name),
   origin: c.origin, version: c.version ?? null, signedIn: !!secretOf(c.id), local: isLocal(c.origin), unread: status.get(c.id)?.unread ?? null, reachable: status.get(c.id)?.reachable ?? null,
   agents: status.get(c.id)?.agents ?? null } : null);
 // Which computer a request goes to – WebSocket URLs (ws:, wss:) belong to the http(s) origin they came from
@@ -126,7 +126,7 @@ async function probe(c) {
 const watches = new Map();   // id → { topics, ac }
 function syncWatches() {
   for (const c of load().computers) {
-    const want = secretOf(c.id) ? ["agents", ...(windowShowing(c.id) ? [] : ["notify"])].join(",") : null;
+    const want = secretOf(c.id) ? ["space", "agents", ...(windowShowing(c.id) ? [] : ["notify"])].join(",") : null;
     const w = watches.get(c.id);
     if (w && w.topics === want) continue;
     if (w) { w.ac.abort(); watches.delete(c.id); }
@@ -146,6 +146,7 @@ async function watch(id, topics) {
       backoff = 2000; setStatus(id, { reachable: true });
       await readEvents(res.body, ac.signal, (event, data) => {
         if (event === "agents") { try { const list = JSON.parse(data); setStatus(id, { unread: unreadOf(list), reachable: true, agents: list }); } catch {} }
+        else if (event === "space") { try { const value = JSON.parse(data); if (typeof value.name === "string" && c.spaceName !== value.name) { c.spaceName = value.name; save(); refreshMenus(); broadcast("metor:computers", load().computers.map(publicInfo)); } } catch {} }
         else if (event === "notify") { try { notifyFrom(id, JSON.parse(data)); } catch {} }
       });
     } catch {}

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Keep App settings separate and combine all Space settings under Manage Space: shared name, devices, notifications, resources, updates and connectors. Space names sync across devices; Remove from my overview remains device-local.
+
 - Space settings show current RAM headroom and waiting bots. Runtime starts queue under memory pressure, resume automatically, and record admission delays in the Event log.
 
 - Bots have a persistent Event log with sleep/wake reasons, routine run IDs, processing outcomes and durations. Filter and export retained events from the bot menu; storage is bounded.

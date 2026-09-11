@@ -15,8 +15,9 @@ try {
   const link=execFileSync('metor',['auth','link','--plain'],{encoding:'utf8'}).match(/http[^\s]+claim\?token=[A-Za-z0-9_-]+/)[0];
   await page.goto(link);await page.goto(`http://127.0.0.1:6010/bots/#/${name}`);
   await page.getByText('Waiting for RAM. Your messages are queued.',{exact:false}).waitFor();
-  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Settings',exact:true}).click();
-  await page.getByRole('button',{name:/^Space/}).click();
+  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Manage Space',exact:true}).click();
+  if (await page.getByRole('button',{name:'Back to the sections'}).isVisible()) await page.getByRole('button',{name:'Back to the sections'}).click();
+  await page.getByRole('button',{name:/^Resources & updates/}).click();
   await page.getByRole('progressbar',{name:'Space RAM usage'}).waitFor();
   const actual=await(await page.request.get('http://127.0.0.1:6010/bots/api/memory')).json();
   assert.ok(actual.totalBytes>0);assert.ok(actual.availableBytes>=0);
@@ -31,9 +32,8 @@ try {
   await page.getByRole('progressbar',{name:'Space RAM usage'}).waitFor();
   assert.equal(await page.getByText('Low available RAM.',{exact:false}).count(),0);
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(500);
-  await page.getByRole('button',{name:'Back to bots',exact:true}).click();
-  await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('button',{name:'Settings',exact:true}).click();
-  await page.getByRole('button',{name:/^Space/}).click();
+  if (await page.getByRole('button',{name:'Back to the sections'}).isVisible()) await page.getByRole('button',{name:'Back to the sections'}).click();
+  await page.getByRole('button',{name:/^Resources & updates/}).click();
   await page.getByRole('progressbar',{name:'Space RAM usage'}).waitFor();
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
   await page.screenshot({path:'/tmp/metor-memory-mobile.png'});

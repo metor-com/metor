@@ -8,10 +8,11 @@ const originOf = (g) => (g?.signedIn && g.reachable !== false ? g.origin : "");
 // The computer this interface talks to: in an app the one the app is connected to, and it changes with a
 // warm switch (session.js switchComputer) – `origin` is a live binding the API reads on every request,
 // `gateway` a store the shell follows (the connect screen when a computer is signed out or silent)
+export const space = writable(null);
 export const gateway = writable(app?.gateway ?? null);
 export let origin = originOf(app?.gateway);
 export const url = (path) => origin + path;
-export function setGateway(g) { origin = originOf(g); gateway.set(g); }
+export function setGateway(g) { space.set(null); origin = originOf(g); gateway.set(g); }
 // The session is gone (401): a browser gets the gateway's sign-in page, the app its connect screen.
 // Under the Vite dev server `/bots/` is this interface again, not the gateway's page – reloading would
 // loop, so there it stops with a hint: sign in by opening a setup link through the dev server.

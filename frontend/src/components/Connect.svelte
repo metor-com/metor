@@ -176,7 +176,7 @@
       </form>
       <ol class="mt-4 list-decimal pl-5 text-[13px] leading-relaxed text-zinc-500">
         <li><strong>Setup link</strong>: shown by the installer and by <code class="rounded bg-zinc-100 px-1">metor auth link</code> inside the box. Paste it – the address comes with it.</li>
-        <li><strong>Pairing code</strong>: on a device that is signed in, open <em>Settings → Devices → Link a device</em>, then enter the address and the code here.</li>
+        <li><strong>Pairing code</strong>: on a device that is signed in, open <em>Manage Space → My devices & notifications → Link a device</em>, then enter the address and the code here.</li>
       </ol>
       {#if list.length && !adding}
         <div class="mt-6"><div class="mb-1 text-sm font-medium">Your Spaces</div><Computers /></div>

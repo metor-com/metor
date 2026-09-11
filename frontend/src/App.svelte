@@ -9,6 +9,8 @@
   import ComputerPanel from "./components/ComputerPanel.svelte";
   import Connect from "./components/Connect.svelte";
   import DocumentPanel from "./components/DocumentPanel.svelte";
+  import Settings from "./components/Settings.svelte";
+  import { administration } from "./lib/administration.js";
   import ComputersOverview from "./components/ComputersOverview.svelte";
   import { app, gateway } from "./lib/base.js";
   import { shown, current, quota, selected, entries, partial, thought, select, created, applyEntry, act, remove, interrupt, connect, refresh,
@@ -113,7 +115,7 @@
       {#if $current.waitingForMemory}
         <div role="status" class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
           {$current.waitingForMemory.reason === 'startup_queue' ? 'Waiting to start: another bot starts first.' : $current.waitingForMemory.reason === 'memory_unavailable' ? 'Waiting to start: the Space cannot check available RAM.' : 'Waiting for RAM. Your messages are queued.'}
-          Starts automatically when ready. See Settings → Space for details.
+          Starts automatically when ready. Open Manage Space to check RAM if it keeps waiting.
         </div>
       {/if}
       <section class="flex min-h-0 min-w-0 flex-1 {dragging ? 'select-none [&_iframe]:pointer-events-none' : ''}" bind:this={paneEl}>
@@ -145,3 +147,5 @@
   <AvatarDialog agent={$current} onDone={() => { pictureOpen = false; refresh(); }} />
 {/if}
 {/if}
+
+{#if $administration}<Settings mode="admin" spaceName={$administration.name} onDone={() => administration.set(null)} />{/if}

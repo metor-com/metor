@@ -47,7 +47,7 @@
 
 <div class="flex flex-col gap-8">
   <div class="flex flex-col gap-3">
-    <div><div class="text-sm font-medium">Signed-in devices</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Every browser that opened a setup or pairing link. Remove one to sign it out.</p></div>
+    <div><div class="text-sm font-medium">My signed-in devices</div><p class="mt-0.5 text-[13px] leading-relaxed text-zinc-500">Your own devices linked to this Space. Removing a device signs it out.</p></div>
     {#if sessions === null}
       <p class="text-[13px] text-zinc-400">Loading…</p>
     {:else}

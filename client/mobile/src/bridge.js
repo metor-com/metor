@@ -39,7 +39,7 @@ const computer = (id) => db.computers.find((c) => c.id === id) ?? null;
 const current = () => computer(db.current);
 // What the app has learned about a computer since it started: the unread total (the overview's badge) and whether it answers
 const status = new Map();   // id → { unread, reachable }
-const publicInfo = (c, extra = {}) => (c ? { id: c.id, name: c.label || c.name, short: c.label || c.name, origin: c.origin, version: c.version ?? null, signedIn: !!c.secret, local: false,
+const publicInfo = (c, extra = {}) => (c ? { id: c.id, name: c.spaceName || c.label || c.name, short: c.spaceName || c.label || c.name, origin: c.origin, version: c.version ?? null, signedIn: !!c.secret, local: false,
   unread: status.get(c.id)?.unread ?? null, reachable: status.get(c.id)?.reachable ?? null, agents: status.get(c.id)?.agents ?? null, ...extra } : null);
 const nameFor = (origin) => { try { return new URL(origin).hostname; } catch { return origin; } };
 const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -121,6 +121,8 @@ const unreadOf = (list) => list.reduce((n, a) => n + (Number(a.unread) || 0), 0)
 async function probe(c) {
   if (!c?.secret) { status.set(c.id, { unread: null, reachable: await reachable(c.origin) }); return; }
   try {
+    const meta = await fetchJson(`${c.origin}/bots/api/space`, { headers: { authorization: `Bearer ${c.secret}` } }, 5000);
+    if (meta.ok && typeof meta.data?.name === "string" && c.spaceName !== meta.data.name) { c.spaceName = meta.data.name; await save(); }
     const r = await fetchJson(`${c.origin}/bots/api/agents`, { headers: { authorization: `Bearer ${c.secret}` } }, 5000);
     if (r.status === 401) { status.set(c.id, { unread: null, reachable: true }); await signedOut(c.id); return; }
     if (r.ok && Array.isArray(r.data)) {

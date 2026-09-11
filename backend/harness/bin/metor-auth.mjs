@@ -1,8 +1,7 @@
 // metor-auth – sign-in without passwords (ADR-0012). The gateway hands a session to every device
 // that presents a one-time claim: the setup link printed by `metor auth link` (or by the supervisor
 // on first boot), or a pairing link / QR code / short code created on a device that is already
-// signed in. Only hashes are stored – a bot that reads the file gains nothing; the raw secret lives
-// in the browser cookie only. One JSON file, shared by gateway, CLI and supervisor.
+// signed in. Session secrets are stored as hashes; clients keep the raw secret. One JSON file, shared by gateway, CLI and supervisor.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { join } from "node:path";
@@ -22,7 +21,18 @@ const same = (a, b) => typeof a === "string" && typeof b === "string" && a.lengt
 export const baseUrl = () => (process.env.METOR_WATCH_BASE ?? "").replace(/\/$/, "") || "http://127.0.0.1:6010";
 
 function load() {
-  try { return { sessions: [], claims: [], ...JSON.parse(readFileSync(FILE, "utf8")) }; } catch { return { sessions: [], claims: [] }; }
+  let db;
+  try { db = { sessions: [], claims: [], ...JSON.parse(readFileSync(FILE, "utf8")) }; }
+  catch (e) { if (e.code !== 'ENOENT') throw e; return { sessions: [], claims: [] }; }
+  // Remove the unreleased membership prototype without upgrading invited devices.
+  if (db.members) {
+    const owners = new Set(db.members.filter(m => m.role === 'owner').map(m => m.id));
+    db.sessions = db.sessions.filter(s => !s.memberId || owners.has(s.memberId));
+    db.claims = db.claims.filter(c => c.kind !== 'invite' && (!c.memberId || owners.has(c.memberId)));
+    for (const item of [...db.sessions, ...db.claims]) { delete item.memberId; delete item.role; }
+    delete db.members; save(db);
+  }
+  return db;
 }
 // A session ends after a year, and the server checks – the cookie's Max-Age alone would leave a
 // copied bearer token valid forever (sessions from before this rule count from their creation)
@@ -141,7 +151,7 @@ export function appChoicePage({ appLink, webLink }) {
 <p>Sign this phone in to the Space – in the metor app, or here in the browser.</p>
 <a class="b" href="${esc(appLink)}">Open in the metor app</a>
 <a class="b w" href="${esc(webLink)}">Continue in the browser</a>
-<p style="font-size:14px">No app yet? The browser works the same way, and the app can be connected later from <em>Settings → Devices</em>.</p>
+<p style="font-size:14px">No app yet? The browser works the same way, and the app can be connected later from <em>Manage Space → My devices & notifications</em>.</p>
 </main></body></html>`;
 }
 
@@ -161,7 +171,7 @@ export function signInPage({ error = null } = {}) {
 ${error ? `<p class="err">${esc(error)}</p>` : ""}
 <ol>
 <li><strong>Setup link</strong>: shown by the installer and by <code>metor auth link</code> inside the box – open it on this device.</li>
-<li><strong>From a signed-in device</strong>: open <em>Settings → Devices → Link a device</em> there and scan the QR code with this phone, or enter the pairing code here:</li>
+<li><strong>From a signed-in device</strong>: open <em>Manage Space → My devices & notifications → Link a device</em> there and scan the QR code with this phone, or enter the pairing code here:</li>
 </ol>
 <form method="post" action="/bots/auth/code"><input name="code" placeholder="XXXX-XXXX" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" required><button type="submit">Sign in</button></form>
 </main></body></html>`;

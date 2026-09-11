@@ -13,7 +13,7 @@ import { resourceAlive } from "./metor-desktop.mjs";
 import { clipboardText, pasteText, copyText, readClipboard, copyScreenKey } from "./metor-clipboard.mjs";
 const screenClipboardScript = readFileSync(new URL("./metor-screen-clipboard.js", import.meta.url));
 import { resizeScreen, screenSize, withScreenResizeLock } from "./metor-screen.mjs";
-import { createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
@@ -30,6 +30,19 @@ import * as connectors from "./metor-connectors.mjs";
 const PORT = Number(process.env.METOR_GATEWAY_PORT ?? 6010);
 const BASE = (process.env.METOR_WATCH_BASE ?? "").replace(/\/$/, "");
 const FRONTEND_DIR = process.env.METOR_FRONTEND_DIR ?? "/usr/local/lib/metor/frontend";
+const spaceFile = join(process.env.METOR_AUTH_DIR ?? join(process.env.METOR_WORKSPACE_DIR ?? "/workspace", ".metor"), "space.json");
+function spaceInfo() {
+  try { return { name: JSON.parse(readFileSync(spaceFile, "utf8")).name ?? "Space" }; }
+  catch (e) { if (e.code !== "ENOENT") throw e; return { name: "Space" }; }
+}
+function saveSpace(name) {
+  mkdirSync(dirname(spaceFile), { recursive: true });
+  const tmp = `${spaceFile}.${process.pid}.tmp`;
+  writeFileSync(tmp, JSON.stringify({ name }) + "\n", { mode: 0o600 });
+  renameSync(tmp, spaceFile);
+  sseEmit("space", "space", { name });
+  return { name };
+}
 // Version: VERSION file next to this script in the image, repo root in a checkout (as in metor.mjs)
 const VERSION = (() => {
   const here = dirname(fileURLToPath(import.meta.url));
@@ -256,6 +269,15 @@ async function api(req, res, url) {
   const u = new URL(url, "http://gateway");
   const rest = u.pathname.split("/").filter(Boolean).slice(2); // after /bots/api/
 
+  if (rest.length === 1 && rest[0] === "space") {
+    if (req.method === "GET") return send(200, spaceInfo());
+    if (req.method === "PUT") {
+      const body = await readBody(req), name = typeof body?.name === "string" ? body.name.trim() : "";
+      if (!name || name.length > 60 || /\p{Cc}/u.test(name)) return send(400, { error: "Use a Space name between 1 and 60 characters, without control characters." });
+      return send(200, saveSpace(name));
+    }
+  }
+
   if (req.method === "GET" && rest.length === 1 && rest[0] === "memory") return send(200, memoryGuard.snapshot());
 
   if (req.method === "GET" && rest[0] === "events") {
@@ -264,6 +286,7 @@ async function api(req, res, url) {
     const topics = new Set((u.searchParams.get("topics") ?? "agents").split(",").filter(Boolean));
     const client = { res, topics, sessionId: sessionOf(req)?.id ?? null };   // who is looking – push skips active viewers
     sseClients.add(client);
+    if (topics.has("space")) res.write(`event: space\ndata: ${JSON.stringify(spaceInfo())}\n\n`);
     req.on("close", () => sseClients.delete(client));
     // Every new client gets the current list at once – the broadcast (pushAgents) only fires on changes
     if (client.topics.has("agents")) agentList().then((list) => { try { res.write(`event: agents\ndata: ${JSON.stringify(list)}\n\n`); } catch {} }).catch(() => {});

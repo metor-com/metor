@@ -7,6 +7,8 @@
   // and removing a computer live in its own ⋮ menu (Sidebar.svelte). A browser never gets here.
   import { app, gateway } from "../lib/base.js";
   import { computers, loadComputers } from "../lib/session.js";
+  import { openAdministration, removeFromOverview } from "../lib/administration.js";
+  let menuFor = null;
   import Settings from "./Settings.svelte";
   export let onBack;                   // a tap on the computer shown: back to its bot list
   export let onOpen;                   // (computer) → another computer: its list slides in, then the interface loads anew
@@ -36,7 +38,7 @@
       </button>
       {#if menuOpen}
         <div class="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
-          <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
+          <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>App settings</button>
         </div>
       {/if}
     </div>
@@ -46,7 +48,7 @@
     {#each $computers as c (c.id)}
       {@const s = state(c)}
       <li>
-        <button type="button" class="{row} hover:bg-zinc-50" on:click={() => open(c)} title={c.origin}>
+        <div class="flex items-center"><button type="button" class="{row} hover:bg-zinc-50" on:click={() => open(c)} title={c.origin}>
           <span class="flex size-9 shrink-0 items-center justify-center rounded-full {c.signedIn && c.reachable !== false ? 'bg-zinc-900 text-white' : 'bg-zinc-200 text-zinc-500'}">
             <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18v11H3zM8 21h8M12 16v5" /></svg>
           </span>
@@ -56,6 +58,11 @@
           </span>
           {#if c.unread}<span class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[11px] font-semibold text-white">{c.unread > 99 ? "99+" : c.unread}</span>{/if}
         </button>
+        <button class="shrink-0 px-3 py-2 text-zinc-500" aria-label="Actions for {c.name}" on:click|stopPropagation={() => menuFor = menuFor === c.id ? null : c.id}>⋮</button></div>
+        {#if menuFor === c.id}<div class="flex flex-wrap gap-2 px-3 pb-3 text-xs">
+          {#if c.signedIn}<button class="rounded border px-2 py-1" on:click={() => openAdministration(c)}>Manage Space</button>{/if}
+          <button class="rounded border px-2 py-1" on:click={() => removeFromOverview(c)}>Remove from my overview</button>
+        </div>{/if}
       </li>
     {/each}
     {#if !$computers.length}<li class="p-3 text-sm text-zinc-400">No Space connected</li>{/if}

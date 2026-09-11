@@ -5,7 +5,7 @@ import { writable, derived, get } from "svelte/store";
 import { listAgents, chatHistory, agentAction, chatInterrupt, chatRead, fileUrl } from "./api.js";
 import { openEvents } from "./events.js";
 import { settings } from "./settings.js";
-import { app, gateway, setGateway } from "./base.js";
+import { app, gateway, setGateway, space } from "./base.js";
 
 // The hash: `#/<bot>` is the selected bot, `#/computers` the overview of the connected computers
 // (native clients with several of them, knowledge/design/several-computers.md), `#/connect…` the
@@ -75,10 +75,11 @@ function reconnect(background = false) {
   const name = get(selected);
   inBackground = background;
   closeEvents = openEvents({
-    topics: background ? ["notify"] : ["agents", ...(name ? [`chat:${name}`] : []), ...(app ? ["notify"] : [])],
+    topics: background ? ["notify", "space"] : ["agents", "space", ...(name ? [`chat:${name}`] : []), ...(app ? ["notify"] : [])],
     onAgents: (list) => { agents.set(list); pending.update((p) => p.filter((x) => !list.some((a) => a.name === x.name))); },
     onChat: ({ bot, entry }) => { if (bot === get(selected)) { applyEntry(entry); if (entry.role === "assistant") markRead(bot); } },
     onNotify,
+    onSpace: value => { space.set(value); computers.update(list => list.map(c => c.id === get(gateway)?.id ? { ...c, name: value.name, short: value.name } : c)); },
     onOpen: background ? null : () => { refresh(); const n = get(selected); if (n) loadHistory(n); },
   });
 }

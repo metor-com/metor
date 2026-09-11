@@ -1,4 +1,6 @@
 <script>
+  import { openAdministration } from "../lib/administration.js";
+  let settingsMode = "app";
   // The bot list, messenger style: picture, title, time of the last message, a second line with
   // what the bot is up to (or its last message) and the unread badge (counts and previews come
   // from the gateway's agents list). No status dot: a stopped bot is greyed out, a working one
@@ -8,7 +10,7 @@
   import Settings from "./Settings.svelte";
   import { settings } from "../lib/settings.js";
   import { whenLabel } from "../lib/when.js";
-  import { app, gateway } from "../lib/base.js";
+  import { app, gateway, space } from "../lib/base.js";
   import { loadComputers } from "../lib/session.js";
   export let agents = [];
   export let selected = null;
@@ -24,14 +26,10 @@
   export let onComputers = null;
   $: currentId = $gateway?.id ?? null;   // follows a warm switch
   $: inApp = !!app && !!onComputers;
-  $: computerName = title ?? computers.find((c) => c.id === currentId)?.short ?? $gateway?.short ?? $gateway?.name ?? "metor";
+  $: computerName = title ?? $space?.name ?? computers.find((c) => c.id === currentId)?.short ?? $gateway?.short ?? $gateway?.name ?? "metor";
   let creating = false, showSettings = false, menuOpen = false;
-  async function renameComputer() {
-    const c = computers.find((x) => x.id === currentId); const name = prompt("Name of this Space", c?.name ?? computerName); if (name == null) return;
-    try { await app.rename(currentId, name.trim()); await loadComputers(); } catch (e) { alert(e.message); }
-  }
   async function forgetComputer() {
-    if (!confirm(`Forget "${computerName}"? The app signs out of it; the Space and its bots stay as they are.`)) return;
+    if (!confirm(`Remove "${computerName}" from this device? The Space and its bots will keep running.`)) return;
     try { await app.forget(currentId); } catch (e) { alert(e.message); }   // the app shows the connect screen
   }
   const pct = (v) => (v == null ? null : Math.round(v <= 1 ? v * 100 : v));
@@ -71,12 +69,9 @@
         </button>
         {#if menuOpen}
           <div class="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
-            {#if inApp}
-              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; renameComputer(); }}>Rename Space…</button>
-              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; forgetComputer(); }}>Forget Space</button>
-            {:else}
-              <button type="button" class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; showSettings = true; }}>Settings</button>
-            {/if}
+            <button class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; openAdministration($gateway); }}>Manage Space</button>
+            {#if inApp}<button class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; forgetComputer(); }}>Remove from my overview</button>{/if}
+            {#if !inApp}<button class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; settingsMode = 'app'; showSettings = true; }}>App settings</button>{/if}
           </div>
         {/if}
       </div>
@@ -135,6 +130,6 @@
     <AgentCreate onDone={(name, title) => { creating = false; if (name) onCreated(name, title); }} />
   {/if}
   {#if showSettings}
-    <Settings onDone={() => (showSettings = false)} />
+    <Settings mode={settingsMode} spaceName={computerName} onDone={() => (showSettings = false)} />
   {/if}
 </aside>

@@ -116,6 +116,9 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   "ask" connectors produce a card in every runtime (Codex approval requests, Gemini
   `session/request_permission`), connectors chosen per bot, trust profiles on top.
 
+Personal Space administration is implemented (ADR-0028), without membership roles.
+The management-plane isolation below remains an independent security improvement.
+
 ## Security (from the architecture review of 2026-09-06; the quick wins are built)
 
 - **Separate the management from the bots** -

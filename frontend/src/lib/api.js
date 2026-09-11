@@ -82,3 +82,6 @@ export const resizeScreen = (name, width, height) => req("PUT", `/agents/${name}
 export const listBotEvents = (name) => req("GET", `/agents/${name}/events`);
 
 export const spaceMemory = () => req("GET", "/memory");
+
+export const spaceInfo = () => req("GET", "/space");
+export const renameSpace = (name) => req("PUT", "/space", { name });
