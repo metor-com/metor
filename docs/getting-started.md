@@ -447,3 +447,27 @@ remove the Space or its bots.
 A Space is personal. Each device has its own revocable session; all signed-in devices
 can manage the Space. There are no membership roles or invitations for other people.
 The gateway requires sign-in for protected API requests, including name changes.
+
+### Change the RAM allocation
+
+On the desktop app running the local Space, open **Manage Space → Resources & updates
+→ RAM for this Space**. This shows the actual allocation, total host RAM, a host reserve
+and the maximum allowed allocation after accounting for other running containers.
+Choose **New total RAM (GiB)** in steps of 0.25 GiB. The value replaces the current
+allocation; it is not added to it. For example, changing from 4 to 6 GiB adds 2 GiB.
+
+For Apple's container runtime, **Apply and restart** asks for confirmation because it
+interrupts running bot tasks. The existing image, data volumes, files, chats and device
+sign-ins are retained. If the new configuration fails to start, metor attempts to restore
+the previous allocation. The operation does not rebuild or update the image.
+
+The limit is saved on the host per runtime and container name. Normal starts and updates
+reuse it. Precedence is explicit `METOR_MEMORY`, then the saved allocation, then the
+runtime default (4 GiB for Apple; no imposed limit for Docker). When `METOR_MEMORY` is
+set, remove the override and restart the desktop app before changing RAM here.
+
+Apple containers also support reductions down to 1 GiB through Apply and restart.
+The confirmation warns when current usage exceeds the new limit or cannot be checked. Docker on Linux can increase an existing configured limit
+live; Docker Desktop VM sizing and remote server changes are not offered here. This
+setting changes a container limit, not physical RAM or a VPS plan. Custom Apple container
+configurations that cannot be safely recreated show an explanation instead of Apply.

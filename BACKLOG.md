@@ -69,18 +69,9 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
   found the same day is fixed. Runtime/browser/desktop startup is now on demand (ADR-0024);
   automatic runtime sleep is implemented (ADR-0025). Runtime-start admission now checks Space RAM, serializes starts, preserves a reserve and exposes waiting bots and memory readings (ADR-0027). Browser eviction and memory admission for browser/desktop starts remain open.
-- **Persistent RAM setting per Space** (2026-09-10, complements the memory guard above) -
-  expose **RAM for this Space** in Settings, show the current allocation and host capacity,
-  and persist the chosen limit across app launches, Space restarts and updates. For Apple's
-  `container`, offer **Apply and restart**: recreate the container with the new memory limit
-  and existing data volumes, without rebuilding the image; explain that running bot turns
-  are interrupted and preserve bots, chats and sign-ins. For Docker on Linux, increase a
-  configured memory limit live where supported and within host capacity. This changes the
-  container allocation, not the VPS plan or physical RAM. Validate values and leave enough
-  memory for the host; treat reductions separately to avoid killing active workloads.
-  Reuse the host wrapper's `METOR_MEMORY` support and define precedence between saved values,
-  explicit environment overrides and defaults. Acceptance: a saved increase survives the next
-  ordinary start/update, and applying it retains existing Space data.
+- **RAM allocation follow-ups** - local increases and persistence are implemented (ADR-0029).
+  Apple reductions include a usage warning and restart. Add Docker reductions, Docker Desktop VM capacity management,
+  and remote server resource changes once the SSH management connection exists.
 - **Runtime choice when both are installed** - on a Mac with Docker Desktop and Apple's
   `container`, the host command picks Docker (a stopped Docker cannot say whether it holds the
   computer) and starts Docker Desktop, even while Apple's runtime already runs (seen 2026-09-07

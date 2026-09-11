@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createResourceManager } from "./space-resources.mjs";
 import updater from "electron-updater";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -296,6 +297,31 @@ async function localStatus() {
   const [state, runtime] = (r.ok ? r.out.trim().split("\n").pop() : "unknown").split(/\s+/);
   return { wrapper: true, runtime: runtime ?? null, state: state === "none" ? "no-runtime" : state, platform: process.platform, computer: publicInfo(c) };
 }
+function resourceTarget(id) {
+  const c = computer(id);
+  if (!c || !isLocal(c.origin) || !secretOf(id)) throw new Error("RAM can only be changed for a signed-in Space on this computer.");
+  return c;
+}
+const resourceManager = createResourceManager({ env: wrapperEnv() });
+async function localResources(id) {
+  const c = resourceTarget(id), st = await localStatus();
+  const { info, ...state } = await resourceManager.read(st.runtime, c.origin);
+  return state;
+}
+async function resizeLocal(id, mib) {
+  if (localBusy) return { ok: false, error: "A local Space operation is already in progress." };
+  localBusy = true;
+  try {
+    const c = resourceTarget(id), st = await localStatus();
+    const result = await resourceManager.apply(st.runtime, c.origin, mib, {
+      ready: () => waitReachable(c.origin),
+      progress: line => broadcast("metor:local-progress", { line, action: "memory" }),
+    });
+    await probe(c); refreshMenus();
+    return result;
+  } catch (e) { return { ok: false, error: e.message }; }
+  finally { localBusy = false; }
+}
 let localBusy = false;
 async function localAction(action, win = null, id = null) {
   const args = { setup: ["setup", "--no-open"], up: ["box", "up"], down: ["box", "down"] }[action];
@@ -414,6 +440,8 @@ handle("metor:use", async (e, id) => {
   return info;
 });
 handle("metor:forget", async (_e, id) => { await forget(id); for (const [w, cid] of windows) if (cid === id) switchWindow(w, null); refreshMenus(); });
+handle("metor:local-resources", (_e, id) => localResources(String(id)));
+handle("metor:local-memory", (_e, id, mib) => resizeLocal(String(id), mib));
 handle("metor:local-status", () => localStatus());
 // Download a file of a connected computer: Chromium's download with the session's request hook (the token),
 // Electron's save dialog. The interface cannot do it with a plain link – across origins the download

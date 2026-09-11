@@ -5,6 +5,7 @@
   // per-device preferences from lib/settings.js.
   import { onMount } from "svelte";
   import { app, space } from "../lib/base.js";
+  import SpaceAllocation from "./SpaceAllocation.svelte";
   import SpaceMemory from "./SpaceMemory.svelte";
   import Devices from "./Devices.svelte";
   import Connectors from "./Connectors.svelte";
@@ -101,6 +102,7 @@
           <Connectors />
         {:else if tab === "computer"}
           <div class="flex flex-col divide-y divide-zinc-100">
+            <SpaceAllocation />
             <SpaceMemory />
             <div class="flex flex-col gap-2 py-6">
               <div class="flex items-baseline justify-between gap-4">

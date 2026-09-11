@@ -31,3 +31,4 @@ Format: `NNNN-short-title.md` with sections **Context · Decision · Consequence
 | 0026 | [Durable bot event history](0026-bot-events.md) | accepted (2026-09-10) |
 | 0027 | [Admit runtime starts against Space RAM](0027-memory-admission.md) | accepted (2026-09-10) |
 | 0028 | [Personal settings and Space administration](0028-space-administration.md) | accepted (2026-09-10) |
+| 0029 | [Persistent local Space RAM allocation](0029-space-ram-allocation.md) | accepted (2026-09-11) |

@@ -35,6 +35,17 @@ detect_runtime() {
   echo none
 }
 RT="$(detect_runtime)"
+# Explicit environment > saved per-runtime/container allocation > existing defaults.
+saved_memory() {
+  local file="$STATE_DIR/resources/$RT/$C.memory-mib" value=""
+  case "$C" in *[!a-zA-Z0-9_.-]*) echo "Invalid container name" >&2; return 1 ;; esac
+  if [ -f "$file" ]; then
+    value="$(cat "$file")"
+    case "$value" in ''|*[!0-9]*) echo "Invalid saved RAM allocation" >&2; return 1 ;; esac
+    [ "$value" -ge 1024 ] || { echo "Invalid saved RAM allocation" >&2; return 1; }
+    printf '%sm' "$value"
+  fi
+}
 remember_runtime() { mkdir -p "$STATE_DIR" && echo "$RT" > "$STATE_DIR/runtime"; }
 hints() {
   cat <<'HINTS'
@@ -82,6 +93,8 @@ VOLS="-v metor-workspace:/workspace -v metor-claude:/home/box/.claude -v metor-c
 
 box_up() {
   need_runtime; choose_image
+  local memory="${METOR_MEMORY:-}"
+  if [ -z "$memory" ]; then memory="$(saved_memory)" || return 1; fi
   if running; then echo "$C is already running ($RT)"; return; fi
   # The base URL the gateway prints in setup and watch links: the public one, else this port when it is not the default
   local base="${METOR_WATCH_BASE:-}"; [ -z "$base" ] && [ "$PORT" != 6010 ] && base="http://127.0.0.1:$PORT"
@@ -91,12 +104,13 @@ box_up() {
   image_present "$IMAGE" || { echo "getting $IMAGE (about 1 GB to download – this takes a few minutes)"; "$RT" image pull $PROGRESS "$IMAGE"; }
   case "$RT" in
     docker)
+      local memory_args=(); [ -z "$memory" ] || memory_args=(--memory "$memory")
       docker rm -f "$C" >/dev/null 2>&1 || true
       # Gateway (6010) and the legacy noVNC ports only on the host's loopback; a TLS proxy in front on servers (metor box serve).
       # Limit nofile: older Docker engines pass down >1 billion – x11vnc scans all fds on client connect and then "hangs" for almost an hour
       # shellcheck disable=SC2086
       docker run -d --name "$C" --restart unless-stopped --hostname metor --shm-size=1g \
-        --ulimit nofile=65536:65536 \
+        --ulimit nofile=65536:65536 "${memory_args[@]}" \
         -p "$BIND:$PORT:6010" -p 127.0.0.1:6011-6049:6011-6049 \
         -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" -e "METOR_RUNTIME_IDLE_SECONDS=${METOR_RUNTIME_IDLE_SECONDS:-300}" \
         $VOLS "$IMAGE" >/dev/null ;;
@@ -109,7 +123,7 @@ box_up() {
       container run --rm $PROGRESS --user 0:0 --entrypoint /bin/sh $VOLS "$IMAGE" -c 'chown 1000:1000 /workspace /home/box/.claude /home/box/.codex /home/box/.gemini /home/box/.copilot' >/dev/null
       # No restart policy here: after a reboot, `metor box up` (or the desktop app) starts the computer again
       # shellcheck disable=SC2086
-      container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${METOR_MEMORY:-4g}" --cpus "${METOR_CPUS:-4}" \
+      container run -d $PROGRESS --name "$C" --shm-size 1g --memory "${memory:-4g}" --cpus "${METOR_CPUS:-4}" \
         -p "$BIND:$PORT:6010" \
         -e "METOR_WATCH_BASE=$base" -e "METOR_AUTH=${METOR_AUTH:-}" -e "METOR_APP_ORIGINS=${METOR_APP_ORIGINS:-}" -e "METOR_UPDATE_CHECK=${METOR_UPDATE_CHECK:-}" -e "METOR_RUNTIME_IDLE_SECONDS=${METOR_RUNTIME_IDLE_SECONDS:-300}" \
         $VOLS "$IMAGE" >/dev/null ;;

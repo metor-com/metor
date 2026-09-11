@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Manage Space can increase and persist local RAM allocations, keeping a host reserve. Apple containers also support reductions with a memory-usage warning and restart. The editor shows the new total in GiB, the current allocation and the increase. Apple containers use Apply and restart with data/sign-in preservation and rollback; supported Linux Docker limits increase live.
+
 - Keep App settings separate and combine all Space settings under Manage Space: shared name, devices, notifications, resources, updates and connectors. Space names sync across devices; Remove from my overview remains device-local.
 
 - Space settings show current RAM headroom and waiting bots. Runtime starts queue under memory pressure, resume automatically, and record admission delays in the Event log.
