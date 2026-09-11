@@ -44,8 +44,8 @@ CX23 (2 vCPUs, 4 GB RAM, 40 GB disk). Before installation, SSH root password log
 had to be enabled on the existing server; resetting its root password alone had not
 enabled SSH access. The host fingerprint was compared in the provider console.
 The app installation and connection then worked, and the user tried metor successfully.
-This confirms the first live deployment, not every failure path: interrupted-install
-recovery, other distributions/architectures and additional providers still need live tests.
+This confirms the first live deployment, not every provider failure path. Other
+distributions/architectures and additional providers still need acceptance tests.
 Non-root sudo, custom proxies and ongoing remote RAM management are follow-ups.
 
 ## Recovery and diagnostics (2026-09-11)
@@ -67,6 +67,12 @@ Automated recovery tests kill the real Bash installer at four stages and rerun i
 a Docker test double and temporary filesystem. They verify retained data, additional
 environment settings, allocation and replacement of partial files. Real local SSH tests
 cover disconnect/reconnect, private-key signatures, encrypted keys, wrong passphrases,
-key rejection and host mismatch before any authentication offer. Real Docker failure
-recovery and additional providers remain unverified; the successful live Hetzner password
-deployment above remains the provider acceptance evidence.
+key rejection and host mismatch before any authentication offer.
+
+Follow-up verification on 2026-09-11: real Docker and Caddy on an isolated Ubuntu 24.04
+ARM64 VM passed all four SIGKILL/retry boundaries, retaining bots, chat, files, device
+authentication, runtime volumes and enforced RAM allocation. HTTPS used a local Caddy CA
+with verification enabled. A real OpenSSH key login, diagnostics and release upgrade were
+also verified (ADR-0032). These tests do not claim public ACME, provider firewall failure
+recovery or additional provider acceptance; the Hetzner password deployment above remains
+the provider acceptance evidence.

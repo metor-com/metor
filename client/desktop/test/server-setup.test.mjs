@@ -174,3 +174,13 @@ test('an unrecognized SSH key reports key rejection, without password fallback',
   await assert.rejects(inspect({ ...s, domain: 'bots.example.com', fingerprint: fp, authMethod: 'key', privateKey: Buffer.from(key) }), /rejected this SSH key/);
   assert.equal(s.credentials(), 0);
 });
+
+test('commands that read stdin cannot swallow the remaining SSH script', async t => {
+  const s = await server(t, script => script.includes('STDIN_PROBE')
+    ? execFileSync('bash', ['-s'], { input: script, encoding: 'utf8' })
+    : 'METOR_SERVER:ubuntu 24.04|2|3900|42000|2816\n');
+  const session = await inspect({ ...s, domain: 'bots.example.com', fingerprint: fp, password: 'test-secret' });
+  try {
+    assert.equal(await run(session.conn, 'cat >/dev/null\nprintf STDIN_PROBE_COMPLETE\n'), 'STDIN_PROBE_COMPLETE');
+  } finally { session.conn.end(); }
+});

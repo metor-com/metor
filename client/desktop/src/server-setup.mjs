@@ -46,7 +46,9 @@ export function run(conn, script, timeout = 120000, onOutput = () => {}) {
           finish(Error(message || installationError(phase)));
         } else finish(null, output);
       });
-      stream.end(script);
+      // Bash must parse the whole script before a child can consume its stdin.
+      // In particular, compose exec attaches stdin even with -T (no terminal).
+      stream.end(`metor_ssh_operation() {\n${script}\n}\nmetor_ssh_operation </dev/null\n`);
     });
   });
 }
@@ -80,13 +82,13 @@ export function signInError(error, mismatch = false, method = 'password') {
   if (error?.level === 'client-timeout' || error?.code === 'ETIMEDOUT') return 'The SSH connection timed out. Check the server address, SSH port and provider firewall, then retry.';
   return 'The SSH connection failed before sign-in completed. Check the server connection and retry.';
 }
-export async function inspect(input) {
-  try { return await inspectSession(input); }
+export async function inspect(input, inspectConnected = null) {
+  try { return await inspectSession(input, inspectConnected); }
   finally {
     if (input) { input.password = ''; input.passphrase = ''; if (Buffer.isBuffer(input.privateKey)) input.privateKey.fill(0); }
   }
 }
-async function inspectSession(input) {
+async function inspectSession(input, inspectConnected) {
   const address = target(input), domain = domainName(input.domain);
   if (!/^SHA256:[A-Za-z0-9+/]{43}$/.test(input.fingerprint ?? '')) throw Error('Verify the server fingerprint first.');
   const method = input.authMethod === 'key' ? 'key' : 'password';
@@ -120,7 +122,7 @@ async function inspectSession(input) {
     if (conn.config) { conn.config.password = undefined; conn.config.privateKey = undefined; conn.config.passphrase = undefined; }
     input.password = '';
     const prefix = `export METOR_DOMAIN=${quote(domain)}\n`;
-    const info = parseServer(await run(conn, prefix + preflight));
+    const info = inspectConnected ? await inspectConnected(conn, domain) : parseServer(await run(conn, prefix + preflight));
     return { conn, domain, info };
   } catch (error) { conn.end(); throw error; }
   finally {

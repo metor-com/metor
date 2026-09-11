@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createResourceManager } from "./space-resources.mjs";
 import { checkDomain, waitForHttps } from "./server-diagnostics.mjs";
 import updater from "electron-updater";
+import { serverStatus, updateServer, canUpdate } from "./server-management.mjs";
 import { probe as probeServer, inspect as inspectServer, install as installServer } from "./server-setup.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -455,8 +456,9 @@ handle("metor:server-inspect", async (e, args) => {
   const id = e.sender.id;
   if (serverOperations.has(id)) return { ok: false, error: "A server operation is already running." };
   closeServer(id); serverOperations.add(id);
+  let input;
   try {
-    const input = { host: args?.host, port: args?.port, domain: args?.domain, fingerprint: args?.fingerprint, authMethod: args?.authMethod };
+    input = { host: args?.host, port: args?.port, domain: args?.domain, fingerprint: args?.fingerprint, authMethod: args?.authMethod };
     if (input.authMethod === "key") {
       const path = serverKeyFiles.get(id);
       if (!path) throw Error("Choose your private SSH key file first.");
@@ -464,15 +466,29 @@ handle("metor:server-inspect", async (e, args) => {
       input.privateKey = readFileSync(path); input.passphrase = args?.passphrase;
     } else input.password = args?.password;
     if (args) { args.password = ''; args.passphrase = ''; }
-    const s = await inspectServer(input);
+    let managed = null;
+    if (args?.manageId) {
+      managed = computer(args.manageId);
+      const selected = currentOf(BrowserWindow.fromWebContents(e.sender));
+      if (!managed || managed.id !== selected || !secretOf(managed.id) || isLocal(managed.origin)) throw Error("Select a connected remote Space first.");
+      const origin = new URL(managed.origin);
+      if (origin.protocol !== 'https:' || origin.port || input.domain !== origin.hostname) throw Error("The server domain must match the selected Space.");
+    }
+    const s = await inspectServer(input, managed ? serverStatus : null);
+    s.manageId = managed?.id;
     if (e.sender.isDestroyed()) { s.conn.end(); return { ok: false }; }
     s.timer = setTimeout(() => closeServer(id), 10 * 60 * 1000);
     serverSessions.set(id, s);
     e.sender.once("destroyed", () => closeServer(id));
+    if (managed) return { ok: true, ...s.info, canUpdate: canUpdate(s.info.image, app.getVersion()) };
     const dns = await checkDomain(s.domain, s.info.addresses);
     return { ok: true, ...s.info, dns };
   } catch (error) { return { ok: false, error: error.message }; }
-  finally { serverOperations.delete(id); }
+  finally {
+    if (input) { input.password = ""; input.passphrase = ""; if (Buffer.isBuffer(input.privateKey)) input.privateKey.fill(0); }
+    if (args) { args.password = ""; args.passphrase = ""; }
+    serverOperations.delete(id);
+  }
 });
 handle("metor:server-cancel", e => {
   if (!serverOperations.has(e.sender.id)) { closeServer(e.sender.id); serverKeyFiles.delete(e.sender.id); }
@@ -480,7 +496,7 @@ handle("metor:server-cancel", e => {
 handle("metor:server-install", async e => {
   const id = e.sender.id, s = serverSessions.get(id);
   if (serverOperations.has(id)) return { ok: false, error: "A server operation is already running." };
-  if (!s) return { ok: false, error: "The server check expired. Sign in again to retry." };
+  if (!s || s.manageId) return { ok: false, error: "The server check expired. Sign in again to retry." };
   serverOperations.add(id); clearTimeout(s.timer);
   const progress = line => { if (!e.sender.isDestroyed()) e.sender.send("metor:server-progress", line); };
   try {
@@ -495,6 +511,25 @@ handle("metor:server-install", async e => {
     return r;
   } catch (error) { return { ok: false, error: error.message }; }
   finally { closeServer(id); serverOperations.delete(id); }
+});
+// Every operation remains tied to the Space selected when SSH was authenticated.
+for (const action of ["status", "update"]) handle(`metor:server-${action}`, async e => {
+  const id = e.sender.id, s = serverSessions.get(id);
+  if (serverOperations.has(id)) return { ok: false, error: "A server operation is already running." };
+  const selected = currentOf(BrowserWindow.fromWebContents(e.sender));
+  if (!s?.manageId || selected !== s.manageId || !secretOf(selected)) return { ok: false, error: "Server access expired or the selected Space changed. Sign in again." };
+  serverOperations.add(id); clearTimeout(s.timer);
+  try {
+    const state = action === "update" ? await updateServer(s, app.getVersion(), line => {
+      if (!e.sender.isDestroyed()) e.sender.send("metor:server-progress", line);
+    }) : await serverStatus(s.conn, s.domain);
+    return { ok: true, ...state, canUpdate: canUpdate(state.image, app.getVersion()) };
+  } catch (error) { return { ok: false, error: error.message }; }
+  finally {
+    serverOperations.delete(id);
+    if (action === "update" || e.sender.isDestroyed()) closeServer(id);
+    else s.timer = setTimeout(() => closeServer(id), 10 * 60 * 1000);
+  }
 });
 handle("metor:connect", async (e, args) => { const r = await connect(args ?? {}); if (r.ok) { showComputer(BrowserWindow.fromWebContents(e.sender), r.id); refreshMenus(); } return r; });
 // The warm switch: this window shows that computer from now on – no reload, the interface carries on

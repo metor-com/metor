@@ -33,9 +33,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   root-password setup, fingerprint verification, resource checks, installation and app
   connection are implemented (ADR-0031). The user successfully installed and used metor
   on a Hetzner CX23. Private-key authentication (including passphrases), DNS/HTTPS diagnostics and automatic
-  recovery tests are implemented. Remaining: live interrupted-install/retry tests with
-  real Docker, other supported Linux versions and architectures, additional providers,
-  non-root sudo and optional ongoing server management. Test the initial password-change
+  recovery tests are implemented. Real Docker/Caddy recovery, OpenSSH key authentication,
+  diagnostics and release upgrade tests now pass on an isolated Ubuntu 24.04 ARM64 VM.
+  Temporary SSH management (diagnostics and confirmed updates) is implemented (ADR-0032).
+  Remaining: public DNS/ACME and provider-firewall failure acceptance, other supported Linux
+  versions and architectures, additional providers, non-root sudo, remote RAM changes and backups. Test the initial password-change
   flow on a real provider. The onboarding explains provider-console passwords versus SSH access.
   Provider ordering and cloud-init/images remain later extensions.
 

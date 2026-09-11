@@ -2,7 +2,10 @@
   import { onDestroy } from 'svelte';
   import { app } from '../lib/base.js';
   export let onBack;
-  let host = '', port = 22, domain = '', password = '', identity = null, verified = false;
+  export let manageId = null;
+  export let spaceDomain = '';
+  let updated = false, confirmUpdate = false;
+  let host = spaceDomain, port = 22, domain = spaceDomain, password = '', identity = null, verified = false;
   let authMethod = 'password', keyName = '', passphrase = '';
   let info = null, busy = false, error = '', progress = '', installing = false;
   const field = 'w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm';
@@ -18,8 +21,8 @@
   async function inspect() {
     busy = true; error = '';
     try {
-      const result = app.server.inspect({ ...identity, domain, password, authMethod, passphrase }); password = ''; passphrase = '';
-      const r = await result; if (!r.ok) throw Error(r.error); info = r;
+      const result = app.server.inspect({ ...identity, domain, password, authMethod, passphrase, manageId }); password = ''; passphrase = '';
+      const r = await result; if (!r.ok) throw Error(r.error); info = r; updated = false;
     } catch (e) { error = e.message; }
     finally { busy = false; password = ''; passphrase = ''; }
   }
@@ -29,16 +32,28 @@
     catch (e) { error = e.message; info = null; }
     finally { busy = false; installing = false; }
   }
+  async function refresh() {
+    busy = true; error = '';
+    try { const r = await app.server.status(); if (!r.ok) throw Error(r.error); info = r; }
+    catch (e) { error = e.message; }
+    finally { busy = false; }
+  }
+  async function updateServer() {
+    busy = true; error = ''; confirmUpdate = false;
+    try { const r = await app.server.update(); if (!r.ok) throw Error(r.error); info = r; updated = true; progress = 'Update complete. Server access has been closed.'; }
+    catch (e) { error = e.message; info = null; progress = ''; }
+    finally { busy = false; }
+  }
   async function chooseKey() {
     error = '';
     try { const r = await app.server.chooseKey(); if (r.ok) keyName = r.name; else if (!r.cancelled) error = r.error; } catch (e) { error = e.message; }
   }
-  function reset() { app.server.cancel(); identity = null; info = null; verified = false; error = ''; progress = ''; password = ''; passphrase = ''; keyName = ''; }
+  function reset() { updated = false; confirmUpdate = false; app.server.cancel(); identity = null; info = null; verified = false; error = ''; progress = ''; password = ''; passphrase = ''; keyName = ''; }
 </script>
 <main class="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-7 shadow-sm">
   <button type="button" class="text-sm text-zinc-500 disabled:opacity-50" disabled={busy} on:click={() => { reset(); onBack(); }}>‹ Back</button>
-  <h1 class="mt-2 text-xl font-bold">Set up an existing server</h1>
-  <p class="mt-2 text-sm text-zinc-500">Use a fresh Ubuntu or Debian server from Hetzner or another provider. Your server stays in your own account.</p>
+  <h1 class="mt-2 text-xl font-bold">{manageId ? "Manage server" : "Set up an existing server"}</h1>
+  <p class="mt-2 text-sm text-zinc-500">{manageId ? "Sign in temporarily to check this Space’s server or install an update. Server credentials are never saved." : "Use a fresh Ubuntu or Debian server from Hetzner or another provider. Your server stays in your own account."}</p>
   {#if !identity}
     <form class="mt-5 flex flex-col gap-3" on:submit|preventDefault={probe}>
       <label class="text-sm">Server address<input class={field} bind:value={host} placeholder="Server IP or hostname" required disabled={busy} /></label>
@@ -54,7 +69,7 @@
       <label class="mt-3 flex items-start gap-2"><input type="checkbox" bind:checked={verified} disabled={busy} />The fingerprints match.</label>
     </div>
     <form class="mt-4 flex flex-col gap-3" on:submit|preventDefault={inspect}>
-      <label class="text-sm">Space domain<input class={field} bind:value={domain} placeholder="bots.example.com" required disabled={busy} /></label>
+      <label class="text-sm">Space domain<input class={field} bind:value={domain} placeholder="bots.example.com" required disabled={busy || !!manageId} /></label>
       <p class="text-xs text-zinc-500">Point this domain’s DNS records to the server. Allow TCP ports 80 and 443 for HTTPS.</p>
       <label class="text-sm">Sign in as root using
         <select class={field} bind:value={authMethod} disabled={busy} on:change={() => { password = ''; passphrase = ''; }}>
@@ -67,11 +82,34 @@
         <p class="text-xs text-zinc-500">Choose the private key matching the public key you added at your provider. Your private key stays on this device. The passphrase is never saved.</p>
       {:else}
         <label class="text-sm">Root password<input class={field} type="password" autocomplete="off" bind:value={password} required disabled={busy || !verified} /></label>
-        <p class="text-xs text-zinc-500">Used for this setup only. The password is never saved. A provider-console password may not allow SSH login; use your SSH key if the server was created with one.</p>
+        <p class="text-xs text-zinc-500">Used for this connection only. The password is never saved. A provider-console password may not allow SSH login; use your SSH key if the server was created with one.</p>
       {/if}
       <button class={primary} disabled={busy || !verified || (authMethod === 'key' && !keyName)}>{busy ? 'Checking server…' : 'Check server'}</button>
       <button type="button" class="text-sm underline" disabled={busy} on:click={reset}>Use another server</button>
     </form>
+  {:else if info && manageId}
+    <dl class="mt-4 grid grid-cols-2 gap-2 text-sm">
+      <dt>metor version</dt><dd>{info.version || 'Unavailable'}</dd>
+      <dt>Container</dt><dd>{info.running ? 'Running' : 'Stopped'}{info.health ? ` · ${info.health}` : ''}</dd>
+      <dt>Restarts</dt><dd>{info.restarts}</dd>
+      <dt>RAM allocation</dt><dd>{(info.memory / 1024 ** 3).toFixed(2)} GiB</dd>
+      <dt>Free disk</dt><dd>{(info.disk / 1024).toFixed(1)} GiB</dd>
+    </dl>
+    {#if info.oomKilled}<p class="mt-3 text-sm text-amber-700">Docker reports that the container was stopped after running out of memory.</p>{/if}
+    <p class="mt-3 break-all text-xs text-zinc-500">{info.image}</p>
+    {#if !updated}
+      <button type="button" class="mt-4 rounded-lg border border-zinc-300 px-3 py-2 text-sm" disabled={busy} on:click={refresh}>Refresh diagnostics</button>
+      {#if info.canUpdate}
+        <button type="button" class="mt-3 w-full {primary}" disabled={busy} on:click={() => confirmUpdate = true}>Update to {app.version}…</button>
+        {#if confirmUpdate}
+          <div class="mt-3 rounded-lg bg-amber-50 p-3 text-sm">
+            <p>This restarts the Space and interrupts active bot work. Files, histories, sign-ins and RAM settings are retained. Make a server backup before updating.</p>
+            <button type="button" class="mt-3 {primary}" disabled={busy} on:click={updateServer}>Update and restart Space</button>
+            <button type="button" class="ml-3 text-sm underline" disabled={busy} on:click={() => confirmUpdate = false}>Cancel</button>
+          </div>
+        {/if}
+      {:else}<p class="mt-3 text-xs text-zinc-500">No upgrade is available from this desktop app. Upgrades support official, numbered metor releases. Install a newer desktop app when a new release is available.</p>{/if}
+    {/if}
   {:else if info && !installing}
     <div class="mt-4 rounded-lg bg-zinc-100 p-4 text-sm">
       <p class="font-medium">{info.os} · {info.cpus} vCPUs</p>

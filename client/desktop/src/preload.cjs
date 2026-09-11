@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld("metor", {
     probe: args => ipcRenderer.invoke("metor:server-probe", args),
     inspect: args => ipcRenderer.invoke("metor:server-inspect", args),
     install: () => ipcRenderer.invoke("metor:server-install"),
+    status: () => ipcRenderer.invoke("metor:server-status"),
+    update: () => ipcRenderer.invoke("metor:server-update"),
     cancel: () => ipcRenderer.invoke("metor:server-cancel"),
     onProgress: cb => { const listener = (_e, line) => cb(line); ipcRenderer.on("metor:server-progress", listener); return () => ipcRenderer.removeListener("metor:server-progress", listener); },
   },

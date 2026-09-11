@@ -260,9 +260,13 @@ start the bots.
 
 ## Operations
 
-- **Update:** `docker compose pull && docker compose up -d` (add the profile if you use it). Bots,
+- **Update:** for an app-installed VPS, use **Manage Space → Resources & updates → Manage server**
+  in the desktop app. It updates both the image and its Compose definition, including new
+  persistent volumes. A manually managed server must likewise update its image reference and
+  review the matching `deploy/compose.yml` before recreating the box; simply pulling a pinned
+  old tag does not upgrade it. Back up volumes and retain custom Compose changes. Bots,
   histories and routines survive; sessions resume with their context. On a Mac it is
-  `metor box update`. The interface shows the newest release under *Settings → Computer* (the box
+  `metor box update`. The interface shows the newest release under *Manage Space → Resources & updates* (the box
   asks GitHub once a day; `METOR_UPDATE_CHECK=off` stops that), together with the runtimes'
   versions - the runtimes travel with the image, so updating metor is what brings new runtime
   versions and models.
@@ -304,3 +308,42 @@ start the bots.
 - `METOR_MEMORY` - memory limit of the box (default `8G`; the compose file also caps the box at
   4096 processes, so a runaway bot cannot take the server down with it). A handful of bots with
   their browsers fit into 8 GB; raise it for more.
+
+
+## Manage an app-installed server
+
+In the desktop app, open **Manage Space → Resources & updates → Manage server…**.
+Verify the SSH fingerprint and sign in as root with a password or private key. This is
+short-lived access; passwords and passphrases are never saved. Diagnostics show the
+container state, restarts, Docker OOM flag, free disk, RAM allocation and release.
+The domain must match the selected Space and the installation must have been created
+by the app in `/opt/metor`.
+
+When the app is newer than the Space, **Update to …** offers its matching release.
+Confirm **Update and restart Space** after saving active work and making a server backup.
+The update retains volumes and RAM settings, installs the release’s matching Compose file,
+restarts only the box and checks its version. Custom Compose files require a manual update.
+A failed start restores the previous configuration and attempts to restart the previous
+image. It does not undo data migrations. Server access closes after the update.
+
+If an interrupted update leaves `/opt/metor/.env.before-update` or
+`/opt/metor/compose.yml.before-update`, another update stops
+for manual review. Inspect the running image and gateway. Once the result is understood,
+keep the completed update or restore both saved configuration files and restart the box. Remove
+the backup files only after confirming the Space is healthy. Do not delete the Docker volumes.
+
+### Recovery integration test
+
+On a Mac with Colima and Docker installed, run `node scripts/test-server.mjs`. It creates
+a disposable Ubuntu VM, runs recovery, HTTPS, SSH authentication and upgrade checks, then
+deletes that VM and its test data. It does not activate its Docker context, mount host
+folders or forward application ports. Allow several minutes for image downloads.
+
+`scripts/server-recovery.integration.mjs` is an opt-in Linux test for a **disposable,
+empty Docker daemon**. It refuses existing containers, volumes and `/opt/metor`. It runs
+the actual installer against the released image, injects SIGKILL at download/file/start/
+gateway boundaries, retries and checks bot files, history, device sessions, all runtime
+volumes and the enforced RAM limit. It also checks Caddy HTTPS with a trusted local CA.
+Set `METOR_DISPOSABLE_DOCKER=yes` only inside the disposable VM. Never point this test
+at a real Space or production Docker daemon. Public DNS/ACME/provider firewall acceptance
+still requires a separate test deployment.

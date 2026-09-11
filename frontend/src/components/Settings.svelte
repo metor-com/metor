@@ -4,7 +4,9 @@
   // Devices = sign-in, pairing, notifications (ADR-0012/0013); Appearance and Behaviour are
   // per-device preferences from lib/settings.js.
   import { onMount } from "svelte";
-  import { app, space } from "../lib/base.js";
+  import { app, space, gateway } from "../lib/base.js";
+  import ServerSetup from "./ServerSetup.svelte";
+  let managingServer = false;
   import SpaceAllocation from "./SpaceAllocation.svelte";
   import SpaceMemory from "./SpaceMemory.svelte";
   import Devices from "./Devices.svelte";
@@ -48,6 +50,11 @@
   $: SECTIONS = ALL_SECTIONS.filter(s => (mode === "admin" ? ["general","devices","computer","connectors"] : ["appearance","behaviour"]).includes(s.id));
   $: heading = mode === "admin" ? `Manage Space · ${$space?.name ?? spaceName}` : "App settings";
   $: section = SECTIONS.find((s) => s.id === tab) ?? SECTIONS[0];
+  async function backFromServer() {
+    managingServer = false;
+    try { info = await versionInfo(); infoError = null; }
+    catch (e) { infoError = e.message; }
+  }
   const close = () => onDone?.();
   const seg = (on) => `min-w-0 flex-auto truncate rounded-lg px-3 py-2 text-sm transition-colors ${on ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`;
 </script>
@@ -101,7 +108,17 @@
         {:else if tab === "connectors"}
           <Connectors />
         {:else if tab === "computer"}
+          {#if managingServer && app?.server && $gateway && !$gateway.local}
+            <ServerSetup manageId={$gateway.id} spaceDomain={new URL($gateway.origin).hostname} onBack={backFromServer} />
+          {:else}
           <div class="flex flex-col divide-y divide-zinc-100">
+            {#if app?.server?.status && $gateway && !$gateway.local && $gateway.origin.startsWith('https://')}
+              <div class="flex flex-col gap-2 pb-6">
+                <div class="text-sm font-medium">Server</div>
+                <p class="text-[13px] text-zinc-500">Check Docker status, free disk and restarts, or update this Space. Available for servers set up through metor.</p>
+                <button class="self-start rounded-lg border border-zinc-300 px-3 py-2 text-sm" on:click={() => managingServer = true}>Manage server…</button>
+              </div>
+            {/if}
             <SpaceAllocation />
             <SpaceMemory />
             <div class="flex flex-col gap-2 py-6">
@@ -113,7 +130,7 @@
               {#if infoError}<p class="text-[13px] text-red-600">{infoError}</p>{/if}
               {#if info?.latest?.newer}
                 <p class="text-[13px] leading-relaxed text-zinc-500">Release {info.latest.version} is out{#if info.latest.url} – <a class="underline" href={info.latest.url} target="_blank" rel="noopener noreferrer">what changed</a>{/if}. Bots, histories and sign-ins survive an update.</p>
-                <p class="text-[13px] leading-relaxed text-zinc-500">On a server: <code class="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">cd /opt/metor && docker compose pull && docker compose up -d</code> (add <code class="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">--profile caddy</code> when metor's own HTTPS runs). On a Mac: <code class="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">metor box update</code>.</p>
+                <p class="text-[13px] leading-relaxed text-zinc-500">On a server, use Manage server in the desktop app or follow the <a class="underline" href="https://github.com/metor-com/metor/blob/main/INSTALL.md#operations" target="_blank" rel="noopener noreferrer">server update instructions</a>. On a Mac: <code class="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">metor box update</code>.</p>
               {:else if info && !info.latest}
                 <p class="text-[13px] leading-relaxed text-zinc-500">{info.updateCheck ? "The newest release has not been looked up yet – the Space checks GitHub once a day." : "The Space does not check for new releases (METOR_UPDATE_CHECK=off)."}</p>
               {/if}
@@ -130,6 +147,7 @@
               <p class="text-[13px] leading-relaxed text-zinc-500">The runtimes travel with metor: an update of metor brings the versions that were tested together, and with them new models. Codex's model list, for one, is the CLI's own catalogue.</p>
             </div>
           </div>
+          {/if}
         {:else if tab === "appearance"}
           <div class="flex flex-col divide-y divide-zinc-100">
             <div class="flex flex-col gap-3 pb-6">

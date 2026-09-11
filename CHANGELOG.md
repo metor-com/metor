@@ -7,6 +7,9 @@ decisions in `knowledge/decisions/`.
 
 ## [Unreleased]
 
+- **Manage server** under Manage Space shows Docker diagnostics and upgrades older official releases to the app version through temporary SSH access, with confirmation and recovery on failed startup.
+- **Deployment tests:** opt-in real Docker/Caddy recovery tests and real DNS, TCP and TLS diagnostics tests.
+
 - **More reliable server setup:** interrupted installs retain extra settings and data;
   completed setups reconnect without restarting bots. DNS and HTTPS failures now give
   targeted diagnostics. Sign in with a private SSH key, including encrypted keys, as an
