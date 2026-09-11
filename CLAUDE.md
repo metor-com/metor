@@ -76,7 +76,7 @@ Repository `metor-com/metor`, box image `ghcr.io/metor-com/metor-box`.
 
 ## Current state
 
-Version 0.3.0 works end-to-end: bots with their own desktop, browser and terminal; chat with
+Version 0.4.0 works end-to-end: bots with their own desktop, browser and terminal; chat with
 streaming, tool cards and approvals; attachments both ways; routines; four runtimes (Claude Code,
 Codex, Gemini CLI, GitHub Copilot) with model choice and a setup wizard; connectors (MCP servers); sign-in by device
 pairing; the phone PWA with push, a native phone app (Capacitor, TestFlight, ADR-0017) and a

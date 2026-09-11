@@ -1,107 +1,72 @@
 # Changelog
 
-## Unreleased
-
-- Browser, desktop and terminal starts now share the Space RAM guard with runtimes. Waiting screens retry automatically; Stop cancels queued starts, and the Event log records waiting and recovery.
-
-- Manage Space can increase and persist local RAM allocations, keeping a host reserve. Apple containers also support reductions with a memory-usage warning and restart. The editor shows the new total in GiB, the current allocation and the increase. Apple containers use Apply and restart with data/sign-in preservation and rollback; supported Linux Docker limits increase live.
-
-- Keep App settings separate and combine all Space settings under Manage Space: shared name, devices, notifications, resources, updates and connectors. Space names sync across devices; Remove from my overview remains device-local.
-
-- Space settings show current RAM headroom and waiting bots. Runtime starts queue under memory pressure, resume automatically, and record admission delays in the Event log.
-
-- Bots have a persistent Event log with sleep/wake reasons, routine run IDs, processing outcomes and durations. Filter and export retained events from the bot menu; storage is bounded.
-
-- Idle runtimes sleep automatically after five minutes and wake for messages, routines or slash commands. Conversations and model settings persist; browser tabs stay open.
-
-- Local build/start scripts cache unchanged builds, reuse the UI build for the image, update the Space UI without restarting bots, and keep a running Space when its image is current.
-
-- Bots start with a lightweight host. Messages, routines and slash commands load only the selected runtime; browser tools, Screen and Terminal start their computer components on demand. Profiles and conversations remain persistent.
-
-- Codex model selection now includes the model’s supported reasoning efforts. The model and effort are saved per bot and apply to subsequent messages.
-
-- Slash-command autocomplete in chat, with distinct runtime/metor labels, keyboard navigation and session-aware model selection. Model changes apply between messages while keeping the conversation.
-
-- Desktop clipboard synchronization for the focused Screen, with a per-device setting and Copy/Paste buttons as fallback.
-
-- Copy selected text from the bot’s browser to your computer using the Screen’s Copy button, with a manual fallback when clipboard permission is unavailable.
-
-- Paste text from your computer into the bot’s screen using Cmd+V/Ctrl+V or the Paste button, with a manual text field when clipboard access is unavailable.
-
-- The embedded Screen adapts its resolution to the panel after resizing. A per-device switch in Settings → Behaviour enables or disables this (on by default). Changes wait until the bot finishes its turn; the browser keeps its tabs and fills the resized desktop.
-
-- Local Spaces using Apple container now install the recommended Linux kernel without an interactive prompt, including after an interrupted first setup.
-
-- Unified product language: Agent for the technology, Bot for a named persistent instance, and Space for the shared environment. Updated connection screens, menus, settings and sign-in messages.
-
-All notable user-visible changes to metor are recorded here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versions follow
-[Semantic Versioning](https://semver.org/) (the current version is in `VERSION`).
-
-Maintenance rule: whoever finishes a user-visible feature or fix adds one or two lines under
-`Unreleased`, written from the user's point of view - technical detail belongs in commits and ADRs.
-On a release the section is renamed to the version number and dated. Ideas and open items live in
-[BACKLOG.md](BACKLOG.md), decisions in [knowledge/decisions/](knowledge/decisions/README.md).
+All notable user-visible changes to metor are recorded here. Versions follow
+[Semantic Versioning](https://semver.org/); the current version is in `VERSION`.
+Add user-visible changes under `Unreleased`. Ideas belong in `BACKLOG.md` and technical
+decisions in `knowledge/decisions/`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-11
+
 ### Added
 
-- **The chat folds a bot's work**: while a bot works, a bubble with the three dots names the step
-  it is on; once the reply is there, the steps that led to it fold into one line (*14 steps*)
-  that a tap unfolds - in old chats too, nothing is dropped. *Show steps* in the chat's ⋮ menu
-  unfolds them everywhere on this device. The line says what the bot does, in the device's
-  language (German or English): *Sucht im Web nach „…"*, *Liest CLAUDE.md*, *Führt `ls -la` aus*
-  - the first translated words in the interface; where the runtime describes a command in its
-  own words (Claude Code, Copilot), that description is shown, and the bots are asked to write
-  it, like their texts between steps, in the language you write in. Steps recorded before this
-  change keep their tool name. With *Show steps* on, the bubble also shows the bot's thinking
-  as it happens (all four runtimes) - live only, it is never kept in the history
-  (knowledge/design/working-view.md).
-
-- **Documents open next to the chat**: a click on a file a bot made - an attachment in the chat or
-  a file in the file browser - shows it in the pane next to the chat (instead of the chat on a
-  phone) with a toolbar: the name, *Download*, close. Pictures, text and Markdown, pages, PDFs and
-  media have a preview; Office files and archives offer the download. Before, the file opened in a
-  new tab, which in the desktop app was the system browser without a session ("not signed in").
-  The desktop app now opens links to a connected computer in a window of its own for the same
-  reason. The phone app keeps opening files in the system viewer. A link of the form
-  `#/<bot>?doc=<file>` opens a bot with that document.
-
-- **Several bots' computers in the desktop and phone app**: the head of the bot list names the
-  computer shown, and its back arrow leads to the overview of all connected computers with their
-  unread counts, like the mailboxes of a mail app - a tap opens that computer's bots, *Connect a
-  computer…* below the rows connects one more (so a phone can do that at all), and the ⋮ menu of
-  the overview opens the Settings. Inside a computer the ⋮ menu renames or forgets it. The app
-  icon's badge counts across all computers, a notification opens the bot on the computer it came
-  from, and the desktop app hears computers it is not showing. The round + for a new bot floats
-  at the bottom right of the bot list. The views move like on a phone: overview, bot list and
-  chat slide in from the right and back out to the right; opening another computer slides its
-  bot list in right away, pictures included, and the app switches underneath without reloading
-  the interface.
-
-- **GitHub Copilot as a fourth runtime**: bots on the Copilot CLI with your GitHub Copilot
-  subscription (any plan, Free included) - sign in from the create dialog with GitHub's device
-  code. The model choice is Auto (Copilot picks per task, the badge shows which model answered) or
-  one of the models Copilot lists. Copilot bots chat, use shell, files, their browser, routines and
-  connectors; assigning tasks to other bots is not available for them yet.
-
-- **Settings → Computer**: metor's version, the newest release (the computer asks GitHub once a
-  day, `METOR_UPDATE_CHECK=off` stops that) with the update command for a server or a Mac, and
-  the versions of the runtimes the computer carries. `metor box update` pulls the newest image and
-  starts the computer again on a Mac. A weekly check proposes runtime updates as pull requests.
-
-### Fixed
-
-- **Gemini bots no longer leak memory**: the Gemini CLI ignores the stop signal, so every model
-  check and every restart of a Gemini bot left two processes behind (about 240 MB each) until the
-  computer ran out of memory. The processes are now ended for good.
+- **Bots use resources on demand.** Messages, routines and slash commands load only the
+  selected runtime. Browser tools, Screen and Terminal start computer components when needed.
+- **Automatic sleep.** Idle runtimes sleep after five minutes and wake for messages,
+  routines or commands. Conversations and model settings persist; browser tabs stay open.
+- **Space RAM protection.** Runtime, browser, desktop and terminal starts share an admission
+  queue with a host-independent Space reserve. Waiting screens retry automatically; Stop
+  cancels queued starts. Manage Space shows RAM headroom and pending components.
+- **Persistent local RAM allocation.** Choose the new total in GiB under Manage Space.
+  Apple containers support increases and reductions with Apply and restart, usage warnings
+  and recovery on failure. Data and sign-ins remain on their volumes. Linux Docker supports
+  live increases of configured limits; this path has not been verified on a Linux host.
+- **Event Log.** Inspect, filter and export bounded diagnostic history, including sleep/wake,
+  resource waiting, routine run IDs and processing outcomes, without chat content.
+- **Slash-command autocomplete.** Runtime and metor entries have distinct labels and keyboard
+  navigation. Session-aware model changes apply between messages; Codex also exposes the
+  model's supported reasoning efforts.
+- **Adaptive Screen resolution.** Resizing the panel adjusts the bot's desktop once the bot is
+  idle. A per-device App settings switch controls this behavior.
+- **Screen clipboard support.** Paste local text with Cmd+V/Ctrl+V or Paste, copy selected
+  browser text, and synchronize the focused desktop Screen's clipboard. Buttons and manual
+  text fields remain available as fallbacks.
+- **Working view and document previews.** Fold completed tool steps, view live thinking,
+  and open generated documents beside the chat. Thinking is not retained in chat history.
+- **Multiple Spaces in native apps.** Switch Spaces without reloading the interface, see
+  unread counts across connections and open notifications in the corresponding Space.
+- **GitHub Copilot runtime.** Sign in through the official device flow and use Copilot bots
+  with chat, files, browser, routines and connectors.
 
 ### Changed
 
-- **Codex runs GPT-6 Astra**: the box carries Codex CLI 0.153.4, whose model list (it is the
-  runtime's own, metor only asks for it) offers GPT-6 Astra as the default for new bots; existing
-  bots keep their model until you change it.
+- **One Manage Space area** contains the shared Space name, devices, notifications, RAM,
+  updates and connectors. Names synchronize across devices. App settings remains separate;
+  Remove from my overview removes only the connection on this device.
+- **Consistent terminology:** Agent for the technology, Bot for a persistent named instance,
+  and Space for the environment in which bots run.
+- **Faster local development.** Build/start scripts reuse dependencies, unchanged builds and
+  running Spaces. UI-only updates do not restart bots.
+- **Runtime and update information** is available in Manage Space. Codex uses its runtime's
+  live model catalogue; existing bots keep their selected model.
+
+### Fixed
+
+- Apple container setup installs the recommended Linux kernel without requiring interactive
+  input, including after interrupted initialization.
+- Gemini process cleanup prevents abandoned processes accumulating after model checks and
+  bot restarts.
+
+### Upgrade notes
+
+- Back up persistent volumes before updating. Applying a new Space image interrupts running
+  bot tasks; bots, chats, files and sign-ins are retained. Local RAM settings are stored on
+  the host and reused by subsequent starts and updates.
+- No data migration commands are required. Open browser pages again after updating the
+  Space; install the matching desktop build to use the local RAM editor.
+- Desktop installers remain unsigned unless the release build is configured for signing.
+  Mobile store distribution and Homebrew tap updates are separate release steps.
 
 ## [0.3.0] - 2026-09-07
 

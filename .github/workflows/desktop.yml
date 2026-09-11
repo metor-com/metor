@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Check release metadata
+        run: node scripts/check-release.mjs
       - name: Build the interface
         run: npm ci && npm run build
         working-directory: frontend

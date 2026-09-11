@@ -1,7 +1,7 @@
 {
   "name": "metor-mobile",
   "productName": "metor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "metor – the app for iPhone and Android (ADR-0015): Capacitor around the unchanged interface",
   "license": "Apache-2.0",
   "private": true,

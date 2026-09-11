@@ -1,7 +1,7 @@
 # Installing metor
 
 Four ways, from the most convenient to the most manual. The prebuilt box image comes from the GitHub
-Container Registry: **`ghcr.io/metor-com/metor-box`** (tags `latest` = main, `0.3.0` etc. for
+Container Registry: **`ghcr.io/metor-com/metor-box`** (tags `latest` = main, `0.4.0` etc. for
 releases, plus a short commit sha), built by `.github/workflows/box-image.yml` for `linux/amd64`
 and `linux/arm64`.
 

@@ -1,6 +1,6 @@
 {
   "name": "metor-push-relay",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "metor push relay (ADR-0017): forwards the gateway's Web Push messages, still encrypted, to APNs and FCM",
   "license": "Apache-2.0",
   "private": true,

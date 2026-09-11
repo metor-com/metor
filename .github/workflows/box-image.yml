@@ -19,7 +19,19 @@ permissions:
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/metor-box
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check release metadata and core behavior
+        run: |
+          node scripts/check-release.mjs
+          node --test --test-timeout=40000 backend/harness/test/memory.test.mjs backend/harness/test/runtime-sleep.test.mjs backend/harness/test/events.test.mjs backend/harness/test/demand-core.test.mjs backend/harness/test/commands*.test.mjs backend/harness/test/personal-auth.test.mjs client/desktop/test/space-resources.test.mjs scripts/space-memory.test.mjs scripts/local-dev.test.mjs
   build:
+    needs: verify
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +59,15 @@ jobs:
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+      - name: Smoke-test this image before publishing version tags
+        env:
+          METOR_RUNTIME: docker
+          METOR_BOX_CONTAINER: metor-release-smoke
+          BUILT_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          trap 'docker rm -f metor-release-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name metor-release-smoke --memory 3g --shm-size 1g --ulimit nofile=65536:65536 "$IMAGE@$BUILT_DIGEST"
+          bash scripts/smoke.sh --no-chat
       - name: Keep the digest for the merge step
         run: |
           mkdir -p /tmp/digests
@@ -98,10 +119,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Release notes from CHANGELOG.md
-        run: |
-          awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > /tmp/notes.md
-          [ -s /tmp/notes.md ] || echo "See CHANGELOG.md." > /tmp/notes.md
+        run: node scripts/check-release.mjs --notes > /tmp/notes.md
       - name: Create the release, or refresh the installer on an existing one
         env:
           GH_TOKEN: ${{ github.token }}
