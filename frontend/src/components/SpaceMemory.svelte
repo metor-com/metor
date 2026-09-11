@@ -24,14 +24,14 @@
       <div class="h-full rounded-full {memory.low ? 'bg-amber-500' : 'bg-zinc-500'}" style="width: {100 * memory.usedBytes / memory.totalBytes}%"></div>
     </div>
     <p class="text-xs text-zinc-500">{size(memory.usedBytes)} in use or unavailable · updated every 3 seconds</p>
-    {#if memory.low}<p role="status" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Low available RAM. New runtime starts wait until memory is free. Running tasks continue.</p>{/if}
-    <p class="text-[13px] leading-relaxed text-zinc-500">New runtimes need {size(memory.startBytes)} of available RAM plus a {size(memory.reserveBytes)} reserve for the Space. Starts run one at a time. Waiting bots resume automatically.</p>
+    {#if memory.low}<p role="status" class="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Low available RAM. Starts may wait for their required reserve. Running tasks continue.</p>{/if}
+    <p class="text-[13px] leading-relaxed text-zinc-500">New runtimes need {size(memory.startBytes)} of available RAM plus a {size(memory.reserveBytes)} reserve for the Space. Browser starts reserve 512 MiB; a full desktop 640 MiB, or 128 MiB when its browser is already running. Terminal starts reserve 64 MiB. All starts share the queue and resume automatically.</p>
     <p class="text-[13px] leading-relaxed text-zinc-500">To free memory, pause a bot you are not using. Sleeping runtimes keep their browser and desktop open.</p>
-  {:else if memory}<p role="status" class="text-sm text-amber-900">RAM readings are unavailable. New runtime starts wait until the Space can check memory again.</p>
+  {:else if memory}<p role="status" class="text-sm text-amber-900">RAM readings are unavailable. New runtime and computer starts wait until the Space can check memory again.</p>
   {:else if !error}<p class="text-sm text-zinc-500">Reading RAM usage…</p>{/if}
   {#if memory?.coordinationError}<p role="status" class="text-sm text-amber-900">The startup queue could not be read. Check the Space logs.</p>{/if}
   {#if memory?.starting}<p class="break-words text-sm">Starting: {memory.starting}</p>{/if}
   {#if memory?.waiting?.length}
-    <div class="text-sm"><p class="font-medium">Waiting bots ({memory.waiting.length})</p><ul class="mt-1 list-inside list-disc text-zinc-600">{#each memory.waiting as item (item.name)}<li class="break-words">{item.name}</li>{/each}</ul></div>
+    <div class="text-sm"><p class="font-medium">Waiting starts ({memory.waiting.length})</p><ul class="mt-1 list-inside list-disc text-zinc-600">{#each memory.waiting as item (`${item.name}:${item.kind ?? "runtime"}`)}<li class="break-words">{item.name}{item.kind && item.kind !== "runtime" ? ` · ${item.kind}` : ""}</li>{/each}</ul></div>
   {/if}
 </div>

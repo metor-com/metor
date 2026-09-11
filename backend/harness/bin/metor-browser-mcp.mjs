@@ -15,12 +15,19 @@ child.on("error", (e) => { console.error(e.message); process.exit(1); });
 child.stdin.on("error", () => {});
 child.on("exit", (code) => process.exit(code ?? 1));
 let starting = null, ending = false;
-function ensureBrowser() {
+async function ensureBrowser() {
   if (resourceAlive(readBot(name), "browser")) return Promise.resolve();
-  return starting ??= new Promise((resolve, reject) => {
+  return starting ??= (async () => {
+    const deadline = Date.now() + 60_000;
+    while (!ending) {
+      try { await new Promise((resolve, reject) => {
     execFile(process.execPath, [fileURLToPath(new URL("./metor.mjs", import.meta.url)), "bot", "computer", name, "browser"],
-      { timeout: 65_000 }, (err, out, stderr) => err ? reject(new Error(stderr.trim() || err.message)) : resolve());
-  }).finally(() => { starting = null; });
+      { timeout: 65_000 }, (err, out, stderr) => err ? reject(Object.assign(new Error(stderr.trim() || err.message), { code: err.code })) : resolve());
+      }); return;
+      } catch (e) { if (e.code !== 75 || Date.now() >= deadline) throw e; await new Promise(r => setTimeout(r, 2000)); }
+    }
+    throw new Error('Browser request cancelled');
+  })().finally(() => { starting = null; });
 }
 const input = createInterface({ input: process.stdin });
 input.on("line", (line) => {

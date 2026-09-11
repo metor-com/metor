@@ -1,6 +1,9 @@
 // metor-desktop – the desktop chain per bot: Xtigervnc → openbox → tint2 → Chromium (CDP) →
 // websockify/noVNC → ttyd (terminal tab) → xterm. One X display per bot, ports derived from it
 // (metor-harness.mjs `ports`); PID files under <bot>/.desktop/, idempotent start.
+import { createMemoryGuard } from "./metor-memory.mjs";
+import { event } from "./metor-events.mjs";
+const resourceMemory = createMemoryGuard();
 import { spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
@@ -120,6 +123,20 @@ export function resourceAlive(b, kind) {
 function demands(b) {
   try { return JSON.parse(readFileSync(join(botDir(b.name), ".desktop", "demand.json"), "utf8")); } catch { return {}; }
 }
+export function resourceWaiting(b) {
+  try { return JSON.parse(readFileSync(join(botDir(b.name), '.desktop', 'memory.json'), 'utf8')); } catch { return {}; }
+}
+function setResourceWaiting(b, kind, check = null) {
+  const state = resourceWaiting(b), old = state[kind], meta = join(botDir(b.name), '.metor');
+  if (check) {
+    state[kind] = { kind, reason: check.reason, since: old?.since ?? Date.now() };
+    if (!old || old.reason !== check.reason) event(meta, `${kind}.memory_waiting`, { reason: check.reason, availableBytes: check.memory?.availableBytes, requiredBytes: check.memory?.requiredBytes });
+  } else {
+    delete state[kind];
+    if (old) event(meta, `${kind}.memory_resumed`, { durationMs: Date.now() - old.since });
+  }
+  writeFileSync(join(botDir(b.name), '.desktop', 'memory.json'), JSON.stringify(state));
+}
 // Cross-process serialization: the gateway, MCP and supervisor can request the same
 // component together. Atomic creation, bounded wait, stale owner recovery.
 function withResourceLock(b, fn) {
@@ -137,7 +154,7 @@ function withResourceLock(b, fn) {
   }
   try { return fn(dir); } finally { rmSync(lock, { force: true }); }
 }
-export function startResource(b, kind) {
+export function startResource(b, kind, { memory = resourceMemory } = {}) {
   if (!RESOURCE_KEYS[kind]) throw new Error("Expected browser, desktop or terminal");
   return withResourceLock(b, (dir) => {
     b = readBot(b.name);
@@ -148,13 +165,23 @@ export function startResource(b, kind) {
     // requests and Stop, so the supervisor cannot tear down an in-flight start.
     if (kind !== "terminal" && existsSync(join(dir, "xvfb.pid")) && !readPid(join(dir, "xvfb.pid"))) stopDesktopProcesses(b);
     writeFileSync(join(dir, "demand.json"), JSON.stringify(requested));
-    if (!resourceAlive(b, kind)) ({ browser: browserStart, desktop: screenStart, terminal: terminalStart })[kind](b);
-    if (!waitFor(() => resourceAlive(b, kind), 5000)) throw new Error(`${kind} did not become ready`);
+    if (resourceAlive(b, kind)) { memory.release(b.name, kind); setResourceWaiting(b, kind); return true; }
+    const startBytes = (kind === 'terminal' ? 64 : kind === 'desktop' && resourceAlive(b, 'browser') ? 128 : kind === 'desktop' ? 640 : 512) * 1024 ** 2;
+    const check = memory.request(b.name, { kind, startBytes });
+    if (!check.admitted) { setResourceWaiting(b, kind, check); return false; }
+    let ready = false;
+    try {
+      ({ browser: browserStart, desktop: screenStart, terminal: terminalStart })[kind](b);
+      if (!waitFor(() => resourceAlive(b, kind), 5000)) throw new Error(`${kind} did not become ready`);
+      ready = true; setResourceWaiting(b, kind);
+      if (kind === 'desktop') { memory.release(b.name, 'browser'); setResourceWaiting(b, 'browser'); }
+      return true;
+    } finally { memory.release(b.name, kind, ready ? 2000 : 0); }
   });
 }
-export function repairResources(b) {
+export function repairResources(b, options) {
   const requested = demands(b);
-  for (const kind of Object.keys(RESOURCE_KEYS)) if (requested[kind] && !resourceAlive(b, kind)) startResource(b, kind);
+  for (const kind of Object.keys(RESOURCE_KEYS)) if (requested[kind] && !resourceAlive(b, kind)) startResource(b, kind, options);
 }
 export function desktopStart(b) { startResource(b, "desktop"); }
 // Core processes of the desktop – without xterm: if only the terminal is closed (user typed `exit`),
@@ -167,6 +194,9 @@ export function desktopStop(b) {
 function stopDesktopProcesses(b) {
   const dir = join(botDir(b.name), ".desktop"); if (!existsSync(dir)) return;
   rmSync(join(dir, "demand.json"), { force: true });
+  for (const kind of Object.keys(resourceWaiting(b))) event(join(botDir(b.name), '.metor'), `${kind}.memory_cancelled`, { reason: 'stopped' });
+  rmSync(join(dir, 'memory.json'), { force: true });
+  for (const kind of Object.keys(RESOURCE_KEYS)) resourceMemory.release(b.name, kind);
   const pids = [];
   for (const key of ["novnc", "x11vnc", "chromium", "xterm", "tint2", "ttyd", "openbox", "xvfb"]) { const pid = readPid(join(dir, `${key}.pid`)); if (pid) { pids.push(pid); try { process.kill(pid, "SIGTERM"); } catch {} } try { rmSync(join(dir, `${key}.pid`), { force: true }); } catch {} }
   // Orphans without a (valid) PID file – e.g. after a container restart or an aborted start – keep
@@ -189,6 +219,7 @@ export function desktopAlive(b) { return resourceAlive(b, "desktop"); }
 // Fresh container: PID files of the previous one are corpses
 export function desktopForgetPids(b) {
   const d = join(botDir(b.name), ".desktop");
+  rmSync(join(d, "memory.json"), { force: true });
   rmSync(join(d, "demand.json"), { force: true });
   rmSync(join(d, "start.lock"), { force: true });
   if (existsSync(d)) for (const k of Object.keys(PROC_MATCH)) rmSync(join(d, `${k}.pid`), { force: true });

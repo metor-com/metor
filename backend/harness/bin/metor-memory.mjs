@@ -2,7 +2,7 @@
 import { readFileSync, mkdirSync, writeFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join, dirname, relative, resolve } from 'node:path';
 import { totalmem, freemem, platform } from 'node:os';
-import { BOTS_DIR } from './metor-store.mjs';
+import { BOTS_DIR, botDir, readBot } from './metor-store.mjs';
 const MiB = 1024 * 1024;
 const read = file => { try { return readFileSync(file, 'utf8').trim(); } catch { return null; } };
 const numeric = value => value !== null && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
@@ -66,6 +66,12 @@ function alive(owner) {
   const now = identity(owner.pid);
   return (!owner.start || now.start === owner.start) && (!owner.boot || now.boot === owner.boot);
 }
+function queuedAlive(item) {
+  if (!item.kind || item.kind === 'runtime') return alive(item);
+  try { return readBot(item.name).autostart && JSON.parse(readFileSync(join(botDir(item.name), '.desktop', 'demand.json'), 'utf8'))[item.kind] === true; } catch { return false; }
+}
+const sameRequest = (item, name, kind, pid) => item.name === name && (item.kind ?? 'runtime') === kind && (kind !== 'runtime' || item.pid === pid);
+const leased = lease => lease && (lease.until ? lease.until > Date.now() : (!lease.expiresAt || lease.expiresAt > Date.now()) && alive(lease));
 export function createMemoryGuard({ root = join(BOTS_DIR, '.memory'), sample = memorySnapshot } = {}) {
   const file = join(root, 'admission.json'), lock = join(root, 'lock'), owner = identity(process.pid);
   const load = () => { const raw = read(file); return raw ? JSON.parse(raw) : { queue: [], lease: null }; };
@@ -80,36 +86,37 @@ export function createMemoryGuard({ root = join(BOTS_DIR, '.memory'), sample = m
     try {
       writeFileSync(join(lock, 'owner.json'), JSON.stringify(owner));
       const state = load();
-      state.queue = state.queue.filter(alive);
-      if (state.lease && !alive(state.lease)) state.lease = null;
+      state.queue = state.queue.filter(queuedAlive);
+      if (state.lease && !leased(state.lease)) state.lease = null;
       const result = fn(state);
       const tmp = `${file}.${process.pid}.tmp`; writeFileSync(tmp, JSON.stringify(state)); renameSync(tmp, file);
       return result;
     } finally { rmSync(lock, { recursive: true, force: true }); }
   }
   return {
-    request(name) {
+    request(name, { kind = 'runtime', startBytes = null } = {}) {
       try { return transaction(state => {
-        if (!state.queue.some(x => x.name === name && x.pid === owner.pid)) state.queue.push({ ...owner, name, since: Date.now() });
-        const memory = sample();
+        if (!state.queue.some(x => sameRequest(x, name, kind, owner.pid))) state.queue.push({ ...owner, name, kind, since: Date.now() });
+        const raw = sample();
+        const memory = raw.available && startBytes !== null ? { ...raw, startBytes, requiredBytes: raw.reserveBytes + startBytes, low: raw.availableBytes < raw.reserveBytes + startBytes } : raw;
         if (!memory.available) return { admitted: false, reason: 'memory_unavailable', memory };
         if (memory.low) return { admitted: false, reason: 'low_memory', memory };
-        if (state.lease || state.queue[0]?.name !== name || state.queue[0]?.pid !== owner.pid) return { admitted: false, reason: 'startup_queue', memory };
-        state.lease = { ...owner, name, since: Date.now() }; state.queue.shift();
+        if (state.lease || !state.queue[0] || !sameRequest(state.queue[0], name, kind, owner.pid)) return { admitted: false, reason: 'startup_queue', memory };
+        state.lease = { ...owner, name, kind, since: Date.now(), ...(kind !== "runtime" ? { expiresAt: Date.now() + 60000 } : {}) }; state.queue.shift();
         return { admitted: true, memory };
       }) ?? { admitted: false, reason: 'startup_queue' }; }
       catch (e) { console.error('Memory guard unavailable:', e.message); return { admitted: false, reason: 'memory_unavailable' }; }
     },
-    release(name) {
+    release(name, kind = 'runtime', cooldownMs = 0) {
       try { return transaction(state => {
-        if (state.lease?.pid === owner.pid && state.lease.name === name) state.lease = null;
-        state.queue = state.queue.filter(x => !(x.pid === owner.pid && x.name === name));
+        if (state.lease?.pid === owner.pid && sameRequest(state.lease, name, kind, owner.pid)) state.lease = cooldownMs ? { ...state.lease, until: Date.now() + cooldownMs } : state.lease.until > Date.now() ? state.lease : null;
+        state.queue = state.queue.filter(x => !sameRequest(x, name, kind, owner.pid));
         return true;
       }) ?? false; } catch (e) { console.error('Memory guard release failed:', e.message); return false; }
     },
     snapshot() {
       const memory = sample();
-      try { const state = load(); return { ...memory, waiting: state.queue.filter(alive).map(x => ({ name: x.name, since: x.since })), starting: state.lease && alive(state.lease) ? state.lease.name : null }; }
+      try { const state = load(); return { ...memory, waiting: state.queue.filter(queuedAlive).map(x => ({ name: x.name, kind: x.kind ?? "runtime", since: x.since })), starting: leased(state.lease) ? state.lease.name : null }; }
       catch { return { ...memory, waiting: [], starting: null, coordinationError: true }; }
     },
   };

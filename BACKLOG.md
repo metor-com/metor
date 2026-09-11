@@ -68,7 +68,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   desktop about 400 MB (Chromium 306), runtime 150 (Codex) to 265 MB (Claude, Copilot), MCP
   servers 60 MB each (Gemini starts its browser server three times). The Gemini process leak
   found the same day is fixed. Runtime/browser/desktop startup is now on demand (ADR-0024);
-  automatic runtime sleep is implemented (ADR-0025). Runtime-start admission now checks Space RAM, serializes starts, preserves a reserve and exposes waiting bots and memory readings (ADR-0027). Browser eviction and memory admission for browser/desktop starts remain open.
+  automatic runtime sleep is implemented (ADR-0025). Runtime-start admission now checks Space RAM, serializes starts, preserves a reserve and exposes waiting bots and memory readings (ADR-0027). Browser/desktop/terminal starts now share admission with runtimes (ADR-0030). Browser eviction remains open.
 - **RAM allocation follow-ups** - local increases and persistence are implemented (ADR-0029).
   Apple reductions include a usage warning and restart. Add Docker reductions, Docker Desktop VM capacity management,
   and remote server resource changes once the SSH management connection exists.

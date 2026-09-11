@@ -44,7 +44,7 @@ const bot = {
     const b = readBot(flags[0] ?? die("metor bot stop <name>"));
     console.log(stopAgent(b) ? `${b.name}: host stopped` : `${b.name}: not running`);
   },
-  computer(flags) { startResource(readBot(flags[0] ?? die("metor bot computer <name> browser|desktop|terminal")), flags[1]); },
+  computer(flags) { const ready = startResource(readBot(flags[0] ?? die("metor bot computer <name> browser|desktop|terminal")), flags[1]); if (ready === false) { console.error("Waiting for RAM to start the bot computer. The Space will retry automatically."); process.exitCode = 75; } },
   watch(flags) { const b = readBot(flags[0] ?? die("metor bot watch <name>")); ensureDesktopConfig(b); console.log(watchUrl(b)); },
   logs(flags) {
     const b = readBot(flags[0] ?? die("metor bot logs <name>"));

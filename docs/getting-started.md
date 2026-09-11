@@ -425,8 +425,8 @@ To free RAM, pause a bot you are not using; idle runtimes also sleep automatical
 Their browser and desktop stay open while sleeping. Pausing a waiting bot removes
 it from the startup queue but retains its undelivered messages for a later Start.
 The guard does not interrupt ongoing work or change the Space's RAM allocation.
-Browser/desktop starts and later growth of running processes are not limited by this
-startup check, so available RAM can still fall while bots are working.
+Browser, desktop and terminal starts use the same queue. Later growth of already
+running processes is not limited, so available RAM can still fall while bots work.
 
 ### App and Space settings
 
@@ -471,3 +471,20 @@ The confirmation warns when current usage exceeds the new limit or cannot be che
 live; Docker Desktop VM sizing and remote server changes are not offered here. This
 setting changes a container limit, not physical RAM or a VPS plan. Custom Apple container
 configurations that cannot be safely recreated show an explanation instead of Apply.
+
+### Waiting for a browser or desktop
+
+Browser, Screen and Terminal requests check RAM before starting missing components.
+They share the runtime startup queue and the Space reserve. Startup budgets are
+512 MiB for a browser, 640 MiB for a full desktop, 128 MiB for the desktop additions
+when its browser is already running, and 64 MiB for the terminal service.
+
+When a start cannot proceed, the Screen shows **Waiting for RAM** and retries
+automatically. The bot list and Manage Space show pending components. The supervisor
+also retries persisted requests, including requests made by the bot's browser tool.
+The browser tool waits up to a minute; if it reports waiting, the requested browser
+still starts automatically when admitted and the bot can retry its tool call.
+
+**Stop** cancels queued computer starts. Existing open browsers are reused without
+another admission check. Event log entries record waiting, admission and cancellation.
+The guard does not evict browsers or prevent later memory growth in running processes.

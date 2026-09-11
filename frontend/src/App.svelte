@@ -114,7 +114,7 @@
         {onAct} onPicture={() => (pictureOpen = true)} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
       {#if $current.waitingForMemory}
         <div role="status" class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
-          {$current.waitingForMemory.reason === 'startup_queue' ? 'Waiting to start: another bot starts first.' : $current.waitingForMemory.reason === 'memory_unavailable' ? 'Waiting to start: the Space cannot check available RAM.' : 'Waiting for RAM. Your messages are queued.'}
+          {$current.waitingForMemory.kind ? `Waiting to start the ${$current.waitingForMemory.kind}: ${$current.waitingForMemory.reason === 'low_memory' ? 'not enough RAM.' : $current.waitingForMemory.reason === 'memory_unavailable' ? 'RAM readings are unavailable.' : 'another component starts first.'}` : $current.waitingForMemory.reason === 'startup_queue' ? 'Waiting to start: another bot starts first.' : $current.waitingForMemory.reason === 'memory_unavailable' ? 'Waiting to start: the Space cannot check available RAM.' : 'Waiting for RAM. Your messages are queued.'}
           Starts automatically when ready. Open Manage Space to check RAM if it keeps waiting.
         </div>
       {/if}

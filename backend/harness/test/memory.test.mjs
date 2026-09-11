@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { memorySnapshot, createMemoryGuard } from '../bin/metor-memory.mjs';
 const MiB = 1024 ** 2;
@@ -58,4 +58,21 @@ test('simultaneous processes cannot reserve the same startup headroom twice', as
     })));
     assert.equal(results.filter(r=>r.admitted).length,1);
   } finally { await Promise.all(children.map(async c=>{const done=once(c,'exit');c.kill();await done})); rmSync(root,{recursive:true,force:true}); }
+});
+
+test('resource requests survive callers, remain separate by kind and share runtime admission', () => {
+  const root=mkdtempSync(join(tmpdir(),'metor-resource-queue-')), dir=join(root,'probe');
+  mkdirSync(join(dir,'.desktop'),{recursive:true});
+  writeFileSync(join(dir,'bot.json'),JSON.stringify({name:'probe',harness:'codex',autostart:true}));
+  writeFileSync(join(dir,'.desktop/demand.json'),JSON.stringify({browser:true,desktop:true}));
+  const module=new URL('../bin/metor-memory.mjs',import.meta.url).href;
+  const run=body=>execFileSync(process.execPath,['--input-type=module','-e',`import assert from 'node:assert/strict';import {createMemoryGuard} from ${JSON.stringify(module)};let availableBytes=0;const guard=createMemoryGuard({sample:()=>({available:true,availableBytes,reserveBytes:256*1024**2,low:availableBytes<768*1024**2})});${body}`],{env:{...process.env,METOR_BOTS_DIR:root},stdio:'pipe'});
+  try {
+    run(`guard.request('probe',{kind:'desktop',startBytes:640*1024**2});guard.request('probe',{kind:'browser',startBytes:512*1024**2});`);
+    run(`assert.equal(guard.snapshot().waiting.length,2);guard.release('probe','browser');assert.deepEqual(guard.snapshot().waiting.map(x=>x.kind),['desktop']);availableBytes=2*1024**3;assert.equal(guard.request('runtime-bot').reason,'startup_queue');assert.equal(guard.request('probe',{kind:'desktop',startBytes:640*1024**2}).admitted,true);guard.release('probe','desktop',2000);assert.equal(guard.request('runtime-bot').admitted,false);`);
+    const file=join(root,'.memory/admission.json'),state=JSON.parse(readFileSync(file));state.lease.until=Date.now()-1;writeFileSync(file,JSON.stringify(state));
+    run(`availableBytes=2*1024**3;assert.equal(guard.request('runtime-bot').admitted,true);guard.release('runtime-bot');guard.request('probe',{kind:'desktop',startBytes:3*1024**3});`);
+    writeFileSync(join(dir,'bot.json'),JSON.stringify({name:'probe',harness:'codex',autostart:false}));
+    run(`assert.equal(guard.snapshot().waiting.length,0);availableBytes=2*1024**3;assert.equal(guard.request('other').admitted,true);`);
+  } finally {rmSync(root,{recursive:true,force:true})}
 });

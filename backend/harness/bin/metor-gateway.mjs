@@ -9,7 +9,7 @@ const memoryGuard = createMemoryGuard();
 import { readEvents } from "./metor-events.mjs";
 import http from "node:http";
 import net from "node:net";
-import { resourceAlive } from "./metor-desktop.mjs";
+import { resourceAlive, resourceWaiting } from "./metor-desktop.mjs";
 import { clipboardText, pasteText, copyText, readClipboard, copyScreenKey } from "./metor-clipboard.mjs";
 const screenClipboardScript = readFileSync(new URL("./metor-screen-clipboard.js", import.meta.url));
 import { resizeScreen, screenSize, withScreenResizeLock } from "./metor-screen.mjs";
@@ -123,7 +123,7 @@ async function agentList() {
       model: b.model ?? null,
       modelLabel: modelLabel(h, b.model) ?? (b.model ?? "Default model"),
       status: streamChat.status(b.name),
-      waitingForMemory: streamChat.status(b.name) === "idle" ? streamChat.state(b.name).waitingForMemory ?? null : null,
+      waitingForMemory: Object.values(resourceWaiting(b))[0] ?? (streamChat.status(b.name) === "idle" ? streamChat.state(b.name).waitingForMemory ?? null : null),
       sleeping: streamChat.state(b.name).sleeping === true && streamChat.state(b.name).runtimeLoaded === false,
       quota: streamChat.state(b.name).quota ?? null };
   });
@@ -156,7 +156,7 @@ function ensureResource(name, kind) {
   if (b.autostart && resourceAlive(b, kind)) return Promise.resolve();
   const key = `${name}/${kind}`;
   if (!resourceStarts.has(key)) resourceStarts.set(key, new Promise((resolve, reject) => {
-    execFile("metor", ["bot", "computer", name, kind], { timeout: 65_000 }, (err, out, stderr) => err ? reject(new Error(stderr.trim() || err.message)) : resolve());
+    execFile("metor", ["bot", "computer", name, kind], { timeout: 65_000 }, (err, out, stderr) => err ? reject(Object.assign(new Error(stderr.trim() || err.message), { code: err.code })) : resolve());
   }).finally(() => resourceStarts.delete(key)));
   return resourceStarts.get(key);
 }
@@ -749,6 +749,10 @@ const server = http.createServer(async (req, res) => {
     if (url === "/" || url === "/bots" || url === "/bots/") { res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }); return res.end(await indexPage()); }
     res.writeHead(404, { "content-type": "text/plain" }); res.end("unknown bot");
   } catch (e) {
+    if (e.code === 75) {
+      res.writeHead(503, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "retry-after": "2", refresh: "2" });
+      return res.end('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Waiting for RAM</title><body style="margin:0;background:#27272a;color:#e4e4e7;font:15px system-ui;display:grid;place-content:center;min-height:100vh;text-align:center;padding:0 24px"><h2>Waiting for RAM</h2><p>The bot’s computer will open automatically when memory is available.</p><p>Open Manage Space to check RAM, or pause a bot you are not using.</p></body></html>');
+    }
     try { res.writeHead(500, { "content-type": "text/plain" }); res.end(`gateway error: ${e.message}`); } catch {}
   }
 });

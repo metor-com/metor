@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { injectTurn } from "./metor-chat-stream.mjs";
 import { dueRoutines, recordRun } from "./metor-routines.mjs";
 import { BOTS_DIR, TEMPLATES, allBots, botDir, writeBot } from "./metor-store.mjs";
-import { repairResources, desktopForgetPids, desktopStop } from "./metor-desktop.mjs";
+import { repairResources, resourceWaiting, desktopForgetPids, desktopStop } from "./metor-desktop.mjs";
 import { hostAlive, hostPidFile, startAgent, stopHost } from "./metor-lifecycle.mjs";
 import { AUTH_OFF, createClaim, hasOpenClaim, hasSessions } from "./metor-auth.mjs";
 
@@ -98,8 +98,14 @@ export function supervise() {
       } catch (e) { console.error(e); }
     }
   };
+  const memoryTimer = setInterval(() => {
+    if (stopping) return;
+    for (const b of allBots()) if (b.autostart && Object.keys(resourceWaiting(b)).length) {
+      try { repairResources(b); } catch (e) { console.error(e.message); }
+    }
+  }, 2000);
   tick(); const timer = setInterval(tick, 30_000);
   // The gateway goes first: otherwise it would watch the bots stop and send "stopped" push notifications on every restart
-  const shutdown = () => { stopping = true; clearInterval(timer); try { gateway?.kill("SIGTERM"); } catch {} console.log("supervise: stopping bots"); for (const b of allBots()) stopHost(b); for (const b of allBots()) desktopStop(b); process.exit(0); };
+  const shutdown = () => { stopping = true; clearInterval(timer); clearInterval(memoryTimer); try { gateway?.kill("SIGTERM"); } catch {} console.log("supervise: stopping bots"); for (const b of allBots()) stopHost(b); for (const b of allBots()) desktopStop(b); process.exit(0); };
   process.on("SIGTERM", shutdown); process.on("SIGINT", shutdown);
 }

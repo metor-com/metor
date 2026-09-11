@@ -21,10 +21,10 @@ try {
   await page.getByRole('progressbar',{name:'Space RAM usage'}).waitFor();
   const actual=await(await page.request.get('http://127.0.0.1:6010/bots/api/memory')).json();
   assert.ok(actual.totalBytes>0);assert.ok(actual.availableBytes>=0);
-  let response={...actual,availableBytes:100*1024**2,usedBytes:actual.totalBytes-100*1024**2,low:true,waiting:[{name:'waiting-probe',since:Date.now()}]};
+  let response={...actual,availableBytes:100*1024**2,usedBytes:actual.totalBytes-100*1024**2,low:true,waiting:[{name:'waiting-probe',kind:'browser',since:Date.now()},{name:'waiting-probe',kind:'desktop',since:Date.now()}]};
   await page.route('**/bots/api/memory',route=>route.fulfill({json:response}));
   await page.getByText('Low available RAM.',{exact:false}).waitFor();
-  await page.getByText('Waiting bots (1)',{exact:true}).waitFor();
+  await page.getByText('Waiting starts (2)',{exact:true}).waitFor();
   await page.screenshot({path:'/tmp/metor-memory-desktop.png'});
   response={available:false,waiting:[],starting:null};
   await page.getByText('RAM readings are unavailable.',{exact:false}).waitFor();
