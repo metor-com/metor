@@ -112,3 +112,14 @@ test('attachment links are retained only when their files travel with the bot', 
   assert.equal(validatePackage(pkg).conversation[0].attachments.length,1);
   assert.equal(validatePackage({...pkg,files:[]}).conversation[0].attachments,undefined);
 });
+test('portable collaboration history keeps peer origin and notices without importing live shared references; event routines remain paused', t => {
+  const root=fixture(t);
+  writeFileSync(join(root,'source/.metor/routines.json'),JSON.stringify({routines:[{name:'Review',trigger:{type:'event',source:'metor',event:'assignment.completed'},prompt:'Review result'}]}));
+  writeFileSync(join(root,'source/.metor/chat.jsonl'),JSON.stringify({id:'result',role:'assistant',kind:'notice',origin:'bot',text:'Review complete',collaboration:{sender:'reviewer',assignmentId:'old-assignment',status:'completed',files:[{path:'private-other-space.txt'}]}})+'\n');
+  const pkg=exportPackage(bot,{conversation:true},root);
+  assert.equal(pkg.conversation[0].origin,'bot');assert.equal(pkg.conversation[0].collaboration.sender,'reviewer');
+  assert.equal(pkg.conversation[0].collaboration.files,undefined);assert.equal(pkg.conversation[0].collaboration.historical,true);
+  importPackage(pkg,{title:'Migrated'},root);
+  const routine=JSON.parse(readFileSync(join(root,'migrated/.metor/routines.json'))).routines[0];
+  assert.equal(routine.trigger.type,'event');assert.equal(routine.enabled,false);
+});

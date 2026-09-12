@@ -46,9 +46,9 @@
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
                 <div class="text-[15px] font-semibold">{r.name}</div>
-                <div class="mt-0.5 flex items-center gap-1.5 text-[13px] text-zinc-700" title="cron: {r.cron}">
+                <div class="mt-0.5 flex items-center gap-1.5 text-[13px] text-zinc-700" title={r.trigger?.type === 'event' ? `${r.trigger.source}:${r.trigger.event}` : `cron: ${r.cron}`}>
                   <svg class="size-4 shrink-0 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
-                  <span>{describeCron(r.cron) ?? `cron: ${r.cron}`}</span>
+                  <span>{r.trigger?.type === 'event' ? `When ${r.trigger.source}:${r.trigger.event}` : describeCron(r.cron) ?? `cron: ${r.cron}`}</span>
                 </div>
               </div>
               <span class="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium {paused ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">{paused ? "paused" : "active"}</span>

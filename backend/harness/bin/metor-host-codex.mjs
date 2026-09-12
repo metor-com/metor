@@ -24,6 +24,8 @@ export async function run(core) {
       "-c", `mcp_servers.browser.args=["${METOR_LIB}/metor-browser-mcp.mjs","${name}","--cdp-endpoint","http://127.0.0.1:${cdp}"]`,
     ] : []),
     ...codexOverrides(bot),   // connectors from Settings (ADR-0014)
+    "-c", 'mcp_servers.metor.command="node"',
+    "-c", `mcp_servers.metor.args=["${METOR_LIB}/metor-collaboration-mcp.mjs","${name}"]`,
   ];
   const child = spawn("codex", args, { cwd: dir, stdio: ["pipe", "pipe", "pipe"], env: { ...process.env, METOR_BOT: name } });
   child.on("error", (e) => core.fail(e));

@@ -23,9 +23,11 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
    (steps, typing, the step lines) are the seed of a whole-interface translation, still open;
    a live check of the step lines and the thinking with Gemini CLI and Copilot.
 
-## Routine polish (ADR-0010 "consequences")
+## Routine polish (ADR-0010, ADR-0034)
 
-- Event triggers (not only schedules)
+- Event sources: the normalized trigger model, durable journal, matching and inbox delivery are
+  built, with transactional fan-out and stable inbox IDs (ADR-0035). Add the first polling source and then provider listeners/webhooks without waking a model
+  on unchanged checks.
 
 ## Roadmap
 
@@ -41,19 +43,17 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   flow on a real provider. The onboarding explains provider-console passwords versus SSH access.
   Provider ordering and cloud-init/images remain later extensions.
 
-- **Bot collaboration** (next) - Codex and Gemini bots cannot message other bots yet (only
-  Claude to Claude via SendMessage). Concept:
-  [knowledge/design/bot-collaboration.md](knowledge/design/bot-collaboration.md) - a neutral
-  `metor` MCP server for every runtime (stage 1: `list_bots`, `send_to_bot`), then
-  assignments with results and files, a ledger and `create_bot` for helper bots (stage 2),
-  groups (stage 3, [crew-messaging-groups.md](knowledge/design/crew-messaging-groups.md))
+- **Bot collaboration follow-ups** — local messaging, explicit assignments/results, shared-file
+  references and durable event fan-out are implemented (ADR-0035). Still open: live acceptance
+  across signed-in runtime pairs, retention/compaction UI for the durable ledger, assignment
+  cancellation/reassignment and helper-bot creation. Groups remain separate.
 - **Groups ("Teams") + shared memory scopes** - a group is a directory with its own chat.jsonl,
   an orchestrator with hard caps (members/rounds/contributions, see the design draft above),
   Claude and Codex bots in the same chat; memory scopes (user / project / bot) as shared
   knowledge, with the memory backend behind a configurable endpoint
 - **Gemini follow-ups** (built 2026-09-05, ADR-0016): verify the ACP update shapes and session
   replay with a signed-in account; record the model the session reports for the labels; an API-key
-  field in the wizard; Gemini in the bot-to-bot bridge and in `scripts/smoke.sh`
+  field in the wizard; live Gemini collaboration acceptance and Gemini in `scripts/smoke.sh`
 - **Memory per bot** - measured 2026-09-07 on a Mac: about 550 MB per idle bot (its Chromium with
   renderers, the desktop chain, the host; a Copilot process alone is 290 MB RSS), so six bots froze
   the 4 GB default computer (no swap; `container exec` and the gateway stopped answering, only
@@ -89,7 +89,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
 - **Copilot follow-ups** (built 2026-09-07, ADR-0021, facts in
   [copilot-facts.md](knowledge/harness/copilot-facts.md)): verify with a paid plan whether
   `--model` sticks over ACP (with Free it fell back to Auto); the built-in GitHub MCP server as a
-  connector in the directory; Copilot in the bot-to-bot bridge; approval cards through
+  connector in the directory; live Copilot collaboration acceptance; approval cards through
   `session/request_permission` (ADR-0019); attachments as ACP image blocks. ChatGPT headless
   through OpenCode stays an idea (ADR-0011)
 - Codex polish: quota display (`account/rateLimits/read`), approval cards via app-server approvals

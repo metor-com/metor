@@ -69,6 +69,12 @@ function profile(value) {
 function routines(value) {
   if (!Array.isArray(value) || value.length > 30) fail('Invalid routines.');
   return value.map((r) => {
+    if (r?.trigger?.type === 'event') {
+      const source = text(r.trigger.source, 80, 'event source'), event = text(r.trigger.event, 120, 'event type');
+      const match = r.trigger.match ?? {};
+      if (!match || typeof match !== 'object' || Array.isArray(match) || Buffer.byteLength(JSON.stringify(match)) > 16000) fail('Invalid event match.');
+      return { name: text(r.name, 60, 'routine name'), trigger: { type: 'event', source, event, match }, prompt: text(r.prompt, 64000, 'routine prompt') };
+    }
     const cron = text(r?.cron, 100, 'schedule'), parsed = parseCron(cron);
     if (!parsed || !nextRun(parsed, new Date())) fail('Invalid routine schedule.');
     return { name: text(r.name, 60, 'routine name'), cron, prompt: text(r.prompt, 64000, 'routine prompt') };
@@ -104,13 +110,19 @@ export function validatePackage(pkg) {
   if (!Array.isArray(pkg.conversation ?? []) || (pkg.conversation?.length ?? 0) > 2000) fail('Invalid conversation.');
   const messageIds = new Set();
   result.conversation = (pkg.conversation ?? []).map((m) => {
-    if (!['user', 'assistant'].includes(m?.role) || (m.kind && m.kind !== 'text')) fail('Invalid conversation message.');
+    if (!['user', 'assistant'].includes(m?.role) || (m.kind && m.kind !== 'text' && !(m.kind === 'notice' && m.origin === 'bot'))) fail('Invalid conversation message.');
     const id = m.id == null ? randomUUID() : text(m.id, 128, 'message ID');
     if (!id || messageIds.has(id)) fail('Duplicate or empty message ID.');
     messageIds.add(id);
     if (m.ts != null && (typeof m.ts !== 'string' || !Number.isFinite(Date.parse(m.ts)))) fail('Invalid message timestamp.');
     const entry = { v: 2, id, ts: m.ts ?? null, role: m.role, kind: 'text', text: text(m.text, 200000, 'message'), status: 'delivered' };
-    if (['routine', 'harness'].includes(m.origin)) entry.origin = m.origin;
+    if (['routine', 'harness', 'bot', 'event'].includes(m.origin)) entry.origin = m.origin;
+    if (m.kind === 'notice') entry.kind = 'notice';
+    if (m.origin === 'bot' && m.collaboration) {
+      entry.collaboration = { historical: true };
+      for (const field of ['sender','assignmentId','status']) if (typeof m.collaboration[field] === 'string') entry.collaboration[field] = text(m.collaboration[field], 128, 'collaboration metadata');
+      // The new Space must never resolve an old Space's shared references as its own files.
+    }
     if (Array.isArray(m.attachments)) {
       const attachments = m.attachments.slice(0, 10).filter((a) => typeof a?.path === 'string' && a.path.startsWith('uploads/') && result.files.some((f) => f.path === a.path))
         .map((a) => ({ path: a.path, name: text(a.name ?? a.path.split('/').pop(), 120, 'attachment name'), size: Buffer.from(result.files.find((f) => f.path === a.path).data, 'base64').length, image: a.image === true }));
@@ -137,7 +149,7 @@ export function exportPackage(bot, options = {}, botsDir = BOTS_DIR) {
   let conversation = [];
   if (options.conversation && exists(join(root, '.metor/chat.jsonl'))) {
     const lines = readRegular(root, '.metor/chat.jsonl', 20 * 1024 * 1024).toString('utf8').split('\n');
-    conversation = lines.flatMap((line) => { try { const m = JSON.parse(line); return !m.type && (!m.kind || m.kind === 'text') && ['user','assistant'].includes(m.role) && typeof m.text === 'string' ? [m] : []; } catch { return []; } });
+    conversation = lines.flatMap((line) => { try { const m = JSON.parse(line); return !m.type && (!m.kind || m.kind === 'text' || (m.kind === 'notice' && m.origin === 'bot')) && ['user','assistant'].includes(m.role) && typeof m.text === 'string' ? [m] : []; } catch { return []; } });
     if (conversation.length > 2000) fail('Conversation exceeds 2,000 messages. Export without the conversation.');
   }
   return validatePackage({ format: 'metor-bot', version: 1, bot: { ...bot, title: bot.title ?? bot.name }, files, directories: tree.directories, routines: rs, conversation, handoff: options.handoff ?? '' });

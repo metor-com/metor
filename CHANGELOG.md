@@ -7,6 +7,20 @@ decisions in `knowledge/decisions/`.
 
 ## [Unreleased]
 
+- **Space notification preference:** Manage Space → General can mute bot-to-bot result and blockage notifications across devices. Enabled by default; communication continues and muted alerts are not replayed.
+
+- **Bots work together across runtimes:** Claude, Codex, Gemini and Copilot share the local
+  `metor` tools for messaging and assignments. Results, blockages and shared-file links appear
+  in chat; important updates use existing client/push notifications. Paused bots keep queued work,
+  sleeping bots wake through RAM admission, and user turns take priority over queued bot traffic.
+  Durable assignment/event records and stable inbox IDs recover interrupted deliveries without
+  claiming exactly-once execution of external actions.
+
+- **Event routine foundation:** routines can use normalized event triggers in addition to cron.
+  Event sources write to a durable local journal; matching wakes use the existing bot inbox and
+  are deduplicated per bot and routine. The routine tool and panel understand event triggers;
+  provider-specific sources follow separately.
+
 - **Portable bots:** export a compressed ZIP with all bot files (or none) and optional conversation context, import into local or remote Spaces, or create an independent copy. Conversations use `conversation.jsonl`, preserving timestamps and restoring visible chat history on import. The export dialog closes after saving. Import has an explicit file picker button and stays responsive while checking a package. Runtime credentials and sessions are excluded; imported bots and routines start paused.
 
 - **Manage server** under Manage Space shows Docker diagnostics and upgrades older official releases to the app version through temporary SSH access, with confirmation and recovery on failed startup.

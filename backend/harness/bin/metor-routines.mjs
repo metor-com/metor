@@ -1,8 +1,9 @@
+import { appendDurable } from './metor-durable.mjs';
 // metor-routines – routines store + schedule logic (ADR-0010).
 // State: <bot>/.metor/routines.json (machine-readable, workspace-bound) + runs.jsonl (history).
 // Written by the MCP tool (metor-routines-mcp.mjs), scheduled by the supervisor (metor.mjs),
 // read by the gateway for the panel. Schedule format: standard cron (5 fields), box local time.
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -17,7 +18,10 @@ export function readRoutines(botsDir, bot) {
 }
 export function writeRoutines(botsDir, bot, routines) {
   mkdirSync(join(botsDir, bot, ".metor"), { recursive: true });
-  writeFileSync(routinesFile(botsDir, bot), JSON.stringify({ v: 1, routines }, null, 2) + "\n");
+  const file = routinesFile(botsDir, bot), tmp = `${file}.${randomUUID()}.tmp`;
+  // An event planner must see the old or new catalogue, never an in-progress truncate/write.
+  writeFileSync(tmp, JSON.stringify({ v: 1, routines }, null, 2) + "\n", { flush: true });
+  renameSync(tmp, file);
 }
 export function addRoutine(botsDir, bot, { name, cron, prompt }) {
   const routines = readRoutines(botsDir, bot);
@@ -27,8 +31,21 @@ export function addRoutine(botsDir, bot, { name, cron, prompt }) {
   const next = nextRun(parsed, new Date());
   if (!next) return { error: NEVER_MATCHES(cron) };
   if (typeof prompt !== "string" || !prompt.trim()) return { error: "prompt missing" };
-  const r = { id: randomUUID().slice(0, 8), name: String(name ?? "").slice(0, 60) || "Routine", cron, prompt: prompt.trim(),
+  const r = { id: randomUUID().slice(0, 8), name: String(name ?? "").slice(0, 60) || "Routine", cron,
+    trigger: { type: "cron", schedule: cron }, prompt: prompt.trim(),
     enabled: true, createdAt: new Date().toISOString(), lastRunAt: null, nextRunAt: next.toISOString() };
+  writeRoutines(botsDir, bot, [...routines, r]);
+  return { routine: r };
+}
+export function addEventRoutine(botsDir, bot, { name, source, event, match, prompt }) {
+  const routines = readRoutines(botsDir, bot);
+  if (routines.length >= MAX_ROUTINES) return { error: `At most ${MAX_ROUTINES} routines per bot` };
+  if (typeof source !== "string" || !source.trim() || typeof event !== "string" || !event.trim()) return { error: "source and event are required" };
+  if (match !== undefined && (!match || typeof match !== "object" || Array.isArray(match))) return { error: "match must be an object" };
+  if (typeof prompt !== "string" || !prompt.trim()) return { error: "prompt missing" };
+  const r = { id: randomUUID().slice(0, 8), name: String(name ?? "").slice(0, 60) || "Routine",
+    trigger: { type: "event", source: source.trim().slice(0, 80), event: event.trim().slice(0, 120), ...(match ? { match } : {}) },
+    prompt: prompt.trim(), enabled: true, createdAt: new Date().toISOString(), lastRunAt: null, nextRunAt: null };
   writeRoutines(botsDir, bot, [...routines, r]);
   return { routine: r };
 }
@@ -42,7 +59,7 @@ export function updateRoutine(botsDir, bot, { id, name, cron, prompt, enabled } 
     if (!parsed) return { error: `Invalid cron expression: ${cron} (expected 5 fields, e.g. "0 7 * * *")` };
     const next = nextRun(parsed, new Date());
     if (!next) return { error: NEVER_MATCHES(cron) };
-    r.cron = cron; r.nextRunAt = next.toISOString();
+    r.cron = cron; r.trigger = { type: "cron", schedule: cron }; r.nextRunAt = next.toISOString();
   }
   if (name !== undefined) r.name = String(name).slice(0, 60) || r.name;
   if (prompt !== undefined) {
@@ -53,10 +70,13 @@ export function updateRoutine(botsDir, bot, { id, name, cron, prompt, enabled } 
     r.enabled = !!enabled;
     if (r.enabled) {
       // Resuming counts from now: no catching up of the pause time, auto-pause counter reset
-      const parsed = parseCron(r.cron);
-      const next = parsed && nextRun(parsed, new Date());
-      if (!next) return { error: NEVER_MATCHES(r.cron) };
-      r.nextRunAt = next.toISOString();
+      if (r.trigger?.type === "event") r.nextRunAt = null;
+      else {
+        const parsed = parseCron(r.cron);
+        const next = parsed && nextRun(parsed, new Date());
+        if (!next) return { error: NEVER_MATCHES(r.cron) };
+        r.nextRunAt = next.toISOString();
+      }
       delete r.pausedReason; r.unattendedRuns = 0;
     }
   }
@@ -70,7 +90,7 @@ export function removeRoutine(botsDir, bot, id) {
   return { removed: id };
 }
 export function recordRun(botsDir, bot, routine, turn = {}) {
-  appendFileSync(runsFile(botsDir, bot), JSON.stringify({ id: turn.runId ?? randomUUID().slice(0, 8), turnId: turn.id, routineId: routine.id, name: routine.name, ts: new Date().toISOString() }) + "\n");
+  appendDurable(botsDir, runsFile(botsDir, bot), { id: turn.runId ?? randomUUID().slice(0, 8), turnId: turn.id, routineId: routine.id, name: routine.name, ts: new Date().toISOString(), ...(turn.trigger ? { trigger: turn.trigger } : {}), ...(turn.eventId ? { eventId: turn.eventId } : {}) }, true);
 }
 export function readRuns(botsDir, bot, { limit = RUNS_KEEP } = {}) {
   try {
@@ -99,6 +119,8 @@ export function dueRoutines(botsDir, bot, now = new Date(), fire = () => {}) {
   const pause = (r, reason) => { r.enabled = false; r.pausedReason = reason; paused.push({ ...r }); changed = true; };
   for (const r of routines) {
     if (!r.enabled) continue;
+    // Event routines are fired by metor-trigger-events.mjs, never by the clock tick.
+    if (r.trigger?.type && r.trigger.type !== "cron") continue;
     const parsed = parseCron(r.cron);
     if (!parsed) { pause(r, `the schedule "${r.cron}" is not a valid cron expression`); continue; }
     if (!r.nextRunAt) {

@@ -1,5 +1,7 @@
 # Design: bot collaboration – messages, assignments, helper bots, groups
 
+> Local messaging and assignments are now implemented in [ADR-0035](../decisions/0035-local-bot-collaboration.md). Its tool contract and recovery semantics supersede these draft details. Groups/helper bots remain draft work.
+
 Status: **concept, not decided** (2026-09-05) · becomes ADRs when work starts (one per stage) ·
 supersedes [crew-messaging-groups.md](crew-messaging-groups.md) (kept for the group details) ·
 related: ADR-0002 (one computer for all bots), ADR-0004 (the box is the sandbox), ADR-0010

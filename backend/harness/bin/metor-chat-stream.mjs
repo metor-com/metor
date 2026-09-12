@@ -1,10 +1,11 @@
+import { transaction, appendOnce, appendDurable, stableId } from './metor-durable.mjs';
 import { event } from "./metor-events.mjs";
 // metor-chat-stream – gateway side of the stream harness (ADR-0009).
 // Send = user entry in chat.jsonl + line in inbox.jsonl (read by the metor-agent-host).
 // Live events = file tail on the chat.jsonl of all stream bots (the host writes them).
 // readHistory is the shared history reader for BOTH harness modes (passthrough:
 // extra fields like kind/tool/permission survive the reload; status/patch are folded in).
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { isIpcHarness } from "./metor-harness.mjs";
@@ -16,20 +17,24 @@ const now = () => new Date().toISOString();
 // Attachments (uploads from the UI) live as files under <bot>/uploads/ – the history keeps
 // the metadata for rendering, the bot gets the absolute paths in the turn text (the harness
 // reads images itself with the Read tool; this way it also works for Codex & co.).
-export function injectTurn(botsDir, bot, text, { origin, attachments, command, routine } = {}) {
-  const id = randomUUID();
+export function injectTurn(botsDir, bot, text, { origin, attachments, command, routine, id = randomUUID(), collaboration } = {}) {
   const metorDir = join(botsDir, bot, ".metor");
   mkdirSync(metorDir, { recursive: true });
-  const run = routine ? { runId: randomUUID(), routineId: routine.id } : {};
-  const atts = sanitizeAttachments(attachments);
-  appendFileSync(join(metorDir, "chat.jsonl"), JSON.stringify({ v: 1, id, ts: now(), role: "user", ...(command ? { command, origin: "harness" } : {}), ...(origin ? { origin } : {}), ...(atts ? { attachments: atts } : {}), text, status: "sending" }) + "\n");
-  const turnText = [String(text ?? "").trim(),
-    ...(atts ?? []).map((a) => `[Attachment${a.image ? " (image)" : ""}: ${join(botsDir, bot, a.path)}]`)].filter(Boolean).join("\n\n");
-  appendFileSync(join(metorDir, "inbox.jsonl"), JSON.stringify({ kind: "user", id, ts: now(), origin, ...run, text: turnText, ...(command ? { command } : {}) }) + "\n");
-  // Stamp real user messages (not routine fires): anchor for the routines auto-pause
-  if (!origin) { try { writeFileSync(join(metorDir, "last-user.json"), JSON.stringify({ ts: now() }) + "\n"); } catch {} }
-  event(metorDir, routine ? "routine.queued" : "turn.queued", { ...run, turnId: id, reason: routine ? (origin === "routine" ? "schedule" : "manual") : "message" });
-  return { id, ...run };
+  const run = routine ? { runId: stableId(id, "run"), routineId: routine.id } : {};
+  return transaction(botsDir, store => {
+    const receipt = stableId(bot, id);
+    if (store.get("injected", receipt)) return { id, ...run };
+    const atts = sanitizeAttachments(attachments);
+    appendOnce(join(metorDir, "chat.jsonl"), { v: 1, id, ts: now(), role: "user", ...(command ? { command, origin: "harness" } : {}), ...(origin ? { origin } : {}), ...(atts ? { attachments: atts } : {}), text, collaboration, status: "sending" });
+    const turnText = [String(text ?? "").trim(),
+      ...(atts ?? []).map((a) => `[Attachment${a.image ? " (image)" : ""}: ${join(botsDir, bot, a.path)}]`)].filter(Boolean).join("\n\n");
+    appendOnce(join(metorDir, "inbox.jsonl"), { kind: "user", id, ts: now(), origin, collaboration, ...run, text: turnText, ...(command ? { command } : {}) });
+    // Stamp real user messages (not routine fires): anchor for the routines auto-pause
+    if (!origin) { try { writeFileSync(join(metorDir, "last-user.json"), JSON.stringify({ ts: now() }) + "\n"); } catch {} }
+    event(metorDir, routine ? "routine.queued" : "turn.queued", { ...run, turnId: id, reason: routine ? (origin === "routine" ? "schedule" : "manual") : "message" });
+    store.put("injected", receipt, { id });
+    return { id, ...run };
+  });
 }
 // Only files below uploads/ (no path escape), metadata reduced to the essentials
 function sanitizeAttachments(list) {
@@ -54,6 +59,7 @@ export function readHistory(botsDir, bot, { limit = 200 } = {}) {
       if (t && e.tool) t.tool = { ...t.tool, ...e.tool };
       continue;
     }
+    if (e.id && byId.has(e.id)) continue;
     const entry = { ...e };
     entries.push(entry); if (e.id) byId.set(e.id, entry);
   }
@@ -78,14 +84,14 @@ export function createStreamChat({ botsDir } = {}) {
 
   function interrupt(bot) {
     if (!existsSync(join(botsDir, bot, "bot.json"))) return { error: `Bot ${bot} does not exist` };
-    appendFileSync(join(botsDir, bot, ".metor", "inbox.jsonl"), JSON.stringify({ kind: "interrupt", ts: now() }) + "\n");
+    appendDurable(botsDir, join(botsDir, bot, ".metor", "inbox.jsonl"), { kind: "interrupt", ts: now() });
     return { accepted: true };
   }
 
   function answerPermission(bot, ref, decision) {
     if (!existsSync(join(botsDir, bot, "bot.json"))) return { error: `Bot ${bot} does not exist` };
     if (typeof ref !== "string" || !["allow", "deny"].includes(decision)) return { error: "ref/decision missing" };
-    appendFileSync(join(botsDir, bot, ".metor", "inbox.jsonl"), JSON.stringify({ kind: "permission-answer", ref, decision, ts: now() }) + "\n");
+    appendDurable(botsDir, join(botsDir, bot, ".metor", "inbox.jsonl"), { kind: "permission-answer", ref, decision, ts: now() });
     return { accepted: true };
   }
 
@@ -106,7 +112,7 @@ export function createStreamChat({ botsDir } = {}) {
   // request of the interface). Only the tail of the history is scanned – 64 KB is hundreds of
   // entries – and grown until it reaches an entry older than the read mark; cached per file state.
   const summaries = new Map();
-  const isMessage = (e) => e && !e.type && (e.role === "user" || (e.role === "assistant" && (e.kind === "text" || e.kind === "permission" || e.kind === "error")));
+  const isMessage = (e) => e && !e.type && (e.role === "user" || (e.role === "assistant" && (e.kind === "text" || e.kind === "permission" || e.kind === "error" || (e.kind === "notice" && e.origin === "bot"))));
   const preview = (e) => {
     const text = String(e.text ?? "").replace(/```[\s\S]*?```/g, " ").replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*_`#>|]+/g, "").replace(/\s+/g, " ").trim();
     if (text) return text.slice(0, 160);
@@ -140,8 +146,8 @@ export function createStreamChat({ botsDir } = {}) {
         // an approval still waits while no patch has recorded its decision (the patch follows the card, so it is in the tail)
         const pending = last?.kind === "permission" && !entries.some((e) => e.type === "patch" && e.ref === last.id && e.permission?.status && e.permission.status !== "pending");
         value = { lastMessageAt: last ? Date.parse(last.ts) : null,
-          lastMessage: last ? { who: last.role === "user" ? "you" : last.kind === "permission" ? "approval" : last.kind === "error" ? "error" : "bot", text: preview(last), ...(pending ? { pending: true } : {}) } : null,
-          unread: msgs.filter((e) => e.role === "assistant" && Date.parse(e.ts) > read).length };
+          lastMessage: last ? { who: last.role === "user" ? (last.origin === "bot" ? "bot" : "you") : last.kind === "permission" ? "approval" : last.kind === "error" ? "error" : "bot", text: preview(last), ...(pending ? { pending: true } : {}) } : null,
+          unread: msgs.filter((e) => (e.role === "assistant" || (e.role === "user" && e.origin === "bot")) && Date.parse(e.ts) > read).length };
         break;
       }
       chunk *= 4;
@@ -168,15 +174,16 @@ export function createStreamChat({ botsDir } = {}) {
       }
       const file = join(botsDir, bot, ".metor", "chat.jsonl");
       let size; try { size = statSync(file).size; } catch { continue; }
-      if (!offsets.has(file)) { offsets.set(file, { offset: size, rest: "" }); continue; }
+      if (!offsets.has(file)) { offsets.set(file, { offset: size }); continue; }
       const st = offsets.get(file);
-      if (size < st.offset) { st.offset = 0; st.rest = ""; }
+      if (size < st.offset) st.offset = 0;
       if (size === st.offset) continue;
       const fd = openSync(file, "r");
       const buf = Buffer.alloc(size - st.offset);
       readSync(fd, buf, 0, buf.length, st.offset); closeSync(fd);
-      st.offset = size;
-      const lines = (st.rest + buf.toString("utf8")).split("\n"); st.rest = lines.pop() ?? "";
+      const end = buf.lastIndexOf(10); if (end < 0) continue;
+      st.offset += end + 1;
+      const lines = buf.subarray(0, end).toString("utf8").split("\n");
       for (const line of lines) {
         if (!line.trim()) continue;
         let e; try { e = JSON.parse(line); } catch { continue; }

@@ -61,6 +61,7 @@ export async function uploadAvatar(name, file) {
 }
 export const resetAvatar = (name) => req("DELETE", `/agents/${name}/avatar`);
 export const fileUrl = (name, path) => `${base()}/agents/${name}/chat/file?path=${encodeURIComponent(path)}`;
+export const sharedFileUrl = (name, path) => `${fileUrl(name, path)}&shared=1`;
 export const listFiles = (name, path = "") => req("GET", `/agents/${name}/files?path=${encodeURIComponent(path)}`);
 export const chatPermission = (name, ref, decision) => req("POST", `/agents/${name}/chat/permission`, { ref, decision });
 export const listRoutines = (name) => req("GET", `/agents/${name}/routines`);
@@ -84,6 +85,7 @@ export const listBotEvents = (name) => req("GET", `/agents/${name}/events`);
 export const spaceMemory = () => req("GET", "/memory");
 
 export const spaceInfo = () => req("GET", "/space");
+export const updateSpace = (patch) => req("PUT", "/space", patch);
 export const renameSpace = (name) => req("PUT", "/space", { name });
 
 async function packageRequest(path, body, zipResponse = false, signal) {

@@ -59,7 +59,7 @@ export const HARNESSES = {
       const cfg = JSON.parse(readFileSync(join(templatesDir, "mcp.json"), "utf8")
         .replaceAll("{{NAME}}", bot.name).replaceAll("{{CDP_PORT}}", String(p.cdp)));
       // Connectors from Settings (ADR-0014) join the built-in servers; built-ins win on a key clash
-      cfg.mcpServers = { ...claudeServers(bot), ...cfg.mcpServers };
+      cfg.mcpServers = { ...claudeServers(bot), ...cfg.mcpServers, metor: { command: "node", args: ["/usr/local/lib/metor/metor-collaboration-mcp.mjs", bot.name] } };
       writeFileSync(join(dir, "mcp.json"), JSON.stringify(cfg, null, 2) + "\n");
     },
     needsTrustDir: true,
@@ -171,6 +171,7 @@ HARNESSES.gemini = {
     mkdirSync(join(dir, ".gemini"), { recursive: true });
     const builtIn = {
       browser: { command: "node", args: ["/usr/local/lib/metor/metor-browser-mcp.mjs", bot.name, "--cdp-endpoint", `http://127.0.0.1:${p.cdp}`, "--output-dir", `/workspace/bots/${bot.name}/.browser-output`, "--image-responses", "allow"], trust: true },
+      metor: { command: "node", args: ["/usr/local/lib/metor/metor-collaboration-mcp.mjs", bot.name], trust: true },
       routines: { command: "node", args: ["/usr/local/lib/metor/metor-routines-mcp.mjs", bot.name], trust: true },
     };
     writeFileSync(join(dir, ".gemini", "settings.json"), JSON.stringify({ mcpServers: { ...geminiServers(bot), ...builtIn } }, null, 2) + "\n");
@@ -279,6 +280,7 @@ HARNESSES.copilot = {
     // the bot's browser is the server "playwright" here (tools playwright-browser_navigate …)
     const builtIn = {
       playwright: { type: "local", command: "node", args: ["/usr/local/lib/metor/metor-browser-mcp.mjs", bot.name, "--cdp-endpoint", `http://127.0.0.1:${p.cdp}`, "--output-dir", `/workspace/bots/${bot.name}/.browser-output`, "--image-responses", "allow"], tools: ["*"] },
+      metor: { type: "local", command: "node", args: ["/usr/local/lib/metor/metor-collaboration-mcp.mjs", bot.name], tools: ["*"] },
       routines: { type: "local", command: "node", args: ["/usr/local/lib/metor/metor-routines-mcp.mjs", bot.name], tools: ["*"] },
     };
     writeFileSync(join(dir, ".copilot", "mcp-config.json"), JSON.stringify({ mcpServers: { ...copilotServers(bot), ...builtIn } }, null, 2) + "\n");

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { claimNotifications, validateFiles } from './metor-collaboration.mjs';
 // metor gateway – one port for UI, API and all bot screens.
 //   GET /bots/                      → UI (static frontend build; fallback: mini page)
 //   *   /bots/api/…                 → JSON API + one SSE stream (topics: agents, chat:<name>)
@@ -35,16 +36,22 @@ const BASE = (process.env.METOR_WATCH_BASE ?? "").replace(/\/$/, "");
 const FRONTEND_DIR = process.env.METOR_FRONTEND_DIR ?? "/usr/local/lib/metor/frontend";
 const spaceFile = join(process.env.METOR_AUTH_DIR ?? join(process.env.METOR_WORKSPACE_DIR ?? "/workspace", ".metor"), "space.json");
 function spaceInfo() {
-  try { return { name: JSON.parse(readFileSync(spaceFile, "utf8")).name ?? "Space" }; }
-  catch (e) { if (e.code !== "ENOENT") throw e; return { name: "Space" }; }
+  try { const value = JSON.parse(readFileSync(spaceFile, "utf8")); return { ...value, name: value.name ?? "Space", botToBotNotifications: value.botToBotNotifications !== false }; }
+  catch (e) { if (e.code !== "ENOENT") throw e; return { name: "Space", botToBotNotifications: true }; }
 }
-function saveSpace(name) {
+function saveSpace(patch) {
+  const previous = spaceInfo(), value = { ...previous, ...patch };
+  // Discard pending alerts on either toggle edge; re-enabling never replays muted alerts.
+  if (Object.hasOwn(patch, "botToBotNotifications") && patch.botToBotNotifications !== previous.botToBotNotifications) {
+    claimNotifications(BOTS_DIR);
+    if (patch.botToBotNotifications) value.botToBotNotificationsEnabledAt = new Date().toISOString();
+  }
   mkdirSync(dirname(spaceFile), { recursive: true });
   const tmp = `${spaceFile}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify({ name }) + "\n", { mode: 0o600 });
+  writeFileSync(tmp, JSON.stringify(value) + "\n", { mode: 0o600, flush: true });
   renameSync(tmp, spaceFile);
-  sseEmit("space", "space", { name });
-  return { name };
+  sseEmit("space", "space", value);
+  return value;
 }
 // Version: VERSION file next to this script in the image, repo root in a checkout (as in metor.mjs)
 const VERSION = (() => {
@@ -236,10 +243,12 @@ streamChat.subscribe(({ bot, entry }) => {
     const p = entry.permission;
     // ref = the permission card's entry id: a phone answers it from the notification (POST …/chat/permission, ADR-0017)
     notifyPush("approval", bot, { title: `${titleOf(bot)}: approval needed`, body: excerpt(p.reason ? `${p.title ?? p.tool} – ${p.reason}` : (p.title ?? p.tool ?? entry.text)), ref: entry.id });
-  } else if (entry.role === "assistant" && entry.kind === "text" && entry.text?.trim()) turnText.set(bot, entry.text);
+  } else if (entry.role === "assistant" && entry.kind === "text" && !["bot", "event"].includes(entry.origin) && entry.text?.trim()) turnText.set(bot, entry.text);
 });
 const lastStatus = new Map();
 setInterval(() => {
+  try { const preferences = spaceInfo(); for (const n of claimNotifications(BOTS_DIR)) if (preferences.botToBotNotifications && (!preferences.botToBotNotificationsEnabledAt || Date.parse(n.ts) > Date.parse(preferences.botToBotNotificationsEnabledAt))) notifyPush("reply", n.bot, { title: `${titleOf(n.bot)}: assignment update`, body: excerpt(n.text), ref: n.id }); }
+  catch (e) { console.error("collaboration notifications:", e.message); }
   const known = new Set();
   for (const b of bots()) {
     known.add(b.name);
@@ -314,9 +323,18 @@ async function api(req, res, url) {
   if (rest.length === 1 && rest[0] === "space") {
     if (req.method === "GET") return send(200, spaceInfo());
     if (req.method === "PUT") {
-      const body = await readBody(req), name = typeof body?.name === "string" ? body.name.trim() : "";
-      if (!name || name.length > 60 || /\p{Cc}/u.test(name)) return send(400, { error: "Use a Space name between 1 and 60 characters, without control characters." });
-      return send(200, saveSpace(name));
+      const body = await readBody(req), patch = {};
+      if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length || Object.keys(body).some(k => !["name", "botToBotNotifications"].includes(k))) return send(400, { error: "Invalid Space settings." });
+      if (Object.hasOwn(body, "name")) {
+        const name = typeof body.name === "string" ? body.name.trim() : "";
+        if (!name || name.length > 60 || /\p{Cc}/u.test(name)) return send(400, { error: "Use a Space name between 1 and 60 characters, without control characters." });
+        patch.name = name;
+      }
+      if (Object.hasOwn(body, "botToBotNotifications")) {
+        if (typeof body.botToBotNotifications !== "boolean") return send(400, { error: "Bot-to-bot notifications must be on or off." });
+        patch.botToBotNotifications = body.botToBotNotifications;
+      }
+      return send(200, saveSpace(patch));
     }
   }
 
@@ -507,14 +525,18 @@ async function api(req, res, url) {
     // browser profile and state live). Access like the whole API: behind the Caddy login.
     if (action === "chat" && rest[3] === "file" && (req.method === "GET" || req.method === "HEAD")) {   // HEAD: the phone app asks before it downloads
       const rel = String(u.searchParams.get("path") ?? "");
-      const file = safeBotPath(name, rel);
+      let file;
+      if (u.searchParams.get("shared") === "1") {
+        try { const [ref] = validateFiles(BOTS_DIR, [rel]); file = join(BOTS_DIR, "..", "shared", ref.path); }
+        catch { return send(404, { error: "shared file not found" }); }
+      } else file = safeBotPath(name, rel);
       if (!file || !existsSync(file) || !statSync(file).isFile()) return send(404, { error: "file not found" });
       const st = statSync(file);
       const ext = file.split(".").pop()?.toLowerCase();
       const headers = { "content-type": MIME[ext] ?? "application/octet-stream", "content-length": st.size,
         "x-content-type-options": "nosniff",
         // uploads/ carry a timestamp in the name (immutable), bot files can change; private: they sit behind the sign-in
-        "cache-control": rel.startsWith("uploads/") ? "private, max-age=31536000, immutable" : "no-store" };
+        "cache-control": !u.searchParams.has("shared") && rel.startsWith("uploads/") ? "private, max-age=31536000, immutable" : "no-store" };
       // A page or SVG written by a bot must not run with the rights of this interface: sandboxed it gets an
       // opaque origin, so its scripts reach neither the session cookie nor the API (a bot's HTML report may
       // still use scripts for its charts). Pictures, PDFs and downloads are not affected.

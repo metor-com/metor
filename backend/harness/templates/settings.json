@@ -10,31 +10,23 @@
       "Grep",
       "WebFetch",
       "WebSearch",
-      "ListAgents",
-      "SendMessage",
       "Agent",
       "TodoWrite",
       "mcp__browser__*",
-      "mcp__routines__*"
+      "mcp__routines__*",
+      "mcp__metor__*"
     ],
     "deny": [
       "Read(/workspace/bots/**/.claude/**)",
-      "Read(/home/box/.claude/**)"
+      "Read(/home/box/.claude/**)",
+      "ListAgents",
+      "SendMessage"
     ]
   },
   "crossSessionInbound": "accept",
   "isolatePeerMachines": true,
   "hooks": {
     "PreToolUse": [
-      {
-        "matcher": "SendMessage",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/usr/local/lib/metor/hooks/log-message.sh"
-          }
-        ]
-      },
       {
         "matcher": "CronCreate",
         "hooks": [

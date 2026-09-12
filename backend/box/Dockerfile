@@ -108,6 +108,11 @@ COPY backend/harness/bin/metor-runtime-manager.mjs /usr/local/lib/metor/metor-ru
 COPY backend/harness/bin/metor-agent-host.mjs /usr/local/lib/metor/metor-agent-host.mjs
 COPY backend/harness/bin/metor-routines.mjs /usr/local/lib/metor/metor-routines.mjs
 COPY backend/harness/bin/metor-routines-mcp.mjs /usr/local/lib/metor/metor-routines-mcp.mjs
+COPY backend/harness/bin/metor-durable.mjs /usr/local/lib/metor/metor-durable.mjs
+COPY backend/harness/bin/metor-collaboration.mjs /usr/local/lib/metor/metor-collaboration.mjs
+COPY backend/harness/bin/metor-collaboration-mcp.mjs /usr/local/lib/metor/metor-collaboration-mcp.mjs
+COPY backend/harness/bin/metor-trigger-envelope.mjs /usr/local/lib/metor/metor-trigger-envelope.mjs
+COPY backend/harness/bin/metor-trigger-events.mjs /usr/local/lib/metor/metor-trigger-events.mjs
 COPY backend/harness/templates /usr/local/lib/metor/templates
 COPY backend/harness/hooks /usr/local/lib/metor/hooks
 # The compose file that belongs to this image – the installer takes it from here, so image and compose never drift

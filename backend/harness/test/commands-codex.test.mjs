@@ -11,6 +11,7 @@ test('Codex sends the selected effort on turns and on a resumed conversation', a
   writeFileSync(join(dir, 'codex'), `#!${process.execPath}
     const {createInterface} = require('node:readline');
     const {appendFileSync} = require('node:fs');
+    require('node:fs').writeFileSync('argv.json',JSON.stringify(process.argv.slice(2)));
     const send = (m) => process.stdout.write(JSON.stringify(m) + '\\n');
     createInterface({input: process.stdin}).on('line', (line) => {
       const m = JSON.parse(line); if (m.id === undefined) return;
@@ -40,6 +41,9 @@ test('Codex sends the selected effort on turns and on a resumed conversation', a
       };
       try { await run(core); } finally { for (const fn of cleanups) fn(); }
     }
+    const argv = JSON.parse(readFileSync(join(dir, 'argv.json')));
+    assert.ok(argv.includes('mcp_servers.metor.command="node"'));
+    assert.ok(argv.includes('mcp_servers.metor.args=["/usr/local/lib/metor/metor-collaboration-mcp.mjs","probe"]'));
     assert.deepEqual(models[0].reasoningEfforts.map((e) => e.id), ['low', 'high']);
     assert.equal(models[0].defaultReasoningEffort, 'low');
     const requests = readFileSync(join(dir, 'requests.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);

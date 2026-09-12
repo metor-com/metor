@@ -1,5 +1,7 @@
 # Design sketch: bot-to-bot messaging (all runtimes) and group chats
 
+> Local messaging and assignments are now implemented in [ADR-0035](../decisions/0035-local-bot-collaboration.md). Its tool contract and recovery semantics supersede these draft details. Groups/helper bots remain draft work.
+
 Status: **draft, not decided** (2026-09-01) · superseded for messaging, assignments and helper
 bots by [bot-collaboration.md](bot-collaboration.md) (2026-09-05); stage B below stays the
 reference for groups · becomes an ADR when started · related:

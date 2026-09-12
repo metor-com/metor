@@ -1,5 +1,5 @@
 <script>
-  import { chatSend, chatPermission, uploadFile, fileUrl } from "../lib/api.js";
+  import { chatSend, chatPermission, uploadFile, fileUrl, sharedFileUrl } from "../lib/api.js";
   import { picture, openFile } from "../lib/media.js";   // pictures and files inside the phone app (session by fetch, system viewer)
   import SlashCommands from "./SlashCommands.svelte";
   import RuntimeSignIn from "./RuntimeSignIn.svelte";
@@ -193,9 +193,18 @@
         </div>
       {:else if e.role === "user"}
         <div class="flex min-w-0 justify-end">
-          <div class="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-white sm:max-w-[42rem] {e.origin === 'routine' ? 'bg-zinc-600' : 'bg-zinc-900'}">
+          <div class="min-w-0 max-w-[85%] rounded-2xl px-3.5 py-2.5 text-white sm:max-w-[min(85%,42rem)] {e.origin === 'routine' ? 'bg-zinc-600' : 'bg-zinc-900'}">
+            {#if e.origin === "bot"}<div class="mb-1 text-[11px] font-medium text-sky-200">From {e.collaboration?.sender ?? 'Bot'}{e.collaboration?.status ? ` · ${e.collaboration.status.replaceAll('_', ' ')}` : ''}</div>{/if}
+            {#if e.origin === "event"}<div class="mb-1 text-[11px] font-medium text-sky-200">Event routine</div>{/if}
             {#if e.origin === "routine"}<div class="mb-1 text-[10px] font-semibold tracking-wide text-zinc-300 uppercase">⏰ Routine</div>{/if}
             {#if e.command}<div class="mb-1 text-[11px] text-violet-200">{harnessLabel ?? 'Runtime'}</div>{/if}
+            {#if e.collaboration?.files?.length}
+              <div class="my-1.5 flex flex-wrap gap-1.5">
+                {#each e.collaboration.files as file}
+                  <a class="rounded border border-current/20 px-2 py-1 text-xs underline" href={sharedFileUrl(bot, file.path)} target="_blank" rel="noopener noreferrer" on:click={(ev) => openFile(ev, sharedFileUrl(bot, file.path), file.path.split('/').pop())}>Shared file: {file.path}</a>
+                {/each}
+              </div>
+            {/if}
             {#if e.attachments?.length}
               <div class="mb-1.5 flex flex-wrap gap-1.5 {e.text ? '' : 'mb-0'}">
                 {#each e.attachments as a}
@@ -218,15 +227,23 @@
         </div>
       {:else}
         <div class="flex min-w-0">
-          <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[42rem]">
+          <div class="min-w-0 max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[min(85%,42rem)]">
+            {#if e.origin === 'bot'}<div class="mb-1 text-[11px] font-medium text-sky-800">Bot collaboration</div>{/if}
             {#if e.origin === 'harness'}<div class="mb-1 text-[11px] font-medium text-violet-800">{harnessLabel ?? 'Runtime'}</div>{/if}
-            {#if e.text}<div class="chat-md">{@html renderMarkdown(e.text)}</div>{/if}
+            {#if e.text}<div class="chat-md [overflow-wrap:anywhere]">{@html renderMarkdown(e.text)}</div>{/if}
             {#if harness && i === rows.length - 1 && !partial && signInLost(e.text)}
               {#if signedInFor === e.id}
                 <p class="mt-2 text-[13px] text-emerald-700">Signed in again – send your message once more.</p>
               {:else}
                 <div class="mt-2.5"><RuntimeSignIn {harness} label={harnessLabel} intro={`The sign-in of ${harnessLabel ?? harness} has expired – sign in again, then send your message once more.`} onDone={() => (signedInFor = e.id)} /></div>
               {/if}
+            {/if}
+            {#if e.collaboration?.files?.length}
+              <div class="my-1.5 flex flex-wrap gap-1.5">
+                {#each e.collaboration.files as file}
+                  <a class="rounded border border-current/20 px-2 py-1 text-xs underline" href={sharedFileUrl(bot, file.path)} target="_blank" rel="noopener noreferrer" on:click={(ev) => openFile(ev, sharedFileUrl(bot, file.path), file.path.split('/').pop())}>Shared file: {file.path}</a>
+                {/each}
+              </div>
             {/if}
             {#if e.attachments?.length}
               <div class="flex flex-wrap gap-1.5 {e.text ? 'mt-2' : ''}">
@@ -246,15 +263,15 @@
     {/each}
     {#if partial}
       <div class="flex min-w-0">
-        <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 opacity-85 sm:max-w-[42rem]">
-          <div class="chat-md">{@html renderMarkdown(partial)}</div>
+        <div class="min-w-0 max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 opacity-85 sm:max-w-[min(85%,42rem)]">
+          <div class="chat-md [overflow-wrap:anywhere]">{@html renderMarkdown(partial)}</div>
           <div class="mt-1 text-[11px] text-zinc-400">{t("typing")}</div>
         </div>
       </div>
     {:else if working}
       <!-- The bot is at work: the dots, and the step it is on – a tap shows this run's steps so far -->
       <div class="flex min-w-0">
-        <div class="max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[42rem]">
+        <div class="min-w-0 max-w-[85%] rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 sm:max-w-[min(85%,42rem)]">
           <Typing cls="text-zinc-500" />
           {#if currentStep}
             <button class="mt-1 flex w-full min-w-0 items-baseline gap-2 text-left text-[12px] text-zinc-400 hover:text-zinc-600" title={t("showSteps")} on:click={() => toggleGroup(liveGroup.id)}>

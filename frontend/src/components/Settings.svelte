@@ -13,13 +13,21 @@
   import Connectors from "./Connectors.svelte";
   import Switch from "./Switch.svelte";
   import { settings, update } from "../lib/settings.js";
-  import { versionInfo, spaceInfo, renameSpace } from "../lib/api.js";
+  import { versionInfo, spaceInfo, renameSpace, updateSpace } from "../lib/api.js";
   export let onDone;
   export let mode = "app";
   export let spaceName = "Space";
   // Computer: metor's version, the newest release, the runtimes the box carries (all from /bots/api/version)
   let info = null, infoError = null, nameDraft = "", nameLoaded = false, nameBusy = false, nameError = null, nameSaved = false, nameDirty = false;
   $: if (nameLoaded && !nameDirty && $space?.name) nameDraft = $space.name;
+  let notificationsBusy = false, notificationsError = null;
+  async function saveNotifications(enabled) {
+    if (!nameLoaded || notificationsBusy) return;
+    notificationsBusy = true; notificationsError = null;
+    try { space.set(await updateSpace({ botToBotNotifications: enabled })); }
+    catch (e) { notificationsError = e.message; }
+    finally { notificationsBusy = false; }
+  }
   async function saveName() {
     nameBusy = true; nameError = null; nameSaved = false;
     try { const value = await renameSpace(nameDraft); space.set(value); nameDraft = value.name; nameDirty = false; nameSaved = true; }
@@ -35,7 +43,7 @@
   export let tab = mode === "admin" ? "general" : "appearance";
   let open = false;   // phone: a section is open (list hidden)
   const ALL_SECTIONS = [
-    { id: "general", label: "General", hint: "Space name on all devices", icon: "M4 4h16v16H4zM8 8h8M8 12h6" },
+    { id: "general", label: "General", hint: "Space name and bot notifications", icon: "M4 4h16v16H4zM8 8h8M8 12h6" },
     { id: "devices", label: "My devices & notifications", hint: "Your access to this Space",
       icon: "M8 3h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM11 18h2" },
     { id: "connectors", label: "Connectors", hint: "MCP servers for every bot",
@@ -103,6 +111,12 @@
             {#if nameError}<p role="alert" class="text-sm text-red-600">{nameError}</p>{/if}
             {#if nameSaved}<p role="status" class="text-sm text-zinc-500">Name saved on this Space.</p>{/if}
           </form>
+          <div class="mt-7 flex items-center justify-between gap-6 border-t border-zinc-100 pt-6">
+            <div><div class="text-sm font-medium">Bot-to-bot notifications</div><p class="mt-0.5 text-[13px] text-zinc-500">Notify your devices about assignment results and blockages in this Space. Chats and approval requests remain available.</p></div>
+            <Switch checked={$space?.botToBotNotifications !== false} disabled={!nameLoaded || notificationsBusy} label="Bot-to-bot notifications" onChange={saveNotifications} />
+          </div>
+          {#if notificationsBusy}<p role="status" class="mt-2 text-xs text-zinc-500">Saving…</p>{/if}
+          {#if notificationsError}<p role="alert" class="mt-2 text-sm text-red-600">{notificationsError}</p>{/if}
         {:else if tab === "devices"}
           <Devices />
         {:else if tab === "connectors"}

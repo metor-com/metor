@@ -54,7 +54,8 @@ export async function run(core) {
       title: name,
       ...(bot.model ? { model: bot.model } : {}),         // model choice per bot (ADR-0011)
       extraArgs: { name, ...(existsSync(join(dir, "mcp.json")) ? { "mcp-config": join(dir, "mcp.json") } : {}) },
-      ...((a) => (a.length ? { allowedTools: a } : {}))(claudeAllowedTools(bot)),   // connectors without "ask first" (ADR-0014)
+      allowedTools: [...claudeAllowedTools(bot), "mcp__metor__*"],
+      disallowedTools: ["SendMessage", "ListAgents"], // Space communication goes through the durable metor bridge   // connectors without "ask first" (ADR-0014)
       ...(core.state.sessionId ? { resume: core.state.sessionId } : {}),
       env: { ...process.env, METOR_BOT: name, METOR_WATCH_URL: watchUrl },
       canUseTool,
