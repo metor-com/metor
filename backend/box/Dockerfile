@@ -98,6 +98,8 @@ COPY backend/harness/bin/metor-host-codex.mjs /usr/local/lib/metor/metor-host-co
 COPY backend/harness/bin/metor-host-gemini.mjs /usr/local/lib/metor/metor-host-gemini.mjs
 COPY backend/harness/bin/metor-host-copilot.mjs /usr/local/lib/metor/metor-host-copilot.mjs
 COPY backend/harness/bin/metor-setup.mjs /usr/local/lib/metor/metor-setup.mjs
+COPY backend/harness/bin/metor-bot-zip.mjs /usr/local/lib/metor/metor-bot-zip.mjs
+COPY backend/harness/bin/metor-bot-package.mjs /usr/local/lib/metor/metor-bot-package.mjs
 COPY backend/harness/bin/metor-gateway.mjs /usr/local/lib/metor/metor-gateway.mjs
 COPY backend/harness/bin/metor-chat-stream.mjs /usr/local/lib/metor/metor-chat-stream.mjs
 COPY backend/harness/bin/metor-memory.mjs /usr/local/lib/metor/metor-memory.mjs

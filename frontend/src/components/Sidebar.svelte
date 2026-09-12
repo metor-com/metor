@@ -17,6 +17,7 @@
   export let quota = null;
   export let onSelect;
   export let onCreated;
+  export let onImport;
   export let title = null;             // App.svelte: another computer's name while its list slides in before the switch
   // Native clients (ADR-0015, knowledge/design/several-computers.md): the head names the computer shown,
   // centred next to a back arrow that leads to the overview of all computers; the ⋮ menu holds what
@@ -69,6 +70,7 @@
         </button>
         {#if menuOpen}
           <div class="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg">
+            <button class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; onImport(); }}>Import Bot…</button>
             <button class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; openAdministration($gateway); }}>Manage Space</button>
             {#if inApp}<button class="block w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-zinc-50" on:click={() => { menuOpen = false; forgetComputer(); }}>Remove from my overview</button>{/if}
             {#if !inApp}<button class="block w-full px-4 py-2.5 text-left text-sm hover:bg-zinc-50" on:click={() => { menuOpen = false; settingsMode = 'app'; showSettings = true; }}>App settings</button>{/if}

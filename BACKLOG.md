@@ -37,7 +37,7 @@ Context and rules: [CLAUDE.md](CLAUDE.md).
   diagnostics and release upgrade tests now pass on an isolated Ubuntu 24.04 ARM64 VM.
   Temporary SSH management (diagnostics and confirmed updates) is implemented (ADR-0032).
   Remaining: public DNS/ACME and provider-firewall failure acceptance, other supported Linux
-  versions and architectures, additional providers, non-root sudo, remote RAM changes and backups. Test the initial password-change
+  versions and architectures, additional providers, non-root sudo and remote RAM changes. Bot export/import is implemented for local and remote Spaces (ADR-0033). Test the initial password-change
   flow on a real provider. The onboarding explains provider-console passwords versus SSH access.
   Provider ordering and cloud-init/images remain later extensions.
 

@@ -116,7 +116,7 @@
     sending = false;
   }
   function onKey(e) { if (e.isComposing || slashPicker?.handleKey(e)) return; if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }
-  const time = (ts) => new Date(ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const time = (ts) => !ts || !Number.isFinite(Date.parse(ts)) ? "" : new Date(ts).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   // Sent messages that the bot has answered (an assistant reply follows them) – two green ticks
   $: answered = (() => {
     const ids = new Set(); let replied = false;

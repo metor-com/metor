@@ -7,6 +7,8 @@ decisions in `knowledge/decisions/`.
 
 ## [Unreleased]
 
+- **Portable bots:** export a compressed ZIP with all bot files (or none) and optional conversation context, import into local or remote Spaces, or create an independent copy. Conversations use `conversation.jsonl`, preserving timestamps and restoring visible chat history on import. The export dialog closes after saving. Import has an explicit file picker button and stays responsive while checking a package. Runtime credentials and sessions are excluded; imported bots and routines start paused.
+
 - **Manage server** under Manage Space shows Docker diagnostics and upgrades older official releases to the app version through temporary SSH access, with confirmation and recovery on failed startup.
 - **Deployment tests:** opt-in real Docker/Caddy recovery tests and real DNS, TCP and TLS diagnostics tests.
 

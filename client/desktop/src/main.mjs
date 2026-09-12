@@ -1,3 +1,4 @@
+import { saveBotPackage } from './bot-package-save.mjs';
 // metor desktop – the Electron shell around the interface (ADR-0015).
 // The renderer is the unchanged interface build (ui/), served from the app's own origin
 // app://metor. Every request to a connected computer gets that computer's session token added
@@ -553,6 +554,8 @@ handle("metor:local-status", () => localStatus());
 // Download a file of a connected computer: Chromium's download with the session's request hook (the token),
 // Electron's save dialog. The interface cannot do it with a plain link – across origins the download
 // attribute is ignored and the link would navigate instead.
+handle("metor:save-bot-package", (e, name, bytes) => saveBotPackage(name, bytes,
+  options => dialog.showSaveDialog(BrowserWindow.fromWebContents(e.sender), options)));
 handle("metor:download", (e, url) => { if (computerForUrl(String(url))) e.sender.downloadURL(String(url)); });
 handle("metor:local", (e, action, id) => localAction(String(action), BrowserWindow.fromWebContents(e.sender), id ? String(id) : null));
 on("metor:signed-out", (e) => {

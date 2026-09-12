@@ -1,4 +1,6 @@
 <script>
+  import BotPackage from "./components/BotPackage.svelte";
+  let packageDialog = null;
   // App shell: layout and view state only. Data (bot list, selection, live connection, chat
   // entries) lives in lib/session.js; the header, chat, computer panel and routines are components.
   import Sidebar from "./components/Sidebar.svelte";
@@ -99,7 +101,7 @@
         </div>
       {:else}
         <div class="flex h-full w-full flex-col" in:swap={{ dir: direction }} out:swap={{ dir: direction, out: true }}>
-          <Sidebar agents={switching ? switching.agents : $shown} title={switching?.name ?? null} selected={$selected} quota={$quota} onSelect={select} onCreated={created}
+          <Sidebar agents={switching ? switching.agents : $shown} title={switching?.name ?? null} selected={$selected} quota={$quota} onSelect={select} onCreated={created} onImport={() => (packageDialog = { mode: "import" })}
             computers={$computers} onComputers={app ? openComputers : null} />
         </div>
       {/if}
@@ -109,7 +111,7 @@
   {#if $selected || $isDesktop}
   <main class="flex min-w-0 flex-1 flex-col" in:swap={{ dir: direction, enabled: !$isDesktop }} out:swap={{ dir: direction, enabled: !$isDesktop, out: true }}>
     {#if $current}
-      <Header agent={$current} {pane}
+      <Header agent={$current} {pane} onPackage={(mode) => (packageDialog = { mode, bot: $current })}
         onToggleComputer={() => toggle("computer")} onToggleRoutines={() => toggle("routines")} onToggleEvents={() => toggle("events")} onBack={() => select(null)}
         {onAct} onPicture={() => (pictureOpen = true)} onInterrupt={() => interrupt().catch((e) => alert(e.message))} />
       {#if $current.waitingForMemory}
@@ -149,3 +151,7 @@
 {/if}
 
 {#if $administration}<Settings mode="admin" spaceName={$administration.name} onDone={() => administration.set(null)} />{/if}
+
+{#if packageDialog}
+  <BotPackage {...packageDialog} onDone={async (bot) => { packageDialog = null; if (bot) { await refresh(); select(bot.name); } }} />
+{/if}

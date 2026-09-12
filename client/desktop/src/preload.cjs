@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("metor", {
   use: (id) => ipcRenderer.invoke("metor:use", id),
   forget: (id) => ipcRenderer.invoke("metor:forget", id),
   signedOut: () => ipcRenderer.send("metor:signed-out"),
+  saveBotPackage: (name, bytes) => ipcRenderer.invoke("metor:save-bot-package", name, bytes),
   download: (url) => ipcRenderer.invoke("metor:download", url),   // a file of a connected computer, with the save dialog
   notify: (n) => ipcRenderer.send("metor:notify", { title: n?.title, body: n?.body, bot: n?.bot }),
   onOpenBot: (cb) => ipcRenderer.on("metor:open-bot", (_e, bot) => cb(bot)),

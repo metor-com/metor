@@ -4,6 +4,9 @@
 //   *   /bots/api/…                 → JSON API + one SSE stream (topics: agents, chat:<name>)
 //   *   /bots/<name>/…              → the bot's websockify/noVNC (HTTP + WebSocket)
 // Runs inside the computer on 0.0.0.0:6010; on the host published on 127.0.0.1 only, with Caddy + login in front.
+import { encodeBotZip, decodeBotZip } from "./metor-bot-zip.mjs";
+import { validatePackage, exportPackage, importPackage, PACKAGE_LIMIT } from "./metor-bot-package.mjs";
+import { hostAlive } from "./metor-lifecycle.mjs";
 import { createMemoryGuard } from "./metor-memory.mjs";
 const memoryGuard = createMemoryGuard();
 import { readEvents } from "./metor-events.mjs";
@@ -264,10 +267,49 @@ function readBody(req, limit = 65536) {
     req.on("error", () => done(null));
   });
 }
+function readPackageBody(req) {
+  return new Promise((done) => {
+    let chunks = [], size = 0;
+    req.on("data", (chunk) => { size += chunk.length; if (size <= PACKAGE_LIMIT) chunks.push(chunk); else chunks = []; });
+    req.on("end", () => { try { done(size <= PACKAGE_LIMIT ? Buffer.concat(chunks) : null); } catch { done(null); } });
+    req.on("error", () => done(null));
+    req.on("aborted", () => done(null));
+  });
+}
 async function api(req, res, url) {
   const send = (code, obj) => { res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(obj)); };
   const u = new URL(url, "http://gateway");
   const rest = u.pathname.split("/").filter(Boolean).slice(2); // after /bots/api/
+
+  if (rest[0] === "bot-packages" && rest.length === 2 && ["import", "inspect"].includes(rest[1]) && req.method === "POST") {
+    const body = await readPackageBody(req);
+    try {
+      if (!body) return send(400, { error: "Invalid package, or file exceeds 40 MiB." });
+      const pkg = validatePackage(decodeBotZip(body));
+      if (rest[1] === "inspect") return send(200, { title: pkg.bot.title, harness: pkg.bot.harness, files: pkg.files.length, routines: pkg.routines.length });
+      const title = u.searchParams.get("title") || pkg.bot.title;
+      const targetName = u.searchParams.get("name") || idFor(title);
+      if (creating.has(targetName)) return send(409, { error: "That bot is being created. Choose another name." });
+      const bot = importPackage(pkg, { title, name: targetName });
+      pushAgents().catch(() => {});
+      return send(201, { name: bot.name, title: bot.title });
+    } catch (e) { return send(400, { error: e.message }); }
+  }
+  if (rest[0] === "agents" && validName(rest[1]) && rest[2] === "package" && rest.length === 3) {
+    try {
+      const bot = readBot(rest[1]);
+      if (req.method === "POST") {
+        const body = await readBody(req, 1024 * 1024);
+        // Check after reading the request; no asynchronous gap between snapshot and copy.
+        if (readBot(bot.name).autostart !== false || hostAlive(bot) || streamChat.status(bot.name) !== "stopped")
+          return send(409, { error: "Pause this bot before exporting or duplicating it." });
+        if (!body) return send(400, { error: "Invalid export options." });
+        const archive = encodeBotZip(exportPackage(readBot(bot.name), body));
+        res.writeHead(200, { "content-type": "application/zip", "cache-control": "no-store", "content-disposition": `attachment; filename="${bot.name}.metor-bot.zip"` });
+        return res.end(archive);
+      }
+    } catch (e) { return send(400, { error: e.message }); }
+  }
 
   if (rest.length === 1 && rest[0] === "space") {
     if (req.method === "GET") return send(200, spaceInfo());

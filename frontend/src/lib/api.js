@@ -85,3 +85,15 @@ export const spaceMemory = () => req("GET", "/memory");
 
 export const spaceInfo = () => req("GET", "/space");
 export const renameSpace = (name) => req("PUT", "/space", { name });
+
+async function packageRequest(path, body, zipResponse = false, signal) {
+  let r;
+  try { r = await fetch(base() + path, { method: "POST", signal, headers: { "content-type": body instanceof Blob ? "application/zip" : "application/json" }, body: body instanceof Blob ? body : JSON.stringify(body) }); }
+  catch (e) { if (signal?.aborted) throw e; throw unreachable(); }
+  if (r.status === 401) signedOut();
+  if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? `HTTP ${r.status}`);
+  return zipResponse ? r.blob() : r.json();
+}
+export const exportBotPackage = (name, options) => packageRequest(`/agents/${name}/package`, options, true);
+export const inspectBotPackage = (archive, signal) => packageRequest("/bot-packages/inspect", archive, false, signal);
+export const importBotPackage = (archive, title, name) => packageRequest(`/bot-packages/import?${new URLSearchParams({ title, name })}`, archive);
